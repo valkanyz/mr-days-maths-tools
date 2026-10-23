@@ -25,6 +25,22 @@ The homepage adds search and course filters. Twelve new activities are served by
 
 Existing tools remain in `docs/dice-lab`, `docs/coin-lab`, `docs/equation-balance`, `docs/fraction-lab` and `docs/tree-lab`.
 
+## Classroom feedback update
+
+- Activity selector grouped by topic; inactive inputs hidden.
+- Function Lab: draggable tangent, sine/cosine/tangent, degrees/radians, π axis labels, discontinuity-safe tangent rendering and integrals.
+- Statistics: up to six parallel boxplots, outlier crosses or full-range whiskers, automatic/manual histogram width, integer frequency ticks.
+- Distribution: integer successes ticks; normal μ ± 1σ/2σ/3σ presets (approximately 68/95/99.7%).
+- Trigonometry: editable sides/angle, fixed-value constraints, separate unit circle controls, sine rule with both SSA solutions.
+- Finance: pointer readout and up to five simultaneous sequences.
+- Matrix presets: rotation, reflection, enlargement and shear; inverse transformation with singular-matrix validation.
+- Complex numbers: Cartesian/polar input, subtraction and conjugation.
+- Arrays: named outcomes directly in cells, with scrolling for large custom arrays.
+- Measurement: 2D/3D selector and shaded rotatable cuboids, cylinders and spheres.
+- Sampling: variable-face dice, fair coins and custom finite populations; changing settings resets samples.
+
+Triangle constraints: right triangles allow one fixed value; general triangles allow two. With no locks, side edits preserve A and angle edits preserve c. Inconsistent changes restore the prior triangle. General SSA editing retains the nearest prior solution; dedicated sine-rule mode exposes both solutions. Custom sampling treats each entered item as equally likely (repeated values provide weights), with replacement. The 3D view uses orthographic projection, with mathematically calculated areas and volumes.
+
 ## Local use
 
 Unzip the package. Open `docs/index.html` in Chrome or Edge. The pages also work through any static web server. If a browser restricts Web Crypto on a local file, use localhost or HTTPS for Sampling Lab.
@@ -60,7 +76,7 @@ The new tests cover independent expected values and identities for statistics, r
 - Normal probabilities use a numerical CDF approximation; displays are rounded.
 - Finance rates are per period. Interest is applied before end-of-period deposits/repayments. Fees and taxes are not modelled. Full precision is retained internally.
 - Networks are undirected with positive weights; one solution is shown when ties occur.
-- Sampling uses fair six-sided dice, replacement and a known population standard deviation. Normal confidence intervals use 1.96 and are approximate. The population mean is 3.5 and population variance is 35/12. Interval view shows the latest 30 samples; exports contain all retained samples (up to 10,000).
+- Sampling uses the selected finite population, replacement and its known population standard deviation. Normal confidence intervals use 1.96 and are approximate. For the default six-sided die the mean is 3.5 and population variance is 35/12. Interval view shows the latest 30 samples; exports contain all retained samples (up to 10,000).
 - Course tags are suggested classroom audiences, not a claim of full syllabus coverage. Teachers should select activities appropriate to their class.
 
 ## Curriculum references consulted
