@@ -31,3 +31,14 @@ console.log('PASS: descriptive statistics, regression, distributions, derivative
  near(M.stats([10,20,30]).mean,20);near(M.stats([10,20,30]).sd,Math.sqrt(200/3));
  console.log('PASS: radian/degree trig, asymptotes, SSS/SAS/AAS/ambiguous SSA, conjugation and custom population moments.');
 }
+{
+ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),M=require('../docs/labs/maths.js');
+ assert.deepEqual(M.stats([0,1,2,3,4,5,6,7,14]).outliers,[]);
+ assert.deepEqual(M.stats([0,1,2,3,4,5,6,7,14.1]).outliers,[14.1]);
+ assert.deepEqual(M.stats([-6,1,2,3,4,5,6,7,8]).outliers,[]);
+ assert.deepEqual(M.stats([-6.1,1,2,3,4,5,6,7,8]).outliers,[-6.1]);
+ const html=fs.readFileSync(require('node:path').join(__dirname,'../docs/labs/index.html'),'utf8'),fn=html.slice(html.indexOf('function chart('),html.indexOf('function curve('));
+ const context={fmt:String,esc:String};vm.createContext(context);vm.runInContext(fn+';this.chart=chart',context);
+ for(const bounds of [[0,10,0,3],[-2,2,-9,9],[0,100,0,.1]]){const g=context.chart(...bounds,'x','y',true);assert.ok(Math.abs((g.X(1)-g.X(0))-(g.Y(0)-g.Y(1)))<1e-8)}
+ console.log('PASS: strict 1.5 × IQR fences including exact-boundary cases; equal physical axis units.');
+}
