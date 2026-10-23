@@ -41,6 +41,15 @@ Existing tools remain in `docs/dice-lab`, `docs/coin-lab`, `docs/equation-balanc
 
 Triangle constraints: right triangles allow one fixed value; general triangles allow two. With no locks, side edits preserve A and angle edits preserve c. Inconsistent changes restore the prior triangle. General SSA editing retains the nearest prior solution; dedicated sine-rule mode exposes both solutions. Custom sampling treats each entered item as equally likely (repeated values provide weights), with replacement. The 3D view uses orthographic projection, with mathematically calculated areas and volumes.
 
+## Interaction refinements
+
+- Trigonometry uses equal physical axis units and a square grid, with a right-angle marker. Drag A, B or C in right/general triangle mode. The right angle and checked fixed values are preserved; the view fits all vertices on release. Sine-rule examples retain their given-data controls.
+- Measurement offers independent Show 2D and Show 3D switches, including simultaneous views with separate shape selections and shared dimensions/scale factor.
+- Function Lab adds zoom in/out, reset view, and independent horizontal/vertical view ranges.
+- Boxplot exports include Q1 − 1.5 IQR and Q3 + 1.5 IQR fences. Values exactly on either fence are not outliers; tests cover both boundaries.
+- Unit prices have a labelled zero-based dollar scale, selectable common quantity units, and optional third option C.
+- The former speed calculator is replaced by two journey comparisons: independent speeds, optional delayed start/stopping time, and a time slider on a shared distance–time graph.
+
 ## Local use
 
 Unzip the package. Open `docs/index.html` in Chrome or Edge. The pages also work through any static web server. If a browser restricts Web Crypto on a local file, use localhost or HTTPS for Sampling Lab.
