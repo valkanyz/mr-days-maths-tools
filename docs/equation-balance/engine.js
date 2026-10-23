@@ -2,7 +2,7 @@
 const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
 class Q{
  constructor(n,d=1){if(!Number.isSafeInteger(n)||!Number.isSafeInteger(d)||!d)throw Error('Number is too large. Undo a step or start again.');if(d<0){n=-n;d=-d}const g=gcd(n,d);this.n=n===0?0:n/g;this.d=d/g;if(Math.abs(this.n)>1e9||this.d>1e9)throw Error('Number is too large. Undo a step or start again.')}
- static of(v){if(v instanceof Q)return v;const s=String(v).trim();if(!/^-?\d+(\.\d{1,3})?$/.test(s))throw Error('Enter a number with up to 3 decimal places.');let d=s.includes('.')?10**s.split('.')[1].length:1;return new Q(Math.round(Number(s)*d),d)}
+ static of(v){if(v instanceof Q)return v;const s=String(v).trim().replace(/−/g,'-');if(/^[+-]?\d+\s*\/\s*[+-]?\d+$/.test(s)){const [n,d]=s.split('/').map(Number);if(!d)throw Error('A fraction cannot have a zero denominator.');return new Q(n,d)}if(!/^[+-]?\d+(\.\d{1,3})?$/.test(s))throw Error('Enter a number, decimal or fraction such as 1/2.');let d=s.includes('.')?10**s.split('.')[1].length:1;return new Q(Math.round(Number(s)*d),d)}
  add(v){v=Q.of(v);return new Q(this.n*v.d+v.n*this.d,this.d*v.d)} neg(){return new Q(-this.n,this.d)} sub(v){return this.add(Q.of(v).neg())} mul(v){v=Q.of(v);return new Q(this.n*v.n,this.d*v.d)} div(v){v=Q.of(v);if(!v.n)throw Error('Cannot divide by zero.');return new Q(this.n*v.d,this.d*v.n)} value(){return this.n/this.d} toString(){return this.d===1?String(this.n):`${this.n}/${this.d}`}
 }
 function side(a,b){return {a:Q.of(a),b:Q.of(b)}}
