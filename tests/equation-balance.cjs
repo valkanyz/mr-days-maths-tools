@@ -10,3 +10,8 @@ assert.throws(()=>apply(state,'divide',0));assert.throws(()=>apply(state,'multip
 assert.equal(solve(apply(s(2,3,0,11),'add',2,'constant','left')).x.value(),3);
 assert.equal(solve(s(3,0,0,1)).x.toString(),'1/3');
 console.log('PASS: exact fractions, formatting, 6,864 equivalent transformations, one-sided exploration, zero safeguards, unique/no/infinite solutions.');
+
+assert.equal(Q.of(' -3 / 4 ').toString(),'-3/4');assert.equal(Q.of('1/-2').toString(),'-1/2');assert.throws(()=>Q.of('1/0'));assert.throws(()=>Q.of('1/2/3'));
+let f=s('1/2','3/4',0,'11/4');f=apply(f,'subtract','3/4');assert.equal(f.r.b.toString(),'2');f=apply(f,'divide','1/2');assert.equal(expression(f.l),'x');assert.equal(expression(f.r),'4');
+assert.equal(apply(s(1,0,0,4),'multiply','1/3').l.a.toString(),'1/3');
+console.log('PASS: typed fractions, negative denominators, invalid fractions, fractional operations and exact simplification.');
