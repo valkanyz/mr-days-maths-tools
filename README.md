@@ -106,32 +106,36 @@ The new module `docs/labs/expansion.js` adds the following hash routes to the ex
 | #tiles | Signed draggable algebra tiles, zero pairs, rectangle expansion and square completion |
 | #angles | Parallel lines, draggable triangles and regular polygons |
 | #venn | Two/three named sets, draggable objects, linked A/B table and conditional events |
-| #simultaneous | Graphs, equivalent row operations, substitution, history and undo |
-| #pythagoras | Side squares, four-triangle area rearrangement and square-root number line |
+| #simultaneous | Guided elimination, generated problems, substitution and checking |
+| #pythagoras | Side squares, triple snapping and rigid four-triangle area rearrangement |
 | #numberline | Directed signed operations and open/closed inequalities |
 | #counting | Enumerated permutations/combinations with optional repetition |
-| #calculus | Secants, tangents, derivative curves, integration and accumulation |
+| #inequalities | Equivalent operations and number-line solutions |
+| #integration | Adjustable rectangle/trapezium strip widths |
+| #calculus | First-principles limit, polynomial expansion and simplification |
 | #vectors3 | Rotatable 3D vectors, projection, cross products and line/plane intersection |
 | #projects | Directed task networks, earliest/latest times, critical tasks and float |
 | #transitions | Two/three-category transition matrices and repeated population changes |
 | #inference | Repeated normal-population confidence intervals with known sigma |
-| #nets | Cuboid unfolding, cylinder nets and tilted cross-sections |
+| #nets | Six fully unfolding solids, including cylinder |
 
 The existing network, vector/matrix, statistics and measurement labs link directly to their extensions.
 
 ### Scope and conventions
 
-- Algebra rectangle presets use non-negative integer constants. Free tiles support signed coefficients and zero pairs; tile size is symbolic.
-- Venn objects have equal weight; the two-way table summarises A/B even with a third set. Three-way events are selectable.
-- Simultaneous equations accept decimal coefficients and use floating-point arithmetic. Non-zero row scaling preserves solutions; zero scaling is blocked.
-- Project networks accept up to 18 tasks, positive durations and arbitrary acyclic prerequisites; unlimited resources are assumed. Critical tasks are listed as a set, not necessarily one path.
-- Transition matrices are column-stochastic. Fractional populations are expectations. Convergence is not assumed.
-- Confidence-interval simulation draws exact normal sample means, equivalent to averaging independent normal observations; 90/95/99% z intervals assume known population sigma. Latest 60 intervals are graphed, up to 10,000 retained/exported.
-- Counting displays/exports the current page of 36 outcomes. Zero selections have one empty outcome.
-- The line in 3D plane mode passes through the origin. Dragging changes x/y at fixed z; z is editable. End-on views can make horizontal-plane dragging unavailable.
-- Nets cover cuboids and cylinders. Cylinder cuts must stay between end caps. During cuboid unfolding and area rearrangement, faces/triangles may overlap; endpoints are the meaningful configurations.
-- All new activities support reset, calculated-result visibility and CSV tables. Mobile layouts stack panels.
+- Algebra tiles stay on a bounded snap grid. Generated completing-square problems use even positive x coefficients; free tiles support signed expressions.
+- Angle diagrams use coloured arcs and independently selected relationships. Triangle vertices remain draggable.
+- Venn defaults to shaded events and region counts. Elements are assigned independently and uniformly among regions; optional objects are draggable. The table summarises A/B and highlights corresponding event cells.
+- Simultaneous equations is a guided elimination workshop with generated integer-solution problems and step reveals.
+- Linear inequalities applies reversible operations and automatically reverses signs for negative multiplication/division.
+- Pythagoras includes triple snapping and rigid triangle rearrangement. Cross-sections and the square-root number-line view have been removed.
+- Permutations/combinations shows formulas and appends outcomes in batches of 120 while scrolling. CSV exports outcomes loaded so far.
+- First principles expands custom polynomials up to degree 3. Numerical integration is separate, with adjustable widths, shortened final strips, signed areas and a 1,000-strip limit.
+- 3D vectors supports drag-to-orbit and a separate vector-tip editing mode.
+- Nets includes cube, cuboid, triangular/pentagonal prisms, square pyramid and cylinder. Every solid unfolds; the camera turns face-on at the flat endpoint. Intermediate surfaces may overlap.
+- Project networks has five editable examples, supports up to 18 tasks and assumes unlimited resources.
+- Transition matrices are column-stochastic; confidence intervals assume a normal population and known sigma.
 
-### Expansion verification
+### Verification
 
-`node tests/expansion.cjs` checks linear-system degeneracies, row-operation invariance, project float/cycles, transition population conservation/convergence, cross-product orthogonality, quadrature and counting. Browser checks cover all 13 default activities, alternate modes, zero-pair cancellation, substitution/undo, interval generation/reset, answer hiding and Venn dragging. Existing six test suites continue to pass.
+Run `node tests/expansion.cjs` and the other six test suites. Browser checks cover revised controls, all default activities, alternative nets, angle modes, Venn shading, triple selection, worked derivatives, signed inequalities and numerical integration.
