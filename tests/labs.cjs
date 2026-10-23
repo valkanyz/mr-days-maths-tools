@@ -6,3 +6,28 @@ near(M.finance(1000,.1,0,2,'compound').balance,1210);near(M.finance(1000,.1,0,2,
 near(M.dot([3,4],[-4,3]),0);near(M.norm([3,4]),5);A.deepEqual(M.complex([2,1],[1,1],'multiply'),[1,3]);A.deepEqual(M.complex([2,1],[1,1],'divide'),[1.5,-.5]);A.throws(()=>M.complex([1,2],[0,0],'divide'));for(const z of [[1,0],[2,3],[-4,0],[0,0]])for(let n=1;n<=12;n++)for(const r of M.roots(z,n)){const back=M.complex(r,[0,0],'power',n);near(back[0],z[0],1e-8);near(back[1],z[1],1e-8)}
 const edges=[['A','B',4],['A','C',2],['B','C',1],['B','D',5],['C','D',8],['C','E',10],['D','E',2],['D','F',6],['E','F',3]],G=M.network(edges,'A','F');A.equal(G.distance,13);A.equal(G.weight,13);A.equal(G.mst.length,5);A.equal(G.connected,true);const disconnected=M.network([['A','B',1],['C','D',2]],'A','D');A.equal(disconnected.distance,Infinity);A.equal(disconnected.connected,false);
 console.log('PASS: descriptive statistics, regression, distributions, derivatives/integrals, finance, vector products, complex roots, shortest paths and spanning trees.');
+// Regression checks for classroom feedback, 23 October 2026.
+{
+ const assert=require('node:assert/strict'),M=require('../docs/labs/maths.js'),near=(a,b,t=1e-8)=>assert.ok(Math.abs(a-b)<t,`${a} ≈ ${b}`);
+ near(M.family('cosine',1,1,0,0).f(0),1);
+ near(M.family('cosine',1,1,0,0).d(Math.PI/2),-1);
+ near(M.family('cosine',1,1,0,0).integral(0,Math.PI/2),1);
+ near(M.family('sine',1,Math.PI/180,0,0).f(90),1);
+ near(M.family('sine',1,Math.PI/180,0,0).d(0),Math.PI/180);
+ near(M.family('tangentFn',1,1,0,0).d(0),1);
+ near(M.family('tangentFn',1,1,0,0).integral(0,Math.PI/4),Math.log(2)/2);
+ assert.ok(Number.isNaN(M.family('tangentFn',1,1,0,0).integral(0,Math.PI)));
+ assert.ok(Number.isNaN(M.family('tangentFn',1,-1,0,0).integral(-Math.PI,0)));
+ assert.ok(Number.isNaN(M.family('tangentFn',1,1,0,0).f(Math.PI/2)));
+ const right=M.solveTriangle({a:3,b:4,c:5})[0];near(right.C,90);
+ near(M.solveTriangle({b:7,c:9,A:35})[0].a,Math.sqrt(130-126*Math.cos(35*Math.PI/180)));
+ const ss=M.solveTriangle({a:5,b:8,A:30});assert.equal(ss.length,2);near(ss[0].B+ss[1].B,180);
+ assert.equal(M.solveTriangle({a:2,b:8,A:30}).length,0);
+ assert.equal(M.solveTriangle({a:1,b:2,c:3}).length,0);
+ near(M.solveTriangle({a:5,A:30,B:60})[0].c,10);
+ assert.deepEqual(M.complex([2,3],[0,0],'conjugate'),[2,-3]);
+ assert.deepEqual(M.complex([2,3],[1,-1],'subtract'),[1,4]);
+ near(M.stats([0,1]).mean,.5);near(M.stats([0,1]).sd,.5);
+ near(M.stats([10,20,30]).mean,20);near(M.stats([10,20,30]).sd,Math.sqrt(200/3));
+ console.log('PASS: radian/degree trig, asymptotes, SSS/SAS/AAS/ambiguous SSA, conjugation and custom population moments.');
+}
