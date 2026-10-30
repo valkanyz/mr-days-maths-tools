@@ -12,3 +12,8 @@ const repeated=Z.utcFromLocal('2026-11-01T01:30','America/New_York');assert.equa
 assert.equal(Z.utcFromLocal('2026-10-04T02:45','Australia/Lord_Howe').ms,Date.parse('2026-10-03T15:45Z'));
 assert.equal(Z.offsetLabel(345),'UTC+5:45');assert.equal(Z.offsetLabel(-210),'UTC−3:30');
 console.log('PASS: every offered IANA/UTC zone, fractional offsets, daylight saving, missing/repeated local times and 30-minute clock changes.');
+assert.equal(Z.utcFromLocal('2026-11-01T01:30','America/New_York','later').ms,Date.parse('2026-11-01T06:30Z'));
+const aliases={Intl};vm.runInNewContext(source.slice(source.indexOf('const zoneCanonical='),source.indexOf('const zoneNames='))+';this.resolve=zoneLookup',aliases);assert.equal(aliases.resolve('Asia/Calcutta',['Asia/Kolkata']),'Asia/Kolkata');assert.equal(aliases.resolve('Europe/Kiev',['Europe/Kyiv']),'Europe/Kyiv');
+const functionCode=source.slice(source.indexOf('const u=x=>x-h;'),source.indexOf(" const r=value('range')"));const fn={kind:'tangentFn',a:1,b:Math.PI,h:0,k:0,omega:1};vm.runInNewContext('let F;'+functionCode+'this.fn=F;',fn);assert.ok(Number.isNaN(fn.fn.f(Math.PI/2)));assert.ok(Number.isNaN(fn.fn.d(Math.PI/2)));assert.ok(Math.abs(fn.fn.f(Math.PI/4)-1)<1e-12);
+const html=fs.readFileSync('docs/labs/index.html','utf8'),valueCode=html.slice(html.indexOf('function value(id)'),html.indexOf('let changedControl='));let control={value:'12.5663706143592',min:'.2',max:String(4*Math.PI),step:'any'};const vc={$:()=>control,document:{querySelector:()=>null}};vm.runInNewContext(valueCode+'this.read=value',vc);assert.doesNotThrow(()=>vc.read('b'));control.value='13';assert.throws(()=>vc.read('b'));
+console.log('PASS: repeated-time choice, geographic aliases, tangent poles and floating-point slider limits.');
