@@ -100,6 +100,65 @@ addLab('inequalities','Linear Inequalities','YEARS 8–10',()=>{let state=[2,3,1
  const expression=([a,b,c,r])=>`${fmt(a)}x ${b<0?'−':'+'} ${fmt(Math.abs(b))} ${r} ${fmt(c)}`;
  update=()=>{const vals=[value('ia'),value('ib'),value('ic'),$('irel').value],k=vals.join();if(k!==key){key=k;state=vals;history=[]}const[a,b,c,rel]=state;if(a===0)throw Error('Choose a non-zero x coefficient.');const bound=(c-b)/a,sol=a<0?flip[rel]:rel,left=sol==='<'||sol==='≤',closed=sol==='≤'||sol==='≥',span=Math.max(5,Math.abs(bound)*.3),g=chart(bound-span,bound+span,-1,1,'x','',false,{y:[]});let s=g.s;if(revealed())s+=line(g,[left?bound-span:bound,0],[left?bound:bound+span,0],C.purple)+`<circle cx="${g.X(bound)}" cy="${g.Y(0)}" r="9" fill="${closed?C.purple:'white'}" stroke="${C.purple}" stroke-width="3"/>`+txt(g.X(bound),g.Y(0)-25,fmt(bound),20)+txt(420,70,`x ${sol} ${fmt(bound)}`,26);svg(s,'Number line solution of a linear inequality');formula(expression(state));results([['Solution',`x ${sol} ${fmt(bound)}`],['Last operation',history.at(-1)?.label||'Choose an operation'],['Direction rule','Reverse the sign when multiplying or dividing by a negative']]);table(['Step','Inequality','Next operation'],[...history.map((h,i)=>[i,expression(h.state),h.label]),[history.length,expression(state),'']]);$('iundo').disabled=!history.length;note('Apply the same operation to both sides. The solution set stays unchanged; a negative multiplier or divisor reverses the inequality sign.');};});
 
+// Angles at a point: exploration and generated missing-angle questions.
+const PointAngles = {
+ classify(a) { return a===0?['Zero','#64748b']:a<90?['Acute',C.teal]:a===90?['Right',C.blue]:a<180?['Obtuse',C.gold]:a===180?['Straight',C.red]:a<360?['Reflex',C.purple]:['Full turn','#a52c78']; },
+ question(algebra, random=Math.random) {
+  const pick=(a,b)=>a+Math.floor(random()*(b-a+1));
+  const total=[90,180,360][pick(0,2)], count=total===90?2:pick(2,total===180?3:4);
+  let remaining=total; const angles=[];
+  for(let i=0;i<count-1;i++){const v=pick(4,Math.floor((remaining-20*(count-i-1))/5))*5;angles.push(v);remaining-=v;}
+  angles.push(remaining);const missing=pick(0,count-1),target=angles[missing],a=algebra?pick(2,4):1;
+  const x=algebra?pick(3,Math.max(3,Math.floor(target/a))):target,b=target-a*x;
+  return {total,angles,missing,a,b,x,algebra};
+ },
+ expression(q){return q.algebra?`${q.a}x${q.b>0?' + '+q.b:q.b<0?' − '+Math.abs(q.b):''}`:'x';}
+};
+const originalAnglesSetup=labs.angles.setup;
+labs.angles.setup=function(){
+ originalAnglesSetup();const originalUpdate=update;
+ if(!document.getElementById('pointAngleStyles')){const style=document.createElement('style');style.id='pointAngleStyles';style.textContent='#controls .ux-range-wrap[hidden]{display:none!important}';document.head.append(style);}
+ const oldDrag=Object.fromEntries(['onpointerdown','onpointermove','onpointerup','onpointercancel'].map(k=>[k,$('viz')[k]]));
+ $('angleMode').insertAdjacentHTML('afterbegin','<option value="point">Angles at a point</option>');$('angleMode').value='point';
+ $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',select('pointMode','Activity',[['explore','Explore angles'],['question','Find the missing angle']])+slider('pointAngle','Angle (degrees)',60,0,360,1)+check('pointAlgebra','Algebra')+'<div id="pointActions" class="actions">'+btn('pointNew','New problem')+btn('pointAnswer','Show answer')+'</div>');
+ let q=PointAngles.question(false),answer=false,previousMode='explore',previousAlgebra=false;
+ $('pointNew').onclick=()=>{q=PointAngles.question($('pointAlgebra').checked);answer=false;$('reveal').checked=false;run()};
+ $('pointAnswer').onclick=()=>{$('reveal').checked=!$('reveal').checked;run()};
+ const pos=(angle,r=170)=>[420+r*Math.cos(angle*Math.PI/180),220-r*Math.sin(angle*Math.PI/180)];
+ const sector=(start,size,color,label)=>{const p=pos(start,70),end=pos(start+size,70),mid=pos(start+size/2,110);let s=size===360?`<circle cx="420" cy="220" r="70" fill="${color}22" stroke="${color}" stroke-width="3"/>`:`<path d="M420 220L${p}A70 70 0 ${size>180?1:0} 0 ${end}Z" fill="${color}22" stroke="${color}" stroke-width="2"/>`;return s+(label?txt(mid[0],mid[1]+7,label,23,color):'')};
+ dragSVG((id,x,y)=>{if(id!=='pointAngle'||$('pointMode').value!=='explore')return;if(Math.hypot(x-420,y-220)<25)return;let deg=(Math.atan2(220-y,x-420)*180/Math.PI+360)%360;deg=Math.round(deg);if(deg<=3||deg>=357)deg=Number($('pointAngle').value)>180?360:0;else for(const snap of [90,180,270])if(Math.abs(deg-snap)<=3)deg=snap;$('pointAngle').value=deg;$('pointAngleval').textContent=deg;});
+ const pointDrag=Object.fromEntries(['onpointerdown','onpointermove','onpointerup','onpointercancel'].map(k=>[k,$('viz')[k]]));
+ update=()=>{
+  const point=$('angleMode').value==='point',quiz=$('pointMode').value==='question';
+  Object.assign($('viz'),point?pointDrag:oldDrag);
+  for(const id of ['pointMode','pointAngle','pointAlgebra'])showControl(id,point&&(id==='pointMode'||(id==='pointAngle'?!quiz:quiz)));
+  $('pointActions').hidden=!point||!quiz;
+  if(!point){originalUpdate();return;}
+  for(const id of ['theta','sides','corresponding','opposite','cointerior','alternate','exterior','numbers','reveal'])showControl(id,false);
+  if(quiz&&(previousMode!=='question'||previousAlgebra!==$('pointAlgebra').checked)){q=PointAngles.question($('pointAlgebra').checked);answer=false;$('reveal').checked=false;}
+  if(!quiz&&previousMode==='question')$('reveal').checked=true;
+  previousMode=$('pointMode').value;previousAlgebra=$('pointAlgebra').checked;
+  answer=$('reveal').checked;
+  let s='';
+  if(!quiz){const a=value('pointAngle'),[name,color]=PointAngles.classify(a),end=pos(a);
+   s=`<circle cx="420" cy="220" r="170" fill="none" stroke="#e5deec" stroke-dasharray="5 6"/>`+sector(0,a,color,a+'°')+path([[420,220],pos(0)],'#776584')+path([[420,220],end],color)+handle(...end,'pointAngle',color)+`<circle cx="420" cy="220" r="5" fill="#493354"/>`;
+   if(a===90)s+=path([[442,220],[442,198],[420,198]],color);
+   s+=txt(420,425,name+' angle · '+a+'°',26,color);svg(s,`${a} degrees: ${name} angle. Drag the coloured endpoint or use the angle slider.`);
+   formula('Drag the coloured endpoint around the point.');legend([["Acute",C.teal],["Right",C.blue],["Obtuse",C.gold],["Straight",C.red],["Reflex",C.purple],["Full turn",'#a52c78']]);results([['Angle',a+'°'],['Type',name],['Rest of the turn',(360-a)+'°']]);table(['Angle','Type','Remaining turn'],[[a,name,360-a]]);note('Use the slider or drag the handle. The angle is measured anticlockwise from the fixed ray. Snaps to quarter turns; the slider also reaches exactly 0° and 360°.');
+  }else{let start=q.total===90?0:q.total===180?0:-35;const expr=PointAngles.expression(q),known=q.total-q.angles[q.missing];
+   q.angles.forEach((angle,i)=>{const col=i===q.missing?C.purple:[C.teal,C.blue,C.gold,C.red][i],label=i===q.missing?(answer?angle+'°':'('+expr+')°'):angle+'°';s+=sector(start,angle,col,label)+path([[420,220],pos(start)],'#62516f');start+=angle;});
+   if(q.total!==360)s+=path([[420,220],pos(start)],'#62516f');
+   if(q.total===90)s+=path([[448,220],[448,192],[420,192]],'#62516f');
+   s+=`<circle cx="420" cy="220" r="5" fill="#493354"/>`+txt(420,425,q.total===90?'Angles in a right angle':q.total===180?'Angles on a straight line':'Angles at a point',23);
+   svg(s,'Find x from the labelled angles; total '+q.total+' degrees');formula('Find x. '+(q.total===90?'Right angle':q.total===180?'Straight line':'Full turn')+' = '+q.total+'°.');legend([['Unknown angle',C.purple]]);
+   const working=`${q.total}° − ${known}° = ${q.angles[q.missing]}°`;
+   results(answer?[['x',q.x+'°'],['Missing angle',q.angles[q.missing]+'°'],['Working',working],...(q.algebra?[['Equation',`${expr} = ${q.angles[q.missing]}`]]:[])]:[['Angle total',q.total+'°'],['Find','x']]);
+   table(['Sector','Angle'],q.angles.map((a,i)=>[i+1,i===q.missing&&!answer?'('+expr+')°':a+'°']));
+   $('pointAnswer').textContent=answer?'Hide answer':'Show answer';note(answer&&q.algebra?`${expr} = ${q.angles[q.missing]}; ${q.a}x = ${q.angles[q.missing]-q.b}; x = ${q.x}°. Missing angle = ${q.angles[q.missing]}°.`:'New problem randomly chooses 90°, 180° or 360°. Add the known angles, then subtract from the total. '+(q.algebra?'Solve the resulting equation for x.':'Record your answer before revealing it.'));
+  }
+ };
+};
+
 // Link related investigations without replacing established activities.
 for(const [base,id,label] of [['networks','projects','Project scheduling →'],['vectors','transitions','Transition models →'],['vectors','vectors3','3D vectors →'],['statistics','inference','Confidence intervals →'],['measurement','nets','Nets →']]){const setup=labs[base].setup;labs[base].setup=function(){setup();$('controls').insertAdjacentHTML('beforeend',`<a href="#${id}" style="color:#68418a;font-weight:700;margin-top:12px;display:block">${label}</a>`)}}
 const activityGroups={'Algebra & calculus':['functions','tiles','simultaneous','inequalities','calculus','integration','binomial'],'Statistics & probability':['statistics','distributions','arrays','sampling','venn','counting','inference'],'Geometry & trigonometry':['trigonometry','measurement','angles','pythagoras','nets'],'Number & finance':['ratios','finance','numberline'],'Specialist mathematics':['vectors','complex','vectors3','transitions'],'Networks':['networks','projects']};
