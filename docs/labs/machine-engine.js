@@ -22,7 +22,7 @@ const mono=k=>k?Object.fromEntries(k.split('*').map(s=>{const[a,b]=s.split('^');
 const key=m=>Object.keys(m).sort().filter(k=>m[k]).map(k=>k+'^'+m[k]).join('*');
 const monomul=(a,b,d=1)=>{const m=mono(a);for(const[k,v]of Object.entries(mono(b)))m[k]=(m[k]||0)+d*v;return key(m)};
 function combine(a,b,op){
- if(!a||!b)return null;const c=new Map(a);
+ if(op==='/'&&b&&!b.size)throw Error('Division by zero is undefined.');if(!a||!b)return null;const c=new Map(a);
  if(op==='+'||op==='-'){for(const[k,v]of b)c.set(k,add(c.get(k)||rat(0n),op==='-'?neg(v):v))}
  if(op==='*'){c.clear();for(const[k,v]of a)for(const[l,w]of b){const t=monomul(k,l);c.set(t,add(c.get(t)||rat(0n),mul(v,w)))}}
  if(op==='/'){if(!b.size)throw Error('Division by zero is undefined.');if(b.size!==1)return null;c.clear();const[k,v]=[...b][0];for(const[l,w]of a)c.set(monomul(l,k,-1),div(w,v))}
@@ -40,7 +40,7 @@ function plan(functionText,inputText){
  build(ast);if(!depends(ast,variable)&&!ast.a)stages.push({label:'Set '+format(evaluate(ast,'',null)),op:'set',poly:evaluate(ast,'',null),text:format(evaluate(ast,'',null))});if(stages.length>10)throw Error('Use at most 10 operations in one production line.');return{variable,input,inputText:format(input),stages,output:evaluate(ast,variable,input)};
 }
 function tiles(poly,previous,color,transform=false){
- if(!poly)return null;const total=[...poly.values()].reduce((s,r)=>s+Math.ceil(Math.abs(num(r))),0);if(total>240||!Number.isFinite(total))return null;
+ if(!poly)return null;const total=[...poly.values()].reduce((s,r)=>s+Math.ceil(Math.abs(num(r))),0);if(total>144||!Number.isFinite(total))return null;
  const out=[],used=new Set;
  for(const[k,v]of poly){let remaining=Math.abs(num(v));const sign=v[0]<0n?-1:1;for(let i=0;i<(previous||[]).length&&remaining>1e-9;i++){const t=previous[i];if(!used.has(i)&&t.sign===sign&&(t.key===k||transform&&!poly.has(t.key))){const amount=Math.min(t.amount,remaining);out.push({key:k,amount,sign,color:t.color});remaining-=amount;used.add(i)}}while(remaining>1e-9){const amount=Math.min(1,remaining);out.push({key:k,amount,sign,color});remaining-=amount}}
  return out;
