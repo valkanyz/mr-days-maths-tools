@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('docs/labs/improvements.js','utf8');
+const context={Intl,Date};vm.runInNewContext(source.slice(source.indexOf('const zoneNames='),source.indexOf('labs.timezones.setup='))+';this.zone={zoneNames,utcFromLocal,offsetAt,offsetLabel}',context);
+const Z=context.zone;
+for(const name of Z.zoneNames)assert.doesNotThrow(()=>new Intl.DateTimeFormat('en',{timeZone:name}));
+assert.equal(Z.utcFromLocal('2026-10-30T09:00','Australia/Perth').ms,Date.parse('2026-10-30T01:00Z'));
+assert.equal(Z.offsetAt(Date.parse('2026-10-30T05:00Z'),'Australia/Sydney'),660);
+assert.equal(Z.offsetAt(Date.parse('2026-06-30T05:00Z'),'Australia/Sydney'),600);
+assert.equal(Z.offsetAt(Date.parse('2026-10-30T05:00Z'),'Asia/Kathmandu'),345);
+assert.throws(()=>Z.utcFromLocal('2026-03-08T02:30','America/New_York'),/does not exist/);
+const repeated=Z.utcFromLocal('2026-11-01T01:30','America/New_York');assert.equal(repeated.ambiguous,true);assert.equal(repeated.ms,Date.parse('2026-11-01T05:30Z'));
+assert.equal(Z.utcFromLocal('2026-10-04T02:45','Australia/Lord_Howe').ms,Date.parse('2026-10-03T15:45Z'));
+assert.equal(Z.offsetLabel(345),'UTC+5:45');assert.equal(Z.offsetLabel(-210),'UTC−3:30');
+console.log('PASS: every offered IANA/UTC zone, fractional offsets, daylight saving, missing/repeated local times and 30-minute clock changes.');
