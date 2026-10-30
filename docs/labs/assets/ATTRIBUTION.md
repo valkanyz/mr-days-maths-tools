@@ -19,3 +19,11 @@ These boundaries are approximate teaching/map data, not legal boundary evidence.
 https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_land.geojson
 
 Natural Earth data is public domain: https://www.naturalearthdata.com/about/terms-of-use/
+
+
+## City search
+
+`cities.json` is a GeoNames cities15000 extract downloaded 30 October 2026. It includes cities with at least 50,000 people, capitals, and all Australian/New Zealand entries in that extract (12,766 places). Fields: city, country code, administrative region, IANA time zone, longitude, latitude, population. Region names come from admin1CodesASCII.
+
+Source: https://download.geonames.org/export/dump/
+Attribution: GeoNames, https://www.geonames.org/ — Creative Commons Attribution (https://creativecommons.org/licenses/by/4.0/).
