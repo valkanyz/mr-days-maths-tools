@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict'),M=require('../docs/plinko-lab/engine.js');
+for(let n=1;n<=26;n++)for(const p of [0,.01,.1,.25,.5,.73,.99,1]){const a=M.distribution(n,p);assert.equal(a.length,n+1);assert.ok(Math.abs(a.reduce((s,v)=>s+v,0)-1)<1e-12);assert.ok(Math.abs(a.reduce((s,v,k)=>s+k*v,0)-n*p)<1e-10);assert.ok(a.every(v=>v>=0));const variance=a.reduce((s,v,k)=>s+v*(k-n*p)**2,0);assert.ok(Math.abs(variance-n*p*(1-p))<1e-10)}
+assert.deepEqual(M.distribution(4,.5),[1,4,6,4,1].map(n=>n/16));
+for(let n=1;n<=26;n++){assert.equal(M.sample(n,0,()=>0).bin,0);assert.equal(M.sample(n,1,()=>.999999).bin,n);for(let mask=0;mask<1<<Math.min(n,8);mask++){let i=0;const b=M.sample(n,.5,()=>((mask>>(i++%8))&1)?0:.9);assert.equal(b.path.length,n+1);assert.equal(b.path[0],0);assert.equal(b.path.at(-1),b.bin);for(let r=1;r<b.path.length;r++)assert.ok([0,1].includes(b.path[r]-b.path[r-1]))}}
+const s=M.summary([1,4,6,4,1]);assert.equal(s.total,16);assert.equal(s.mean,2);assert.equal(s.sd,1);assert.ok(Math.abs(s.sampleSD-Math.sqrt(16/15))<1e-12);assert.equal(M.summary([0,0]).mean,null);assert.equal(M.summary([1,0]).sampleSD,null);
+for(const[n,p]of [[0,.5],[27,.5],[2.5,.5],[10,-.01],[10,1.01],[10,NaN]])assert.throws(()=>M.distribution(n,p));assert.throws(()=>M.sample(2,.5,()=>1));assert.throws(()=>M.summary([1,-1]));
+console.log('PASS: every row count, endpoint probabilities, exact binomial mass/mean/variance, path-bin agreement, sample statistics and invalid inputs.');
