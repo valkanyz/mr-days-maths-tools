@@ -40,10 +40,14 @@ function plan(functionText,inputText){
  build(ast);if(!depends(ast,variable)&&!ast.a)stages.push({label:'Set '+format(evaluate(ast,'',null)),op:'set',poly:evaluate(ast,'',null),text:format(evaluate(ast,'',null))});if(stages.length>10)throw Error('Use at most 10 operations in one production line.');return{variable,input,inputText:format(input),stages,output:evaluate(ast,variable,input)};
 }
 function tiles(poly,previous,color,transform=false){
- if(!poly)return null;const total=[...poly.values()].reduce((s,r)=>s+Math.ceil(Math.abs(num(r))),0);if(total>144||!Number.isFinite(total))return null;
+ if(!poly)return null;
  const out=[],used=new Set;
- for(const[k,v]of poly){let remaining=Math.abs(num(v));const sign=v[0]<0n?-1:1;for(let i=0;i<(previous||[]).length&&remaining>1e-9;i++){const t=previous[i];if(!used.has(i)&&t.sign===sign&&(t.key===k||transform&&!poly.has(t.key))){const amount=Math.min(t.amount,remaining);out.push({key:k,amount,sign,color:t.color});remaining-=amount;used.add(i)}}while(remaining>1e-9){const amount=Math.min(1,remaining);out.push({key:k,amount,sign,color});remaining-=amount}}
- return out;
+ const append=(key,amount,sign,color)=>{const last=out.at(-1);if(last&&last.key===key&&last.sign===sign&&last.color===color)last.amount+=amount;else out.push({key,amount,sign,color})};
+ for(const[k,v]of poly){let remaining=Math.abs(num(v));if(!Number.isFinite(remaining))return null;const sign=v[0]<0n?-1:1;for(let i=0;i<(previous||[]).length&&remaining>1e-9;i++){const t=previous[i];if(!used.has(i)&&t.sign===sign&&(t.key===k||transform&&!poly.has(t.key))){const amount=Math.min(t.amount,remaining);append(k,amount,sign,t.color);remaining-=amount;used.add(i)}}if(remaining>1e-9)append(k,remaining,sign,color)}
+ const total=out.reduce((sum,t)=>sum+Math.ceil(t.amount),0);
+ const packed=[];
+ for(const t of out){let remaining=t.amount;if(total<=144){while(remaining>1e-9){const amount=Math.min(1,remaining);packed.push({...t,amount});remaining-=amount}}else{for(let power=Math.floor(Math.log10(remaining));power>=0;power--){const unit=10**power,count=Math.floor(remaining/unit+1e-10);if(count){packed.push({...t,amount:count*unit,bundle:true});remaining-=count*unit}}if(remaining>1e-9)packed.push({...t,amount:remaining,bundle:true})}}
+ return packed;
 }
 const api={parse,plan,format,tiles,monoText,num};if(typeof module!=='undefined'&&module.exports)module.exports=api;root.MachineMath=api;
 })(typeof window!=='undefined'?window:globalThis);

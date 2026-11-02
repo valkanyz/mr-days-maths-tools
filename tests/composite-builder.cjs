@@ -1,0 +1,5 @@
+const assert=require('node:assert/strict'),{measure}=require('../docs/labs/composite-builder.js'),M=require('../docs/labs/machine-engine.js');
+const r=(x,y,w,h)=>({x,y,w,h});
+for(const[pieces,a,p]of [[[],0,0],[[r(0,0,4,3)],12,14],[[r(0,0,4,3),r(4,0,2,3)],18,18],[[r(0,0,4,3),r(2,0,4,3)],18,18],[[r(0,0,4,3),r(0,0,4,3)],12,14],[[r(0,0,4,2),r(0,2,2,3)],14,18],[[r(0,0,3,1),r(0,2,3,1),r(0,1,1,1),r(2,1,1,1)],8,16],[[r(0,0,1,1),r(3,3,1,1)],2,8]]){const m=measure(pieces);assert.equal(m.area,a);assert.equal(m.perimeter,p)}
+for(const n of ['100','145','1250','1000000','-3456','1234.5']){const model=M.plan('2*x',n),before=M.tiles(model.input,[],'purple'),after=M.tiles(model.output,before,'green',true);assert.equal(before.reduce((s,t)=>s+t.amount*t.sign,0),Number(n));assert.equal(after.reduce((s,t)=>s+t.amount*t.sign,0),2*Number(n));assert.equal(after.filter(t=>t.color==='purple').reduce((s,t)=>s+t.amount*t.sign,0),Number(n));assert.ok(after.length<145)}
+console.log('PASS: union areas, shared edges, overlaps, holes, islands and bundled large/negative/fractional values with colour provenance.');
