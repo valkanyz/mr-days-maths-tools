@@ -127,7 +127,7 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set();co
  const end=[cursor[0]+lengths[i]*Math.cos(angle),cursor[1]+lengths[i]*Math.sin(angle)];
  const q=[[...cursor,0],[...end,0],[...end,h],[...cursor,h]];
  faces.push({points:q,col:[C.teal,C.gold,C.blue,C.red,C.purple][i%5]});
- dim(q[0],q[1],measure(lengths[i]),false,type==='tri'||(i>0&&!(type==='box'&&i===1)));if(i===0||u>.8)dim(q[1],q[2],measure(h),false,i!==0||type==='cube');cursor=end;
+ dim(q[0],q[1],measure(lengths[i]),false,type==='tri'||(i>0&&!(type==='box'&&i===1)));dim(q[1],q[2],measure(h),false,i!==0||type==='cube');cursor=end;
  });
  for(const top of [false,true]){
  const transform=([x,y])=>[x,y*Math.cos(t),(top?h:0)+(top?1:-1)*y*Math.sin(t)];
