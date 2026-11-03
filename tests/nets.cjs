@@ -23,8 +23,14 @@ for(const q of rectangles)for(let i=0;i<4;i++)assert(Math.abs(q[i][0]-q[i+1][0])
 console.log('PASS: flat triangular prism has three axis-aligned rectangular faces.');
 node('unfold').value='0';ctx.update();const minimal=(rendered.match(/class="net-dimension"/g)||[]).length;assert.equal(minimal,5);
 node('netAllLabels').checked=true;ctx.update();assert((rendered.match(/class="net-dimension"/g)||[]).length>minimal);node('netAllLabels').checked=false;
-for(const id of ['netYaw','netPitch','netRoll']){polygons=[];ctx.update();const before=JSON.stringify(polygons);node(id).value='80';polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),before);assert.equal(rows[0][1],132);}
-node('netResetView').onclick();assert.equal(node('netYaw').value,35);assert.equal(node('netPitch').value,32);assert.equal(node('netRoll').value,0);
-const view=node('viz');view.setPointerCapture=()=>{};view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});view.onpointermove({clientX:40,clientY:20});assert.equal(node('netYaw').value,55);assert.equal(node('netPitch').value,22);view.onpointerup();
-view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRoll').value,10);view.onpointerup();
+for(const id of ['netTurn15','netTilt15','netRoll15']){polygons=[];ctx.update();const before=JSON.stringify(polygons);node(id).value='80';polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),before);assert.equal(rows[0][1],132);}
+node('netResetView').onclick();assert.equal(node('netTurn15').value,-30);assert.equal(node('netTilt15').value,30);assert.equal(node('netRoll15').value,0);
+const view=node('viz');view.setPointerCapture=()=>{};view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});view.onpointermove({clientX:40,clientY:20});assert.equal(node('netTurn15').value,-15);assert.equal(node('netTilt15').value,15);view.onpointerup();
+view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRoll15').value,15);view.onpointerup();
 console.log('PASS: five essential prism labels, optional repeats, three rotation axes, reset and drag/Shift-drag.');
+
+node('netResetView').onclick();assert.equal(node('netPose').value,'lying');assert.equal(node('netFlip').checked,false);
+polygons=[];ctx.update();const lying=JSON.stringify(polygons);node('netPose').value='standing';node('netPose').onchange();polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),lying);
+const normal=polygons;node('netFlip').checked=true;polygons=[];ctx.update();normal.forEach((face,i)=>face.forEach((p,j)=>{assert(Math.abs(p[0]+polygons[i][j][0]-840)<1e-7);assert(Math.abs(p[1]-polygons[i][j][1])<1e-7)}));
+for(const id of ['netTurn15','netTilt15','netRoll15']){node(id).value='22';ctx.update();assert.equal(node(id).value,15);}
+console.log('PASS: lying/standing presets, mirror symmetry and exact inputs snapped to 15 degrees.');
