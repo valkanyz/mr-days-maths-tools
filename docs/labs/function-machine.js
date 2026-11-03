@@ -8,11 +8,22 @@ labs.patterns.setup=function(){
  $('machineExpressionControls').insertAdjacentHTML('beforeend',check('machineInside','Cutaway view',true)+check('machineContinuous','Continuous production',false)+check('machineRandom','Random inputs (−10 to 10)',false)+btn('machineNext','Next machine'));
  // The shared lab runner hides disabled controls unless explicitly kept visible.
  for(const id of ['machineInput','machineRandom'])$(id).dataset.keepVisible='true';
- let progress=0,target=1,running=false,last=0,raf=null,model=null,key='',groups=[],recorded=false,produced=0,lastFunction=null,durations=[],ends=[],starts=[],cycleTime=1,randomModels=[],randomSeed=0,resultView='table',resultMarkup='';
+ let progress=0,target=1,running=false,last=0,raf=null,model=null,key='',groups=[],recorded=false,produced=0,lastFunction=null,durations=[],ends=[],starts=[],cycleTime=1,randomModels=[],randomSeed=0,randomOrders=new Map(),resultView='table',resultMarkup='';
  const prepare=input=>{const model=MM.plan($('machineFunction').value,String(input)),groups=[MM.tiles(model.input,[],ink)];for(const [i,st] of model.stages.entries())groups.push(MM.tiles(st.poly,groups.at(-1),colors[i%colors.length],['*','/','^'].includes(st.op)));MachineAnimation.arrangeGroups(groups,model.stages);return {model,groups};};
  const randomEnabled=()=>$('machineContinuous').checked&&$('machineRandom').checked;
  // A batch's input is stable through every machine, pauses and redraws.
- const batchAt=batch=>{if(!randomEnabled())return {model,groups};let h=(randomSeed+Math.imul(Math.max(0,batch)+1,0x9e3779b9))>>>0;h=Math.imul(h^(h>>>16),0x21f0aaad);h=Math.imul(h^(h>>>15),0x735a2d97);h=(h^(h>>>15))>>>0;return randomModels[h%randomModels.length];};
+ const resetRandom=()=>{randomSeed=Math.floor(Math.random()*4294967296);randomOrders.clear();};
+ const randomOrder=cycle=>{
+  if(randomOrders.has(cycle))return randomOrders.get(cycle);
+  let seed=(randomSeed+Math.imul(cycle+1,0x9e3779b9))>>>0;
+  const next=()=>{seed=(seed+0x6d2b79f5)>>>0;let t=Math.imul(seed^(seed>>>15),1|seed);t^=t+Math.imul(t^(t>>>7),61|t);return ((t^(t>>>14))>>>0)/4294967296;};
+  const shuffle=items=>{const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(next()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  // First cover integers, then only the new halves, then only the new quarters.
+  const order=cycle===0?[0,1,2].flatMap(tier=>shuffle(randomModels.filter(entry=>entry.tier===tier))):shuffle(randomModels);
+  randomOrders.set(cycle,order);if(randomOrders.size>3)randomOrders.delete(randomOrders.keys().next().value);return order;
+ };
+ const batchAt=batch=>{if(!randomEnabled())return {model,groups};const index=Math.max(0,batch),cycle=Math.floor(index/randomModels.length);return randomOrder(cycle)[index%randomModels.length];};
+
  const historyRows=()=>{try{const rows=JSON.parse($('machineHistory').value);return Array.isArray(rows)?rows.filter(r=>Array.isArray(r)&&r.length===3&&r.every(v=>typeof v==='string')&&r[0]===$('machineFunction').value):[]}catch{return[]}};
  const stop=()=>{running=false;cancelAnimationFrame(raf);last=0};
  const frame=now=>{if(!running||current!=='patterns')return stop();if(last)progress=Math.min(target,progress+(now-last)*Number($('machineSpeed').value)/(3000*Math.max(1,model.stages.length)));last=now;run();if(progress<target)raf=requestAnimationFrame(frame);else{stop();run()}};
@@ -21,7 +32,7 @@ labs.patterns.setup=function(){
  $('results').onclick=e=>{const tab=e.target.closest?.('[data-machine-view]');if(tab)selectView(tab.dataset.machineView);};
  $('results').onkeydown=e=>{if(!e.target.closest?.('[data-machine-view]'))return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();selectView(e.key==='Home'?'table':e.key==='End'?'graph':resultView==='table'?'graph':'table');}};
  $('machineClearHistory').onclick=()=>{$('machineHistory').value='[]';run()};
- $('machineRun').onclick=()=>{run();if($('error').textContent)return;stop();progress=0;target=$('machineContinuous').checked?Infinity:1;recorded=false;produced=0;randomSeed=Math.floor(Math.random()*4294967296);play();run()};
+ $('machineRun').onclick=()=>{run();if($('error').textContent)return;stop();progress=0;target=$('machineContinuous').checked?Infinity:1;recorded=false;produced=0;resetRandom();play();run()};
  $('machinePause').onclick=()=>{if(running)stop();else if(progress<1||$('machineContinuous').checked){if(progress>=target)target=$('machineContinuous').checked?Infinity:1;play();}run()};
  $('machineNext').onclick=()=>{run();if($('error').textContent||progress>=1)return;stop();const N=Math.max(1,model.stages.length);target=(ends.find(t=>t>progress*N+1e-8)||N)/N;play();run()};
  $('machineRandom').onchange=()=>{key='';run()};
@@ -33,8 +44,8 @@ labs.patterns.setup=function(){
  const functionText=$('machineFunction').value;if(lastFunction!==null&&lastFunction!==functionText)$('machineHistory').value='[]';lastFunction=functionText;
  const random=randomEnabled();$('machineRandom').disabled=!$('machineContinuous').checked;$('machineInput').disabled=random;
  const newKey=functionText+'\n'+(random?'random':$('machineInput').value);
- if(newKey!==key){stop();progress=0;target=$('machineContinuous').checked?Infinity:1;recorded=false;produced=0;randomSeed=Math.floor(Math.random()*4294967296);randomModels=[];let initial;
- if(random){for(let input=-10;input<=10;input++){try{randomModels.push(prepare(input));}catch{}}if(!randomModels.length)throw Error('This function has no valid integer inputs from −10 to 10.');initial=batchAt(0);}else initial=prepare($('machineInput').value);
+ if(newKey!==key){stop();progress=0;target=$('machineContinuous').checked?Infinity:1;recorded=false;produced=0;resetRandom();randomModels=[];let initial;
+ if(random){for(let quarter=-40;quarter<=40;quarter++){try{randomModels.push({...prepare(quarter/4),tier:quarter%4===0?0:quarter%2===0?1:2});}catch{}}if(!randomModels.length)throw Error('This function has no valid quarter-step inputs from −10 to 10.');initial=batchAt(0);}else initial=prepare($('machineInput').value);
  model=initial.model;groups=initial.groups;const weights=model.stages.map(()=>.88+Math.random()*.24),sum=weights.reduce((a,b)=>a+b,0);durations=weights.map(w=>w*weights.length/sum);let elapsed=0;starts=durations.map(d=>{const start=elapsed;elapsed+=d;return start});ends=starts.map((t,i)=>t+durations[i]);if(ends.length)ends[ends.length-1]=model.stages.length;cycleTime=Math.max(1,...durations)*1.03;key=newKey}
  const continuous=$('machineContinuous').checked,N=model.stages.length,elapsed=progress*Math.max(1,N),done=ends.filter(t=>elapsed>=t-1e-8).length,boundary=ends.some(t=>Math.abs(elapsed-t)<1e-8),index=Math.min(N-1,Math.max(0,boundary?done-1:done)),phase=N?Math.max(0,Math.min(1,(elapsed-starts[index])/durations[index])):0;
  const motionPhase=(local,duration)=>local<=.16?.18*Math.max(0,local)/.16:local>=duration-.16?.86+.14*Math.min(1,(local-duration+.16)/.16):.18+.68*(local-.16)/(duration-.32);
@@ -84,7 +95,7 @@ labs.patterns.setup=function(){
  if(markup!==resultMarkup){$('results').innerHTML=markup;resultMarkup=markup;}
 
  table(['x',...inputs],[['y',...outputs]]);legend([['Original input',ink],...model.stages.map((s,i)=>[sup(s.label),colors[i%colors.length]])]);
- note((random?'Random inputs use integers from −10 to 10. '+(randomModels.length<21?'Inputs for which the function is undefined are skipped. ':''):'')+'Run plays the whole calculation. Try different inputs to add sorted columns to the x/y table. Changing the function clears the table. Next machine plays one operation and pauses at its output. The belt snakes onto the next level after two machines (three on wide screens). Continuous production feeds a fresh input every cycle; Pause stops the line. Switch the toggle off to return to single-input mode. Completed outputs stay above the diagram. Switch off Cutaway view to conceal the working. Each tile represents one labelled unit; partial fills represent fractions and dashed tiles are negative. Large quantities use labelled bundles.');
+ note((random?'Random inputs cover −10 to 10 in shuffled rounds: integers, unused half steps, then unused quarter steps. After all values have been used, the full quarter-step set is reshuffled. '+(randomModels.length<81?'Inputs for which the function is undefined are skipped. ':''):'')+'Run plays the whole calculation. Try different inputs to add sorted columns to the x/y table. Changing the function clears the table. Next machine plays one operation and pauses at its output. The belt snakes onto the next level after two machines (three on wide screens). Continuous production feeds a fresh input every cycle; Pause stops the line. Switch the toggle off to return to single-input mode. Completed outputs stay above the diagram. Switch off Cutaway view to conceal the working. Each tile represents one labelled unit; partial fills represent fractions and dashed tiles are negative. Large quantities use labelled bundles.');
  };
 };
 if(current==='patterns')launch('patterns');

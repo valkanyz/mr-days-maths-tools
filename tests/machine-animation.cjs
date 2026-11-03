@@ -79,15 +79,15 @@ els.machineFunction.value='2*x+3';els.machineInput.value='4';els.machineRandom.c
 assert.equal(els.machineInput.disabled,true);assert.equal(els.machineRandom.disabled,false);
 const seen=new Map(),readBatches=()=>{
  for(const m of svg.matchAll(/data-machine="(\d+)" data-batch="(-?\d+)" data-input="([^"]+)"/g)){
-  if(+m[2]<0)continue;const input=Number(m[3].replace('−','-'));assert.ok(Number.isInteger(input)&&input>=-10&&input<=10);
+  if(+m[2]<0)continue;const input=c.MachinePlot.number(m[3]);assert.ok(Number.isInteger(input*4)&&input>=-10&&input<=10);
   if(seen.has(+m[2]))assert.equal(input,seen.get(+m[2]),'input follows the same batch through every machine');else seen.set(+m[2],input);
  }
  const retained=svg.match(/data-waiting-output="true" data-input="([^"]+)"/),last=[...svg.matchAll(/data-machine="(\d+)" data-batch="(-?\d+)"/g)].at(-1);
- if(retained&&seen.has(+last[2]-1))assert.equal(Number(retained[1].replace('−','-')),seen.get(+last[2]-1));
+ if(retained&&seen.has(+last[2]-1))assert.equal(c.MachinePlot.number(retained[1]),seen.get(+last[2]-1));
 };
 for(let step=0;step<900;step++){clock+=250;cb(clock);readBatches();}
 els.machinePause.onclick();const pausedSVG=svg;c.update();assert.equal(svg,pausedSVG,'redraw while paused must not reroll inputs');
-const randomRows=JSON.parse(els.machineHistory.value),xs=randomRows.map(r=>Number(r[1].replace('−','-')));
+const randomRows=JSON.parse(els.machineHistory.value),xs=randomRows.map(r=>c.MachinePlot.number(r[1]));
 assert.ok(xs.length>15);assert.ok(xs.includes(-10)&&xs.includes(0)&&xs.includes(10));assert.deepEqual(xs,[...xs].sort((a,b)=>a-b));
 for(const r of randomRows)assert.equal(r[2],M.plan('2*x+3',r[1]).stages.at(-1).text);
 // Large frame jumps still record every completed batch, and undefined inputs are skipped.
@@ -138,3 +138,15 @@ els.machineInside.checked=false;c.run();assert.equal(els.machineExpressionContro
 els.machineRandom.checked=false;els.machineRandom.onchange();assert.equal(els.machineInput.disabled,false);assert.equal(els.machineExpressionControls.hidden,false);
 els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equal(els.machineRandom.parentElement.hidden,false);assert.equal(els.error.textContent,'');
 console.log('PASS: real shared runner keeps settings visible while random production runs; cutaway, speed and mode controls remain usable.');
+
+// Exhaust each resolution before moving to the next, without repeating earlier values.
+const roundCode=machineSource.slice(machineSource.indexOf(' const resetRandom='),machineSource.indexOf(' const historyRows='));
+for(const omitZero of [false,true]){
+ const entries=Array.from({length:81},(_,i)=>{const q=i-40;return {value:q/4,tier:q%4===0?0:q%2===0?1:2};}).filter(e=>!omitZero||e.value!==0);
+ const context={randomModels:entries,randomOrders:new Map(),randomSeed:12345,randomEnabled:()=>true,Math};vm.createContext(context);vm.runInContext(roundCode+'this.get=batchAt;this.reset=resetRandom;',context);
+ const order=Array.from({length:entries.length},(_,i)=>context.get(i).value),n=omitZero?20:21;
+ assert.equal(new Set(order).size,entries.length);assert.ok(order.slice(0,n).every(Number.isInteger));assert.ok(order.slice(n,n+20).every(v=>Number.isInteger(v*2)&&!Number.isInteger(v)));assert.ok(order.slice(n+20).every(v=>Number.isInteger(v*4)&&!Number.isInteger(v*2)));
+ const next=Array.from({length:entries.length},(_,i)=>context.get(i+entries.length).value);assert.deepEqual([...next].sort((a,b)=>a-b),entries.map(e=>e.value));assert.notDeepEqual(next,order);assert.equal(context.get(4).value,order[4],'queued and in-flight batches remain stable');
+ context.reset();assert.equal(context.randomOrders.size,0);assert.equal(new Set(Array.from({length:n},(_,i)=>context.get(i).value)).size,n);
+}
+console.log('PASS: non-repeating integer, half and quarter rounds, undefined-value omissions, stable batches, reshuffling and restart.');
