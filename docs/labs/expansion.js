@@ -139,7 +139,7 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set();le
  else {const centre=base.reduce((sum,v)=>sum.map((x,k)=>x+v[k]/base.length),[0,0]);dim(transform(centre),transform([w/2,0]),'a = '+measure(centre[1]),true,!top);dim(q[0],q[1],measure(w),false,true);}
  }
  area=2*baseArea+lengths.reduce((a,b)=>a+b,0)*h;volume=baseArea*h;
- }else{let base;if(['box','cube','pyramid'].includes(type))base=[[-w/2,-(type==='pyramid'?w:d)/2],[w/2,-(type==='pyramid'?w:d)/2],[w/2,(type==='pyramid'?w:d)/2],[-w/2,(type==='pyramid'?w:d)/2]];else{const n={tri:3,pent:5,hex:6,oct:8,tetra:3,triPyramid:3,pentPyramid:5,hexPyramid:6}[type],R=w/(2*Math.sin(Math.PI/n));base=Array.from({length:n},(_,i)=>[R*Math.cos(-Math.PI/2+i*2*Math.PI/n),R*Math.sin(-Math.PI/2+i*2*Math.PI/n)])}const baseArea=Math.abs(base.reduce((s,p,i)=>{const q=base[(i+1)%base.length];return s+p[0]*q[1]-q[0]*p[1]},0))/2;faces.push({points:base.map(p=>[...p,0]),col:C.purple,normalSign:-1});base.forEach((a,i)=>{const b=base[(i+1)%base.length],len=Math.hypot(b[0]-a[0],b[1]-a[1]),along=[(b[0]-a[0])/len,(b[1]-a[1])/len],out=[along[1],-along[0]],col=[C.teal,C.gold,C.blue,C.red,C.purple][i];if(isPyramid){const mid=a.map((v,k)=>(v+b[k])/2),apothem=Math.hypot(...mid),slant=Math.hypot(apothem,h),initial=Math.atan2(h,-apothem),angle=initial*(1-u);faces.push({points:[[...a,0],[...b,0],[mid[0]+out[0]*slant*Math.cos(angle),mid[1]+out[1]*slant*Math.cos(angle),slant*Math.sin(angle)]],col})}else{const edge=p=>[p[0]+out[0]*h*Math.sin(t),p[1]+out[1]*h*Math.sin(t),h*Math.cos(t)];faces.push({points:[[...a,0],[...b,0],edge(b),edge(a)],col});if(i===0){const pivot=edge(a),inward=out.map(v=>-v);faces.push({points:base.map(p=>{const dx=p[0]-a[0],dy=p[1]-a[1],parallel=dx*along[0]+dy*along[1],inside=dx*inward[0]+dy*inward[1];return[pivot[0]+parallel*along[0]+inside*Math.cos(2*t)*inward[0],pivot[1]+parallel*along[1]+inside*Math.cos(2*t)*inward[1],pivot[2]+inside*Math.sin(2*t)]}),col:'#ba6d35'})}}});const perimeter=base.reduce((s,p,i)=>s+Math.hypot(p[0]-base[(i+1)%base.length][0],p[1]-base[(i+1)%base.length][1]),0);area=isPyramid?baseArea+perimeter*Math.hypot(2*baseArea/perimeter,h)/2:2*baseArea+perimeter*h;volume=baseArea*h/(isPyramid?3:1)}
+ }else{let base;if(['box','cube','pyramid'].includes(type))base=[[-w/2,-(type==='pyramid'?w:d)/2],[w/2,-(type==='pyramid'?w:d)/2],[w/2,(type==='pyramid'?w:d)/2],[-w/2,(type==='pyramid'?w:d)/2]];else{const n={tri:3,pent:5,hex:6,oct:8,tetra:3,triPyramid:3,pentPyramid:5,hexPyramid:6}[type],R=w/(2*Math.sin(Math.PI/n));base=Array.from({length:n},(_,i)=>[R*Math.cos(-Math.PI/2+i*2*Math.PI/n),R*Math.sin(-Math.PI/2+i*2*Math.PI/n)])}const baseArea=Math.abs(base.reduce((s,p,i)=>{const q=base[(i+1)%base.length];return s+p[0]*q[1]-q[0]*p[1]},0))/2;faces.push({points:base.map(p=>[...p,0]),col:C.purple,normalSign:-1});base.forEach((a,i)=>{const b=base[(i+1)%base.length],len=Math.hypot(b[0]-a[0],b[1]-a[1]),along=[(b[0]-a[0])/len,(b[1]-a[1])/len],out=[along[1],-along[0]],col=[C.teal,C.gold,C.blue,C.red,C.purple][i%5];if(isPyramid){const mid=a.map((v,k)=>(v+b[k])/2),apothem=Math.hypot(...mid),slant=Math.hypot(apothem,h),initial=Math.atan2(h,-apothem),angle=initial*(1-u);faces.push({points:[[...a,0],[...b,0],[mid[0]+out[0]*slant*Math.cos(angle),mid[1]+out[1]*slant*Math.cos(angle),slant*Math.sin(angle)]],col})}else{const edge=p=>[p[0]+out[0]*h*Math.sin(t),p[1]+out[1]*h*Math.sin(t),h*Math.cos(t)];faces.push({points:[[...a,0],[...b,0],edge(b),edge(a)],col});if(i===0){const pivot=edge(a),inward=out.map(v=>-v);faces.push({points:base.map(p=>{const dx=p[0]-a[0],dy=p[1]-a[1],parallel=dx*along[0]+dy*along[1],inside=dx*inward[0]+dy*inward[1];return[pivot[0]+parallel*along[0]+inside*Math.cos(2*t)*inward[0],pivot[1]+parallel*along[1]+inside*Math.cos(2*t)*inward[1],pivot[2]+inside*Math.sin(2*t)]}),col:'#ba6d35'})}}});const perimeter=base.reduce((s,p,i)=>s+Math.hypot(p[0]-base[(i+1)%base.length][0],p[1]-base[(i+1)%base.length][1]),0);area=isPyramid?baseArea+perimeter*Math.hypot(2*baseArea/perimeter,h)/2:2*baseArea+perimeter*h;volume=baseArea*h/(isPyramid?3:1)}
  if(isPyramid){
  const base=faces[0].points;
  const regular=!['box','cube'].includes(type);
@@ -162,16 +162,24 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set();le
  const centre=[0,1,2].map(i=>(Math.min(...vertices.map(v=>v[i]))+Math.max(...vertices.map(v=>v[i])))/2),radius=Math.max(...vertices.map(v=>Math.hypot(...v.map((x,i)=>x-centre[i])))),origin=u===1?[(minx+maxx)/2,(miny+maxy)/2]:p(centre),scale=u===1?Math.min(730/Math.max(maxx-minx,.001),350/Math.max(maxy-miny,.001)):175/Math.max(radius,.001),project=v=>{const q=p(v);return[420+(q[0]-origin[0])*scale,220+(q[1]-origin[1])*scale]};let s='';
  const cameraEye=[Math.cos(pitch)*Math.sin(yaw),Math.cos(pitch)*Math.cos(yaw),Math.sin(pitch)],eye=[cameraEye[0],cl*cameraEye[1]+sl*cameraEye[2],-sl*cameraEye[1]+cl*cameraEye[2]],edges=new Map();
  const key=v=>v.map(x=>Math.round(x/Math.max(w,d,h)*1e8)).join(',');
- faces.forEach(f=>{
+ const opened=u>0,depth=f=>f.points.reduce((sum,p)=>sum+p.reduce((d,v,i)=>d+v*eye[i],0),0)/f.points.length;
+ const paintFaces=opened?[...faces].sort((a,b)=>depth(a)-depth(b)):faces;
+ const tint=(colour,amount)=>'#'+[1,3,5].map(i=>Math.round(255+(parseInt(colour.slice(i,i+2),16)-255)*amount).toString(16).padStart(2,'0')).join('');
+ paintFaces.forEach(f=>{
  const [a,b,c]=f.points,ab=b.map((v,i)=>v-a[i]),ac=c.map((v,i)=>v-a[i]);
  const normal=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
  const front=u>.999||normal.reduce((sum,v,i)=>sum+v*eye[i],0)*(f.normalSign||1)>1e-10;
  const q=f.points.map(project);
- s+=`<g class="net-face" data-visible="${front}">`+path([...q,q[0]],'none',front?f.col+'30':'none')+'</g>';
+ s+=`<g class="net-face" data-visible="${opened||front}" data-side="${front?'outside':'inside'}">`+path([...q,q[0]],'none',opened?tint(f.col,front?.2:.32):front?f.col+'30':'none');
+ if(opened){
+ // Paint each panel and its edges together, so nearer panels cover those behind them.
+ f.points.forEach((a,i)=>{const b=f.points[(i+1)%f.points.length];if(type==='cylinder'&&a[2]!==b[2])return;const A=q[i],B=q[(i+1)%q.length];s+=`<path class="net-edge" data-visible="true" d="M${A.join(' ')} L${B.join(' ')}" fill="none" stroke="${f.col}" stroke-width="2.2"/>`});
+ }
+ s+='</g>';
  f.points.forEach((a,i)=>{const b=f.points[(i+1)%f.points.length],id=[key(a),key(b)].sort().join('|');let edge=edges.get(id);if(!edge){edge={a,b,col:f.col,front:false,count:0,frontCount:0};edges.set(id,edge)}edge.front ||= front;edge.count++;edge.frontCount+=front?1:0;});
  });
  // Shared polygon edges are drawn once. Cylinder facets are a smooth surface.
- for(const edge of edges.values()){
+ for(const edge of opened?[]:edges.values()){
  if(type==='cylinder'&&edge.count===2&&edge.a[2]!==edge.b[2]&&(edge.frontCount===0||edge.frontCount===2))continue;
  const a=project(edge.a),b=project(edge.b);
  s+=`<path class="net-edge" data-visible="${edge.front}" d="M${a.join(' ')} L${b.join(' ')}" fill="none" stroke="${edge.front?edge.col:'#8a7b91'}" stroke-width="${edge.front?2.2:1.5}" ${edge.front?'':'stroke-dasharray="3 5"'} />`;

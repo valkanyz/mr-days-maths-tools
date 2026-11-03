@@ -1,8 +1,8 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const source=fs.readFileSync('docs/labs/expansion.js','utf8');
-const nodes={};let rendered='',rows;let polygons=[];
+const nodes={};let rendered='',rows;let polygons=[],fills=[];
 const node=id=>nodes[id]??={value:'',checked:true,style:{},selectedOptions:[{textContent:'Solid'}]};
-const ctx={Math,Number,document:{querySelector:()=>({})},$:node,C:{purple:'#8050b4',teal:'#078477',gold:'#b57618',blue:'#287caf',red:'#d24452'},fmt:(v,d=3)=>String(Number(v.toFixed(d))),esc:String,controls:()=>{},select:(id,l,opts)=>{node(id).value=opts[0][0];return ''},input:(id,l,v)=>{node(id).value=String(v);return ''},slider:(id,l,v)=>{node(id).value=String(v);return ''},check:(id,label,checked=false)=>{node(id).checked=checked;return ''},btn:()=>'',showControl:()=>{},value:id=>Number(node(id).value),addLab:(id,l,t,setup)=>setup(),path:(pts)=>{polygons.push(pts);assert(pts.flat().every(Number.isFinite));return ''},txt:(x,y,s)=>{assert(Number.isFinite(x)&&Number.isFinite(y));return s},svg:s=>rendered=s,formula:()=>{},results:()=>{},table:(h,r)=>rows=r,note:()=>{},run:()=>{}};
+const ctx={Math,Number,document:{querySelector:()=>({})},$:node,C:{purple:'#8050b4',teal:'#078477',gold:'#b57618',blue:'#287caf',red:'#d24452'},fmt:(v,d=3)=>String(Number(v.toFixed(d))),esc:String,controls:()=>{},select:(id,l,opts)=>{node(id).value=opts[0][0];return ''},input:(id,l,v)=>{node(id).value=String(v);return ''},slider:(id,l,v)=>{node(id).value=String(v);return ''},check:(id,label,checked=false)=>{node(id).checked=checked;return ''},btn:()=>'',showControl:()=>{},value:id=>Number(node(id).value),addLab:(id,l,t,setup)=>setup(),path:(pts,stroke,fill)=>{fills.push(fill);polygons.push(pts);assert(pts.flat().every(Number.isFinite));return ''},txt:(x,y,s)=>{assert(Number.isFinite(x)&&Number.isFinite(y));return s},svg:s=>rendered=s,formula:()=>{},results:()=>{},table:(h,r)=>rows=r,note:()=>{},run:()=>{}};
 vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function project3('),source.indexOf("addLab('vectors3'"))+source.slice(source.indexOf("addLab('nets'"),source.indexOf("addLab('inequalities'")),ctx);
 for(const type of ['box','cube','tri','pent','hex','oct','tetra','triPyramid','pentPyramid','hexPyramid','pyramid','cylinder']){
  node('solid').value=type;
@@ -56,3 +56,13 @@ for(const position of ['standing','lying']){
 node('netResetView').onclick();assert.equal(node('netPositionView').value,'standing');assert.equal(node('netMirrorView').checked,false);assert.equal(geometry(),standing);
 node('unfold').value=1;const flatStanding=geometry();node('netPositionView').value='lying';assert.equal(geometry(),flatStanding);
 console.log('PASS: standing/lying model orientation, exact L/R mirror, turntable in both positions, reset and unchanged flat net.');
+
+node('netResetView').onclick();node('netLabels').checked=false;
+for(const type of ['box','cube','tri','pent','hex','oct','tetra','triPyramid','pentPyramid','hexPyramid','pyramid','cylinder']){
+ node('solid').value=type;
+ for(const position of ['standing','lying'])for(const u of [.01,.25,.5,.75,1]){
+  node('netPositionView').value=position;node('unfold').value=u;fills=[];ctx.update();assert(fills.length);assert(fills.every(f=>/^#[0-9a-f]{6}$/i.test(f)),type+' opaque faces');assert(!rendered.includes('data-visible="false"'));
+ }
+}
+node('solid').value='box';node('unfold').value=0;fills=[];ctx.update();assert(fills.includes('none'));assert(rendered.includes('stroke-dasharray="3 5"'));
+console.log('PASS: opaque inside/outside panels for all unfolded solids and both positions; folded hidden faces/edges preserved.');
