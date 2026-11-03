@@ -1,4 +1,4 @@
-# Mr Day's Maths Tools
+# Mr. Day's Maths Tools
 
 Thirty silent, static classroom mathematics tools. All run entirely in a modern browser without accounts, databases, paid services or external JavaScript dependencies.
 
