@@ -139,3 +139,11 @@ The existing network, vector/matrix, statistics and measurement labs link direct
 ### Verification
 
 Run `node tests/expansion.cjs` and the other six test suites. Browser checks cover revised controls, all default activities, alternative nets, angle modes, Venn shading, triple selection, worked derivatives, signed inequalities and numerical integration.
+
+### Catalogue organisation (November 2026)
+
+The home catalogue and final in-lab menu group tools by mathematical topic, with broadly reusable classroom tools before narrower investigations. This utility order is an editorial teaching judgement, not an official SCSA sequence. The site serves **Years 7–12 including ATAR**, with an Essential General course filter alongside Applications, Methods and Specialist ATAR. Course tags indicate relevant parts of multi-topic tools, not complete course coverage.
+
+The categories split the WA Number and algebra, Measurement and geometry, and Probability and statistics strands into browsable topic groups, with matrices/vectors/complex numbers and networks visible separately. Sampling distributions and confidence intervals sit under Statistics; time zones sit under Measurement and geometry; transition matrices sit with matrices. Science and class games remain separate from the maths topics.
+
+Sources consulted: the [2026 WA Years 7–10 scope and sequence](https://k10outline.scsa.wa.edu.au/__data/assets/pdf_file/0004/1229467/Mathematics_Scope-and-sequence7-10_For-implementation-in-2026.PDF) and current SCSA syllabuses linked from [Essential](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-essential), [Applications](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-applications), [Methods](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-methods) and [Specialist](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-specialist). Use syllabuses in force for 2026 rather than future or draft versions.
