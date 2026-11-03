@@ -6,7 +6,7 @@ for(const [f,x,word]of [['2*x','4','copies'],['x+3','4','added'],['x-3','7','Rem
 // Run the UI state machine with a controlled animation clock.
 const els={};for(const [id,value]of Object.entries({fMode:'machine',machineFunction:'2*x+3',machineInput:'4',machineSpeed:1,machineHistory:'[]'}))els[id]={value};
 for(const id of ['controls','machineExpressionControls','machineRun','machinePause','machineNext','machineExample','machineClearHistory','error','results','viz'])els[id]||={};
-els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
+els.machineRandom={checked:false};els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
 let svg='',cards='',cb,clock=100;const root={style:{},setAttribute(){},insertAdjacentHTML:(pos,html)=>cards=html};els.viz.querySelector=()=>root;
 const c={MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
 assert.ok(cards.includes('Input'));assert.ok(!cards.includes('>8</strong>'));els.machineNext.onclick();cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>8</strong>'));assert.ok(!cards.includes('>11</strong>'));assert.equal(els.machinePause.textContent,'Resume');
@@ -73,3 +73,26 @@ for(const [f,x,n] of [['x/3','12',3],['x/3','8',3],['x/8','144',8],['x/2','1',2]
  assert.ok(end.endsWith(A.tiles(g[1],500,245,210,1)),'chosen share finishes exactly in the outgoing layout');
 }
 console.log('PASS: division deals equal groups, conserves units and symbolic terms, splits remainders and hands off the chosen share.');
+
+// Random production tracks each batch independently through multiple machines.
+els.machineFunction.value='2*x+3';els.machineInput.value='4';els.machineRandom.checked=true;els.machineRandom.onchange();els.machineRun.onclick();clock+=10;cb(clock);
+assert.equal(els.machineInput.disabled,true);assert.equal(els.machineRandom.disabled,false);
+const seen=new Map(),readBatches=()=>{
+ for(const m of svg.matchAll(/data-machine="(\d+)" data-batch="(-?\d+)" data-input="([^"]+)"/g)){
+  if(+m[2]<0)continue;const input=Number(m[3].replace('−','-'));assert.ok(Number.isInteger(input)&&input>=-10&&input<=10);
+  if(seen.has(+m[2]))assert.equal(input,seen.get(+m[2]),'input follows the same batch through every machine');else seen.set(+m[2],input);
+ }
+ const retained=svg.match(/data-waiting-output="true" data-input="([^"]+)"/),last=[...svg.matchAll(/data-machine="(\d+)" data-batch="(-?\d+)"/g)].at(-1);
+ if(retained&&seen.has(+last[2]-1))assert.equal(Number(retained[1].replace('−','-')),seen.get(+last[2]-1));
+};
+for(let step=0;step<900;step++){clock+=250;cb(clock);readBatches();}
+els.machinePause.onclick();const pausedSVG=svg;c.update();assert.equal(svg,pausedSVG,'redraw while paused must not reroll inputs');
+const randomRows=JSON.parse(els.machineHistory.value),xs=randomRows.map(r=>Number(r[1].replace('−','-')));
+assert.ok(xs.length>15);assert.ok(xs.includes(-10)&&xs.includes(0)&&xs.includes(10));assert.deepEqual(xs,[...xs].sort((a,b)=>a-b));
+for(const r of randomRows)assert.equal(r[2],M.plan('2*x+3',r[1]).stages.at(-1).text);
+// Large frame jumps still record every completed batch, and undefined inputs are skipped.
+els.machineFunction.value='1/x';c.update();assert.equal(JSON.parse(els.machineHistory.value).length,0);els.machineRun.onclick();clock+=10;cb(clock);clock+=300000;cb(clock);els.machinePause.onclick();
+const reciprocalRows=JSON.parse(els.machineHistory.value);assert.ok(reciprocalRows.length>15);assert.ok(reciprocalRows.every(r=>r[1]!=='0'));for(const r of reciprocalRows)assert.equal(r[2],M.plan('1/x',r[1]).stages.at(-1).text);
+els.machineRandom.checked=false;els.machineRandom.onchange();assert.equal(els.machineInput.disabled,false);assert.ok(svg.includes('data-input="4"'));
+els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equal(els.machineRandom.disabled,true);
+console.log('PASS: random integer range, stable per-batch inputs, retained outputs, pause stability, sorted exact results, frame jumps, undefined inputs and toggle reset.');
