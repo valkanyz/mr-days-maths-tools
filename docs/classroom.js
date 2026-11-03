@@ -37,7 +37,7 @@ let sessions=read('shared',{}),baseLaunch,baseRun;
 // Retire incompatible controls once, retaining data in unaffected labs.
 if(read('labRevision','')!=='20261030'){for(const id of ['functions','measurement','inequalities','timezones','area','patterns'])delete sessions[id];delete sessions.juniorstats;save('shared',sessions);save('labRevision','20261030')}
 
-if(read('netViewRevision','')!=='rings-isometric-v1'){if(sessions.nets)sessions.nets=sessions.nets.filter(([id])=>!['netTurnView','netTiltView','netYView','netRollView','netPositionView','netMirrorView'].includes(id));save('shared',sessions);save('netViewRevision','rings-isometric-v1')}
+if(read('netViewRevision','')!=='showroom-isometric-v1'){if(sessions.nets)sessions.nets=sessions.nets.filter(([id])=>!['netTurnView','netTiltView','netYView','netRollView','netPositionView','netMirrorView'].includes(id));save('shared',sessions);save('netViewRevision','showroom-isometric-v1')}
 
 function saveSession(){if(!shared||restoring)return;sessions[current]=inputs();save('shared',sessions)}
 function svgBefore(){return [...(by('viz')?.querySelectorAll('svg rect,svg circle,svg polygon,svg path')||[])].slice(0,180).map(el=>({tag:el.tagName,box:el.getBoundingClientRect(),fill:el.getAttribute('fill'),shape:el.getAttribute('d')||el.getAttribute('points')}))}
