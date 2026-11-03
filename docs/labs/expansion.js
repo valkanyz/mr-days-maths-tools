@@ -176,7 +176,7 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set();co
  }
  const choices=$('netDimensionChoices');
  choices.innerHTML=dimensions.map((dim,i)=>`<label class="check"><input type="checkbox" data-dimension="${dim.id}" ${hiddenDimensions.has(dim.id)?'':'checked'}>${esc((dim.label.startsWith('h△')?'Triangle height':dim.label.startsWith('a =')?'Base apothem':dim.label.startsWith('s =')?'Slant height':'Dimension '+(i+1))+': '+dim.label)}</label>`).join('');
- choices.onchange=e=>{const id=e.target.dataset.dimension;if(!id)return;if(e.target.checked)hiddenDimensions.delete(id);else hiddenDimensions.add(id);run()};
+ choices.oninput=e=>{e.stopPropagation();const id=e.target.dataset.dimension;if(!id)return;if(e.target.checked)hiddenDimensions.delete(id);else hiddenDimensions.add(id);run()};
  if($('netLabels').checked){
  const placed=[];
  dimensions.forEach(({a,b,label,dashed,id})=>{
