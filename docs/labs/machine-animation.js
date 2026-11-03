@@ -16,6 +16,7 @@ function arrangeGroups(groups,stages){
  stages.forEach((stage,i)=>{const before=groups[i],after=groups[i+1];if(!after)return;
  const n=scalar(stage.operandPoly),square=stage.op==='^'&&!stage.reverse&&n===2&&after.length&&after.every(t=>t.key===''&&t.sign===1&&t.amount===1)&&Number.isInteger(Math.sqrt(after.length));
  if(square){grid(after);after.square=true;return;}
+ if(stage.op==='/'&&!stage.reverse){grid(after);return;}
  if(!before||!before.length){grid(after);return;}
  const used=new Set(),occupied=new Set();after.forEach(t=>{const j=before.findIndex((b,k)=>!used.has(k)&&same(b,t));if(j>=0){used.add(j);t.cell={...before[j].cell};occupied.add(t.cell.x+','+t.cell.y);}else delete t.cell;});
  const copy=stage.op==='*'&&Number.isInteger(n)&&n>1&&n<=8&&after.length===before.length*n;
@@ -69,13 +70,23 @@ function divisionShares(before,n){
  }
  return shares;
 }
+// Fit the outgoing arrangement into a tray without changing its orientation.
+function divisionSlots(share,after,cx,cy,width,height){
+ const output=tileSlots(after);
+ if(share.length===after.length&&output.length){
+  const left=Math.min(...output.map(p=>p.x-p.size/2)),right=Math.max(...output.map(p=>p.x+p.size/2)),top=Math.min(...output.map(p=>p.y-p.size/2)),bottom=Math.max(...output.map(p=>p.y+p.size/2)),scale=Math.min(1,width/(right-left),height/(bottom-top));
+  return output.map(p=>({x:cx+(p.x-(left+right)/2)*scale,y:cy+(p.y-(top+bottom)/2)*scale,size:p.size*scale}));
+ }
+ const l=tileLayout(share.length,width+10),size=Math.min(l.size,height/l.rows);
+ return share.map((t,j)=>({x:cx+(j%l.cols-(l.cols-1)/2)*size,y:cy+(Math.floor(j/l.cols)-(l.rows-1)/2)*size,size}));
+}
 function sharing(before,after,n,u,color,result){
  const shares=divisionShares(before,n),from=tileSlots(before),cols=Math.min(n,3),rows=Math.ceil(n/cols),height=150/rows,cellWidth=300/cols;
  const collect=clamp((u-.76)/.24),fade=clamp((collect-.65)/.35);let s='';
  const unit=(t,x,y,size,opacity=1)=>tiles([{...t,slot:{x:0,y:0,size}}],x,y,210,opacity);
  shares.forEach((share,k)=>{
   const cx=500+(k%cols-(cols-1)/2)*cellWidth,cy=245+(Math.floor(k/cols)-(rows-1)/2)*height;
-  const l=tileLayout(share.length,cellWidth-16),size=Math.min(l.size,(height-28)/l.rows),positions=share.map((t,j)=>({x:cx+(j%l.cols-(l.cols-1)/2)*size,y:cy+(Math.floor(j/l.cols)-(l.rows-1)/2)*size,size}));
+  const positions=divisionSlots(share,after,cx,cy,cellWidth-16,height-28);
   s+=`<g data-division-group="${k}" opacity="${1-collect}"><rect x="${cx-cellWidth/2+3}" y="${cy-height/2+2}" width="${cellWidth-6}" height="${height-4}" rx="6" fill="${k===0?'#e0f3ee':'#fff'}" stroke="${color}" stroke-width="${k===0?3:1.5}"/>${text(cx,cy+height/2-7,u>=.64?result:'Group '+(k+1),12,color)}</g>`;
   share.forEach((t,j)=>{
    const origin=from[t.source],dest=positions[j],deal=clamp((u-.05-(t.source/Math.max(1,before.length))*.28)/.28),out=tileSlots(after)[j];
@@ -131,5 +142,5 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  s+=text(500,40,finished&&!hideResult?working(stage,input)+' = '+stage.text:working(stage,input),22,color)+text(500,490,description,16);
  return s;
 }
-root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups,divisionShares,sharing};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
+root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups,divisionShares,divisionSlots,sharing};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
 })(typeof window!=='undefined'?window:globalThis);

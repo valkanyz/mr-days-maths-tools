@@ -8,7 +8,7 @@ const els={};for(const [id,value]of Object.entries({fMode:'machine',machineFunct
 for(const id of ['controls','machineExpressionControls','machineRun','machinePause','machineNext','machineExample','machineClearHistory','error','results','viz'])els[id]||={};
 els.machineRandom={checked:false};els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
 let svg='',cards='',cb,clock=100;const root={style:{},setAttribute(){},insertAdjacentHTML:(pos,html)=>cards=html};els.viz.querySelector=()=>root;
-const c={MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
+const c={MachinePlot:require('../docs/labs/machine-plot.js'),MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
 assert.ok(cards.includes('Input'));assert.ok(!cards.includes('>8</strong>'));els.machineNext.onclick();cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>8</strong>'));assert.ok(!cards.includes('>11</strong>'));assert.equal(els.machinePause.textContent,'Resume');
 els.machineNext.onclick();clock+=10;cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>11</strong>'));assert.equal(JSON.parse(els.machineHistory.value).length,1);c.update();assert.equal(JSON.parse(els.machineHistory.value).length,1);
 console.log('PASS: operation scenes, fractions, negatives, symbolic inputs, hidden results, stage stepping and single history entry.');
@@ -96,3 +96,22 @@ const reciprocalRows=JSON.parse(els.machineHistory.value);assert.ok(reciprocalRo
 els.machineRandom.checked=false;els.machineRandom.onchange();assert.equal(els.machineInput.disabled,false);assert.ok(svg.includes('data-input="4"'));
 els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equal(els.machineRandom.disabled,true);
 console.log('PASS: random integer range, stable per-batch inputs, retained outputs, pause stability, sorted exact results, frame jumps, undefined inputs and toggle reset.');
+
+// Whole-number shares keep the outgoing orientation throughout collection.
+for(const [input,n] of [[12,3],[18,3],[36,3],[48,8],[144,2]]){
+ const {g}=arranged('x/'+n,String(input)),share=A.divisionShares(g[0],n)[0],dest=A.tileSlots(g[1]),tray=A.divisionSlots(share,g[1],400,245,84,122);
+ assert.equal(tray.length,dest.length);const scale=tray[0].size/dest[0].size;
+ for(let i=0;i<tray.length;i++){assert.ok(Math.abs((tray[i].x-tray[0].x)-(dest[i].x-dest[0].x)*scale)<1e-8);assert.ok(Math.abs((tray[i].y-tray[0].y)-(dest[i].y-dest[0].y)*scale)<1e-8);}
+}
+console.log('PASS: division shares preserve the output orientation and relative block positions.');
+
+const Plot=require('../docs/labs/machine-plot.js');
+assert.equal(Plot.number('−3/2'),-1.5);assert.equal(Plot.number('0'),0);assert.equal(Plot.number('y'),null);
+for(const vals of [[],[0],[-10,10],[-100,-1],[1e-8,2e-8],[1e8,4e8]]){const a=Plot.axis(vals);assert.ok(a.max>a.min&&a.step>0);assert.ok(vals.every(v=>v>=a.min&&v<=a.max));assert.ok((a.max-a.min)/a.step<15);}
+const plot=Plot.render([['x^2','−2','4'],['x^2','1/2','1/4'],['x^2','y','y^2']]);assert.equal((plot.match(/data-pair=/g)||[]).length,2);assert.ok(plot.includes('Input (x)')&&plot.includes('Output (y)'));assert.ok(!/NaN|Infinity/.test(plot));assert.ok(!Plot.render([['x','2','2']],false).includes('data-pair='));
+els.machineFunction.value='x^2';els.machineInput.value='-2';c.update();assert.ok(!els.results.innerHTML.includes('data-pair='));
+els.results.onclick({target:{closest:()=>({dataset:{machineView:'graph'}})}});assert.ok(els.results.innerHTML.includes('id="machinePanel-table" aria-labelledby="machineView-table" hidden'));els.machineRun.onclick();clock+=10;cb(clock);clock+=1500;cb(clock);assert.ok(!els.results.innerHTML.includes('data-pair='));clock+=1600;cb(clock);assert.ok(els.results.innerHTML.includes('data-pair="−2,4"'));
+els.machineInput.value='3';c.update();els.machineRun.onclick();clock+=10;cb(clock);clock+=3100;cb(clock);assert.equal((els.results.innerHTML.match(/data-pair=/g)||[]).length,2);
+let prevented=false;els.results.onkeydown({target:{closest:()=>true},key:'ArrowLeft',preventDefault(){prevented=true}});assert.ok(prevented);assert.ok(els.results.innerHTML.includes('id="machinePanel-graph" aria-labelledby="machineView-graph" hidden'));
+els.machineClearHistory.onclick();assert.ok(!els.results.innerHTML.includes('data-pair='));els.machineFunction.value='x+1';c.update();assert.ok(!els.results.innerHTML.includes('data-pair='));
+console.log('PASS: graph tabs, keyboard switching, completed pairs only, fractions and negatives, safe axes, hidden answers and shared reset.');
