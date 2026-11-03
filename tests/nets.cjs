@@ -66,3 +66,18 @@ for(const type of ['box','cube','tri','pent','hex','oct','tetra','triPyramid','p
 }
 node('solid').value='box';node('unfold').value=0;fills=[];ctx.update();assert(fills.includes('none'));assert(rendered.includes('stroke-dasharray="3 5"'));
 console.log('PASS: opaque inside/outside panels for all unfolded solids and both positions; folded hidden faces/edges preserved.');
+
+node('unfold').value=0;node('width').value=4;node('depth').value=3;node('height').value=5;node('triSideB').value=5;node('triSideC').value=5;
+for(const type of ['box','cube','tri','pent','hex','oct','tetra','triPyramid','pentPyramid','hexPyramid','pyramid','cylinder']){
+ node('solid').value=type;node('netResetView').onclick();const upright=geometry();node('netPositionView').value='lying';const laid=geometry();assert.notEqual(upright,laid,type+' position toggle');
+ for(const position of ['standing','lying']){
+  node('netPositionView').value=position;geometry();
+  if(type==='tri')for(const q of polygons.slice(-2))assert(q[2][1]<(q[0][1]+q[1][1])/2,'triangle point faces up in '+position);
+  if(['tetra','triPyramid','pentPyramid','hexPyramid','pyramid'].includes(type)){
+   const base=polygons[0].slice(0,-1),baseY=base.reduce((sum,p)=>sum+p[1],0)/base.length;
+   for(const q of polygons.slice(1))assert(q[2][1]<baseY,'pyramid apex above base centre in '+position);
+  }
+ }
+}
+node('solid').value='tri';node('netResetView').onclick();const initialTriangle=geometry();down();view.onpointermove({pointerId:1,clientX:100,clientY:0});view.onpointerup();node('solid').value='box';geometry();node('solid').value='tri';assert.equal(geometry(),initialTriangle);
+console.log('PASS: all 12 position toggles, upward triangle/pyramid points in both positions, fresh orientation on solid changes.');
