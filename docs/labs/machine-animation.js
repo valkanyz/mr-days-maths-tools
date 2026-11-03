@@ -8,6 +8,27 @@ function tileLayout(count,width=220){
  const w=Math.max(20,width-10),h=Math.min(160,w),cols=Math.max(1,Math.min(count||1,Math.ceil(Math.sqrt(count*w/h)))),rows=Math.max(1,Math.ceil(count/cols));
  return {cols,rows,size:Math.min(32,w/cols,h/rows)};
 }
+// Lay out the full run once. Survivors retain their slots; every stage uses one scale.
+function arrangeGroups(groups,stages){
+ const same=(a,b)=>a.key===b.key&&a.sign===b.sign&&a.color===b.color&&Math.abs(a.amount-b.amount)<1e-9;
+ const grid=g=>{const cols=Math.max(1,Math.ceil(Math.sqrt(g.length)));g.forEach((t,i)=>t.cell={x:i%cols,y:Math.floor(i/cols)});};
+ if(groups[0])grid(groups[0]);
+ stages.forEach((stage,i)=>{const before=groups[i],after=groups[i+1];if(!after)return;
+ const n=scalar(stage.operandPoly),square=stage.op==='^'&&!stage.reverse&&n===2&&after.length&&after.every(t=>t.key===''&&t.sign===1&&t.amount===1)&&Number.isInteger(Math.sqrt(after.length));
+ if(square){grid(after);after.square=true;return;}
+ if(!before||!before.length){grid(after);return;}
+ const used=new Set(),occupied=new Set();after.forEach(t=>{const j=before.findIndex((b,k)=>!used.has(k)&&same(b,t));if(j>=0){used.add(j);t.cell={...before[j].cell};occupied.add(t.cell.x+','+t.cell.y);}else delete t.cell;});
+ const copy=stage.op==='*'&&Number.isInteger(n)&&n>1&&n<=8&&after.length===before.length*n;
+ if(copy){const w=Math.max(...before.map(t=>t.cell.x))+1,h=Math.max(...before.map(t=>t.cell.y))+1,cols=Math.ceil(Math.sqrt(n));
+ for(let k=1;k<n;k++)for(let j=0;j<before.length;j++){const src=before[j],t=after.find(t=>!t.cell&&t.key===src.key&&t.sign===src.sign&&Math.abs(t.amount-src.amount)<1e-9);if(t){t.cell={x:src.cell.x+(k%cols)*w,y:src.cell.y+Math.floor(k/cols)*h};t.copyFrom={...src.cell};occupied.add(t.cell.x+','+t.cell.y);}}
+ }
+ const cols=Math.max(Math.ceil(Math.sqrt(after.length)),...before.map(t=>t.cell.x+1));let slot=0;
+ for(const t of after)if(!t.cell){while(occupied.has(slot%cols+','+Math.floor(slot/cols)))slot++;t.cell={x:slot%cols,y:Math.floor(slot/cols)};occupied.add(t.cell.x+','+t.cell.y);}
+ });
+ const all=groups.filter(Boolean).flat(),w=Math.max(1,...all.map(t=>t.cell.x+1)),h=Math.max(1,...all.map(t=>t.cell.y+1)),size=Math.min(32,200/w,160/h);
+ for(const t of all){t.slot={x:(t.cell.x+.5-w/2)*size,y:(t.cell.y+.5-h/2)*size,size};if(t.copyFrom)t.copySlot={x:(t.copyFrom.x+.5-w/2)*size,y:(t.copyFrom.y+.5-h/2)*size,size};}
+ return groups;
+}
 function operationTitle(stage){
  if(stage.reverse&&['-','/','^'].includes(stage.op))return stage.label;
  if(stage.op==='^')return stage.operand==='2'?'Square':stage.operand==='3'?'Cube':'Power '+stage.operand;
@@ -16,22 +37,23 @@ function operationTitle(stage){
 function tiles(items,cx,cy,width=220,opacity=1){
  if(!items)return text(cx,cy,'Expression model',16);
  if(!items.length)return ''; // Empty animation subgroups must not display a zero label.
- const {cols,rows,size}=tileLayout(items.length,width),gap=Math.min(3,size*.12);
- return `<g opacity="${opacity}">`+items.map((t,i)=>{const x=cx-cols*size/2+i%cols*size,y=cy-rows*size/2+Math.floor(i/cols)*size,term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
+ const positions=tileSlots(items,cx,cy,width);
+ return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
 }
 const scalar=p=>p&&(!p.size||p.size===1&&p.has(''))?(p.size?root.MachineMath.num(p.get('')):0):null;
 function working(stage,before){const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
 // Match each retained unit to its original slot, then move it to its output slot.
 function tileSlots(items,cx=500,cy=245,width=210){
+ if(items.length&&items.every(t=>t.slot)){const scale=Math.min(1,(width-10)/200);return items.map(t=>({x:cx+t.slot.x*scale,y:cy+t.slot.y*scale,size:t.slot.size*scale}));}
  const {cols,rows,size}=tileLayout(items.length,width),gap=Math.min(3,size*.12);
  return items.map((t,i)=>({x:cx-cols*size/2+(i%cols+.5)*size,y:cy-rows*size/2+(Math.floor(i/cols)+.5)*size,size}));
 }
-function transition(before,after,u){
+function transition(before,after,u,copy=false){
  const from=tileSlots(before),to=tileSlots(after),used=new Set();let s='';
- const unit=(t,x,y,size,opacity)=>`<g transform="translate(${x} ${y}) scale(${size/32})">${tiles([t],0,0,220,opacity)}</g>`;
+ const unit=(t,x,y,size,opacity)=>`<g transform="translate(${x} ${y}) scale(${size/32})">${tiles([{...t,slot:null}],0,0,220,opacity)}</g>`;
  after.forEach((t,i)=>{const j=before.findIndex((p,k)=>!used.has(k)&&p.key===t.key&&p.sign===t.sign&&Math.abs(p.amount-t.amount)<1e-9&&p.color===t.color),end=to[i];
  if(j>=0){used.add(j);const start=from[j];s+=unit(t,lerp(start.x,end.x,u),lerp(start.y,end.y,u),lerp(start.size,end.size,u),1);}
- else s+=unit(t,end.x,lerp(end.y-110,end.y,u),end.size,u);
+ else {const start=copy&&t.copySlot?{x:500+t.copySlot.x,y:245+t.copySlot.y}:copy&&from.length?from[i%from.length]:{x:end.x,y:end.y-110};s+=unit(t,lerp(start.x,end.x,u),lerp(start.y,end.y,u),end.size,u);}
  });
  before.forEach((t,i)=>{if(used.has(i))return;const p=from[i];s+=unit(t,p.x,lerp(p.y,p.y+90,u),p.size,1-u);if(u>0&&u<.9)s+=text(p.x,lerp(p.y,p.y+90,u)+5,'×',20,'#c6374e');});
  return s;
@@ -51,7 +73,7 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  else if(hideResult){s+=text(500,235,'Result hidden',22);description='Show answers to see this final transformation.';}
  else if(stage.op==='*'&&!stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144 || stage.op==='*'&&stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144){
   const n=operand;description=stage.label.includes('distribute')?`Make ${n} copies of every term in the bracket.`:`Make ${n} equal copies of the input.`;
-  for(let k=0;k<n;k++){const col=k===0?null:color,copy=before.map(t=>({...t,color:col||t.color})),cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*80,y=n>4?205+Math.floor(k/4)*80:245;s+=`<rect x="${x-40}" y="${y-40}" width="80" height="80" rx="7" fill="none" stroke="${color}" opacity=".3"/>`+tiles(copy,lerp(500,x,u),lerp(245,y,u),72,k===0?1:u);}
+  s+=transition(before,after,u,true);
  }else if(stage.op==='/'&&!stage.reverse&&Number.isInteger(operand)&&operand>=2&&operand<=8&&positive&&count<=144){
   const n=operand;description=`Share the input equally into ${n} groups. One group is the output.`;
   // Split each original unit equally, retaining its colour and term, including fractional shares.
@@ -61,7 +83,9 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
   s+=transition(before,after,u);
  }else if(stage.op==='^'&&!stage.reverse&&operand===2&&positive&&count>0&&count<=10&&before.every(t=>t.key==='')){
   description=`Build a ${count} by ${count} square: ${count} groups of ${count}.`;
-  const size=Math.min(23,170/count);for(let i=0;i<count*count;i++){const t=after?.[i]||{color},x=500+(i%count-(count-1)/2)*size,y=245+(Math.floor(i/count)-(count-1)/2)*size;s+=`<rect x="${lerp(500,x,u)-size/2}" y="${lerp(245,y,u)-size/2}" width="${size-2}" height="${size-2}" fill="${t.color}" opacity="${i<count?1:u}"/>`;}
+  // Reveal complete rows of the final square; the same layout travels out on the belt.
+  if(!after.every(t=>t.slot)){const side=Math.sqrt(after.length),size=Math.min(32,160/side);after.forEach((t,i)=>t.slot={x:(i%side-(side-1)/2)*size,y:(Math.floor(i/side)-(side-1)/2)*size,size});}
+  s+=tiles(after,500,245,210,u);
   s+=text(500,335,`${count} × ${count}`,18);
  }else{
   const factors=stage.op==='^'&&!stage.reverse&&Number.isInteger(operand)&&operand>0?Array.from({length:operand},()=>`(${input})`).join(' × '):working(stage,input);
@@ -71,5 +95,5 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  s+=text(500,40,finished&&!hideResult?working(stage,input)+' = '+stage.text:working(stage,input),22,color)+text(500,490,description,16);
  return s;
 }
-root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
+root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
 })(typeof window!=='undefined'?window:globalThis);
