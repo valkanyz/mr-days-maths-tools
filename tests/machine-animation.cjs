@@ -6,7 +6,7 @@ for(const [f,x,word]of [['2*x','4','copies'],['x+3','4','added'],['x-3','7','Rem
 // Run the UI state machine with a controlled animation clock.
 const els={};for(const [id,value]of Object.entries({fMode:'machine',machineFunction:'2*x+3',machineInput:'4',machineSpeed:1,machineHistory:'[]'}))els[id]={value};
 for(const id of ['controls','machineExpressionControls','machineRun','machinePause','machineNext','machineExample','machineClearHistory','error','results','viz'])els[id]||={};
-els.machineRandom={checked:false};els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
+els.machineInput.dataset={};els.machineRandom={checked:false,dataset:{}};els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
 let svg='',cards='',cb,clock=100;const root={style:{},setAttribute(){},insertAdjacentHTML:(pos,html)=>cards=html};els.viz.querySelector=()=>root;
 const c={MachinePlot:require('../docs/labs/machine-plot.js'),MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
 assert.ok(cards.includes('Input'));assert.ok(!cards.includes('>8</strong>'));els.machineNext.onclick();cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>8</strong>'));assert.ok(!cards.includes('>11</strong>'));assert.equal(els.machinePause.textContent,'Resume');
@@ -115,3 +115,26 @@ els.machineInput.value='3';c.update();els.machineRun.onclick();clock+=10;cb(cloc
 let prevented=false;els.results.onkeydown({target:{closest:()=>true},key:'ArrowLeft',preventDefault(){prevented=true}});assert.ok(prevented);assert.ok(els.results.innerHTML.includes('id="machinePanel-graph" aria-labelledby="machineView-graph" hidden'));
 els.machineClearHistory.onclick();assert.ok(!els.results.innerHTML.includes('data-pair='));els.machineFunction.value='x+1';c.update();assert.ok(!els.results.innerHTML.includes('data-pair='));
 console.log('PASS: graph tabs, keyboard switching, completed pairs only, fractions and negatives, safe axes, hidden answers and shared reset.');
+
+// Exercise the real shared runner: it hides the parent of disabled inputs.
+// Earlier state-machine tests called update directly and missed that integration.
+const labSource=fs.readFileSync('docs/labs/index.html','utf8'),machineSource=fs.readFileSync('docs/labs/function-machine.js','utf8');
+const controlMarkup=machineSource.match(/insertAdjacentHTML\('beforeend',`([^`]+)`\)/)[1];
+const stack=[],controlNodes={};
+for(const token of controlMarkup.matchAll(/<\/?([a-z]+)\b([^>]*)>/g)){
+ const [tag,name,attrs]=token;if(tag.startsWith('</')){stack.pop();continue;}
+ const id=attrs.match(/\bid="([^"]+)"/)?.[1],node=id?(els[id]||={}):{};node.parentElement=stack.at(-1);node.children=[];node.classList={contains:()=>false};node.closest=()=>null;if(node.parentElement)node.parentElement.children.push(node);if(id)controlNodes[id]=node;if(!['input','br'].includes(name))stack.push(node);
+}
+assert.notEqual(els.machineInput.parentElement,els.machineExpressionControls,'manual input must have its own wrapper');
+const controlsList=['machineInput','machineFunction','machineExample','machineRandom','machineContinuous','machineInside','machineSpeed'].map(id=>{const el=els[id];el.id=id;el.dataset||={};el.closest||=()=>null;el.parentElement||={hidden:false,parentElement:els.machineExpressionControls};return el;});
+els.machineExpressionControls.parentElement={classList:{contains:()=>false}};
+for(const el of controlsList)el.parentElement.parentElement.classList||={contains:()=>false};
+els.controls.querySelectorAll=()=>controlsList;els.reveal={checked:true};els.table={};els.formula={};els.csv={};
+vm.runInContext(labSource.match(/^function showControl\([^\n]+/m)[0]+'\n'+labSource.match(/^function run\([^\n]+/m)[0],c);
+els.machineContinuous.checked=true;els.machineContinuous.onchange();els.machineRandom.checked=true;els.machineRandom.onchange();
+assert.equal(els.error.textContent,'');assert.equal(els.machineExpressionControls.hidden,false);assert.equal(els.machineInput.parentElement.hidden,false);assert.equal(els.machineInput.disabled,true);
+els.machineRun.onclick();clock+=10;cb(clock);clock+=800;cb(clock);
+els.machineInside.checked=false;c.run();assert.equal(els.machineExpressionControls.hidden,false);assert.ok(svg.includes('Turn on'));els.machineSpeed.value='2';c.run();assert.equal(els.machineExpressionControls.hidden,false);
+els.machineRandom.checked=false;els.machineRandom.onchange();assert.equal(els.machineInput.disabled,false);assert.equal(els.machineExpressionControls.hidden,false);
+els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equal(els.machineRandom.parentElement.hidden,false);assert.equal(els.error.textContent,'');
+console.log('PASS: real shared runner keeps settings visible while random production runs; cutaway, speed and mode controls remain usable.');
