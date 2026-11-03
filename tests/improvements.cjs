@@ -17,3 +17,13 @@ const aliases={Intl};vm.runInNewContext(source.slice(source.indexOf('const zoneC
 const functionCode=source.slice(source.indexOf('const u=x=>x-h;'),source.indexOf(" const r=value('range')"));const fn={kind:'tangentFn',a:1,b:Math.PI,h:0,k:0,omega:1};vm.runInNewContext('let F;'+functionCode+'this.fn=F;',fn);assert.ok(Number.isNaN(fn.fn.f(Math.PI/2)));assert.ok(Number.isNaN(fn.fn.d(Math.PI/2)));assert.ok(Math.abs(fn.fn.f(Math.PI/4)-1)<1e-12);
 const html=fs.readFileSync('docs/labs/index.html','utf8'),valueCode=html.slice(html.indexOf('function value(id)'),html.indexOf('let changedControl='));let control={value:'12.5663706143592',min:'.2',max:String(4*Math.PI),step:'any'};const vc={$:()=>control,document:{querySelector:()=>null}};vm.runInNewContext(valueCode+'this.read=value',vc);assert.doesNotThrow(()=>vc.read('b'));control.value='13';assert.throws(()=>vc.read('b'));
 console.log('PASS: repeated-time choice, geographic aliases, tangent poles and floating-point slider limits.');
+const hover={Intl,Date};vm.runInNewContext(source.slice(source.indexOf('const zoneNames='),source.indexOf('// City search is local:'))+';this.label=zoneHoverLabel',hover);
+assert.match(hover.label('Asia/Kathmandu',Date.parse('2026-06-30T05:00Z')),/UTC\+5:45 \/ GMT\+5:45/);
+assert.match(hover.label('Australia/Sydney',Date.parse('2026-06-30T05:00Z')),/UTC\+10 \/ GMT\+10/);
+assert.match(hover.label('Australia/Sydney',Date.parse('2026-10-30T05:00Z')),/UTC\+11 \/ GMT\+11/);
+const bands={real:false,offsetLabel:Z.offsetLabel,esc:s=>s,txt:()=>''};vm.runInNewContext("let s='';"+source.slice(source.indexOf(' if(!real)for(let i=-12;'),source.indexOf(' if(real&&zoneMap)'))+';this.markup=s',bands);
+const rects=[...bands.markup.matchAll(/<rect[^>]* x="([^"]+)"[^>]* width="([^"]+)"/g)].map(m=>[+m[1],+m[2]]);
+assert.equal(rects.length,25);assert.equal(rects[0][0],30);assert.equal(rects.at(-1)[0]+rects.at(-1)[1],810);
+assert.equal(rects.reduce((sum,r)=>sum+r[1],0),780);for(let i=1;i<rects.length;i++)assert.equal(rects[i][0],rects[i-1][0]+rects[i-1][1]);
+assert.ok(rects.slice(1,-1).every(r=>r[1]===780*15/360));assert.match(bands.markup,/UTC\+0 \/ GMT\+0/);
+console.log('PASS: hover offsets follow the date and 15-degree bands cover the full map without gaps.');
