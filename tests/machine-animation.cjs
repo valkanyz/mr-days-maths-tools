@@ -50,3 +50,6 @@ console.log('PASS: waiting feed, retained output, incoming-batch push and clean 
 
 let randomIndex=0;c.Math=Object.assign(Object.create(Math),{random:()=>[.1,.9][randomIndex++%2]});els.machineFunction.value='3*x+4';c.update();const timings=[...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]);assert.equal(timings.length,2);assert.notEqual(timings[0],timings[1]);assert.ok(timings.every(t=>t>.85&&t<1.15));const beforeTimings=timings.join();c.update();assert.equal([...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]).join(),beforeTimings);
 console.log('PASS: machine processing times vary slightly and remain stable between frames.');
+
+for(const n of [2,6,12]){const {p,g}=arranged('x^2',String(n));const render=phase=>A.scene({stage:p.stages[0],before:g[0],after:g[1],phase,inside:true,color:'green'});const middle=render(.42),built=render(.78);assert.ok(middle.includes('data-square-turn='));assert.ok(!middle.includes('data-square-turn="90"'));assert.ok(built.includes('data-square-turn="90"'));assert.equal((built.match(/data-amount=/g)||[]).length,n*n);assert.ok(!built.includes('NaN'));}
+console.log('PASS: square input rotates through 90 degrees and builds exactly n squared blocks.');

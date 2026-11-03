@@ -81,11 +81,19 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  }else if(['+','-'].includes(stage.op)&&before&&after&&!stage.reverse){
   description=stage.op==='+'?'Bring in the added units and combine like terms.':'Remove the subtracted units; use negative units if needed.';
   s+=transition(before,after,u);
- }else if(stage.op==='^'&&!stage.reverse&&operand===2&&positive&&count>0&&count<=10&&before.every(t=>t.key==='')){
-  description=`Build a ${count} by ${count} square: ${count} groups of ${count}.`;
-  // Reveal complete rows of the final square; the same layout travels out on the belt.
+ }else if(stage.op==='^'&&!stage.reverse&&operand===2&&positive&&count>0&&count<=12&&before.every(t=>t.key==='')){
+  description=`Rotate a copy by 90° to form the second side, then build a ${count} by ${count} square.`;
+  // Form one side, swing its copy through a quarter-turn, then extend the remaining rows.
   if(!after.every(t=>t.slot)){const side=Math.sqrt(after.length),size=Math.min(32,160/side);after.forEach((t,i)=>t.slot={x:(i%side-(side-1)/2)*size,y:(Math.floor(i/side)-(side-1)/2)*size,size});}
-  s+=tiles(after,500,245,210,u);
+  const outputSlots=tileSlots(after),inputSlots=tileSlots(before),gather=clamp(u/.2),turn=clamp((u-.2)/.4),grow=clamp((u-.6)/.4),pivot=outputSlots[0],angle=90*turn;
+  const unit=(t,x,y,size,opacity=1)=>tiles([{...t,slot:{x:0,y:0,size}}],x,y,210,opacity);
+  for(let k=0;k<count;k++){const from=inputSlots[k],to=outputSlots[k];s+=unit(after[k],lerp(from.x,to.x,gather),lerp(from.y,to.y,gather),lerp(from.size,to.size,gather));}
+  if(u>=.2){s+=`<g data-square-turn="${angle}" transform="translate(${pivot.x} ${pivot.y}) rotate(${angle})">`;
+  for(let row=1;row<count;row++)s+=unit(after[row*count],row*pivot.size,0,pivot.size);
+  s+='</g>';
+  if(turn<1)s+=text(500,155,`${Math.round(angle)}°`,16,color);
+  }
+  if(grow>0)for(let row=1;row<count;row++)for(let col=1;col<count;col++){const k=row*count+col,to=outputSlots[k],rowProgress=clamp(grow*count-(row-1)*.18);s+=unit(after[k],lerp(pivot.x,to.x,rowProgress),to.y,to.size,rowProgress);}
   s+=text(500,335,`${count} × ${count}`,18);
  }else{
   const factors=stage.op==='^'&&!stage.reverse&&Number.isInteger(operand)&&operand>0?Array.from({length:operand},()=>`(${input})`).join(' × '):working(stage,input);
