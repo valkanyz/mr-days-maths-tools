@@ -29,8 +29,8 @@ const view=node('viz');view.setPointerCapture=()=>{};ctx.run=()=>ctx.update();
 node('netPositionView').value='standing';
 view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});
 view.onpointermove({clientX:40,clientY:20,pointerId:2});assert.equal(node('netTurnView').value,30);
-view.onpointermove({clientX:40,clientY:20,pointerId:1});assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-20);view.onpointerup();assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-20);ctx.update();assert.equal(node('netTurnViewval').textContent,10);
-view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRollViewval').textContent,-10);view.onpointerup();assert.equal(node('netRollViewval').textContent,-10);
+view.onpointermove({clientX:40,clientY:20,pointerId:1});assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-30);view.onpointerup();assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-30);ctx.update();assert.equal(node('netTurnViewval').textContent,10);
+view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRollViewval').textContent,0);view.onpointerup();assert.equal(node('netRollViewval').textContent,0);
 // A drag may start on a label without hiding it; a tap still hides the label.
 const label={dataset:{dimension:'test-dimension'}},target={closest:()=>label};
 view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,target,preventDefault(){}});view.onpointermove({clientX:70,clientY:0});view.onpointerup();const beforeClick=rendered;view.onclick({target});assert.equal(rendered,beforeClick);
@@ -57,3 +57,15 @@ for(const [start,dx,expected] of [[30,-24,45],[75,-24,90],[0,-34,17],[0,84,-45],
  view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});view.onpointermove({clientX:dx,clientY:0,pointerId:1});view.onpointerup();ctx.update();assert.equal(node('netTurnViewval').textContent,expected);
 }
 console.log('PASS: reversed drag direction, 45/90 proximity snapping, unsnapped angles persist after redraw.');
+
+for(const position of ['standing','lying'])for(const mirror of [false,true]){
+ node('netResetView').onclick();node('netPositionView').value=position;node('netMirrorView').checked=mirror;
+ node('netYView').value=45;node('netYView').oninput();node('netRollView').value=60;node('netRollView').oninput();
+ const fixed=['netTiltView','netYView','netRollView'].map(id=>node(id+'val').textContent);
+ view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});
+ view.onpointermove({clientX:0,clientY:150,pointerId:1});assert.equal(node('netTurnViewval').textContent,30);
+ view.onpointermove({clientX:40,clientY:150,pointerId:1});view.onpointerup();
+ assert.equal(node('netTurnViewval').textContent,mirror?45:10);
+ assert.deepEqual(['netTiltView','netYView','netRollView'].map(id=>node(id+'val').textContent),fixed);
+}
+console.log('PASS: one drag axis in standing, lying and mirrored views; vertical movement and Shift cannot change other axes.');

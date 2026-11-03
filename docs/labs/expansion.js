@@ -194,7 +194,7 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set(),vi
  });
  }
  $('viz').style.height='clamp(420px,65dvh,800px)';
- svg(s,'Unfolding '+$('solid').selectedOptions[0].textContent);formula(u===1?'Flat net — each coloured region is a surface':u===0?'Solid — move Unfold to open the surfaces':'Unfolding the same surfaces');results([['Surface area',fmt(area)+' '+unit+'²'],['Volume',fmt(volume)+' '+unit+'³']]);table(['Solid','Surface area','Volume'],[[$('solid').selectedOptions[0].textContent,area,volume]]);note(u===1?'Flat net · fold the solid to rotate it.':'Drag to rotate · release near 45° or 90° to snap · Shift-drag to roll · Y rotation is under 3D rotation.');};
+ svg(s,'Unfolding '+$('solid').selectedOptions[0].textContent);formula(u===1?'Flat net — each coloured region is a surface':u===0?'Solid — move Unfold to open the surfaces':'Unfolding the same surfaces');results([['Surface area',fmt(area)+' '+unit+'²'],['Volume',fmt(volume)+' '+unit+'³']]);table(['Solid','Surface area','Volume'],[[$('solid').selectedOptions[0].textContent,area,volume]]);note(u===1?'Flat net · fold the solid to rotate it.':'Drag left/right to turn on the Z axis · release near 45° or 90° to snap · use 3D rotation sliders for other axes.');};
  const setView=(id,v,snap=true)=>{const angle=(((snap?Math.round(v/15)*15:v)+180)%360+360)%360-180;viewAngles[id]=angle;$(id).value=Math.round(angle/15)*15;$(id+'val').textContent=Math.round(angle*10)/10};
  $('netResetView').onclick=()=>{$('netPositionView').value='lying';$('netMirrorView').checked=false;setView('netTurnView',30);setView('netTiltView',-30);setView('netRollView',0);setView('netYView',0);run()};
  $('netPositionView').onchange=()=>{setView('netTurnView',30);setView('netTiltView',-30);setView('netRollView',0);setView('netYView',0);run()};
@@ -203,12 +203,11 @@ addLab('nets','Nets Lab','YEARS 7–10',()=>{const hiddenDimensions=new Set(),vi
  // Keep the exact drag angle separate from the 15-degree slider thumb.
  rotationIds.forEach(id=>{$(id).oninput=()=>{setView(id,value(id));run()}});
  view.onclick=e=>{if(suppressClick){suppressClick=false;return}const label=e.target.closest?.('.net-dimension');if(label){hiddenDimensions.add(label.dataset.dimension);run()}};
- view.onpointerdown=e=>{if(value('unfold')===1||e.button!==0||orbit)return;suppressClick=false;orbit={id:e.pointerId,x:e.clientX,y:e.clientY,yaw:viewAngles.netTurnView,pitch:viewAngles.netTiltView,roll:viewAngles.netRollView,rolling:e.shiftKey,moved:false,label:e.target?.closest?.('.net-dimension')?.dataset.dimension};view.setPointerCapture(e.pointerId);view.style.cursor='grabbing';e.preventDefault()};
- view.onpointermove=e=>{if(!orbit||(e.pointerId!==undefined&&e.pointerId!==orbit.id))return;const dx=e.clientX-orbit.x,dy=e.clientY-orbit.y;if(!orbit.moved&&Math.hypot(dx,dy)<4)return;orbit.moved=true;suppressClick=true;if(orbit.rolling)setView('netRollView',orbit.roll-dx*.5,false);else{
- // Undo the screen roll and mirror so dragging follows the displayed orientation.
- const r=(orbit.roll+($('netPositionView').value==='lying'?60:0))*Math.PI/180*(1-value('unfold')),x=dx*($('netMirrorView').checked?-1:1),horizontal=x*Math.cos(r)+dy*Math.sin(r),vertical=-x*Math.sin(r)+dy*Math.cos(r);
- setView('netTurnView',orbit.yaw-horizontal*.5,false);setView('netTiltView',orbit.pitch+vertical*.5,false)}run()};
- const finishOrbit=e=>{if(!orbit||(e?.pointerId!==undefined&&e.pointerId!==orbit.id))return;const id=orbit.id;if(e?.type!=='pointercancel'&&e?.type!=='lostpointercapture'&&!orbit.moved&&orbit.label){hiddenDimensions.add(orbit.label);suppressClick=true}orbit=null;rotationIds.forEach(id=>{const angle=viewAngles[id],nearest=Math.round(angle/45)*45;setView(id,Math.abs(angle-nearest)<=5?nearest:angle,false)});view.style.cursor='grab';if(view.hasPointerCapture?.(id))view.releasePointerCapture(id);run()};
+ view.onpointerdown=e=>{if(value('unfold')===1||e.button!==0||orbit)return;suppressClick=false;orbit={id:e.pointerId,x:e.clientX,y:e.clientY,yaw:viewAngles.netTurnView,rotated:false,moved:false,label:e.target?.closest?.('.net-dimension')?.dataset.dimension};view.setPointerCapture(e.pointerId);view.style.cursor='grabbing';e.preventDefault()};
+ view.onpointermove=e=>{if(!orbit||(e.pointerId!==undefined&&e.pointerId!==orbit.id))return;const dx=e.clientX-orbit.x,dy=e.clientY-orbit.y;if(!orbit.moved&&Math.hypot(dx,dy)<4)return;orbit.moved=true;suppressClick=true;if(!orbit.rotated&&Math.abs(dx)<4)return;orbit.rotated=true;
+ // One fixed axis: vertical movement and modifier keys never alter tilt or roll.
+ setView('netTurnView',orbit.yaw-dx*.5*($('netMirrorView').checked?-1:1),false);run()};
+ const finishOrbit=e=>{if(!orbit||(e?.pointerId!==undefined&&e.pointerId!==orbit.id))return;const id=orbit.id;if(e?.type!=='pointercancel'&&e?.type!=='lostpointercapture'&&!orbit.moved&&orbit.label){hiddenDimensions.add(orbit.label);suppressClick=true}if(orbit.rotated){const angle=viewAngles.netTurnView,nearest=Math.round(angle/45)*45;setView('netTurnView',Math.abs(angle-nearest)<=5?nearest:angle,false)}orbit=null;view.style.cursor='grab';if(view.hasPointerCapture?.(id))view.releasePointerCapture(id);run()};
  view.onpointerup=view.onpointercancel=finishOrbit;
  view.addEventListener?.('lostpointercapture',finishOrbit);
 
