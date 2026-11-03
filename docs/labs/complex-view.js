@@ -14,8 +14,8 @@ labs.complex.setup=function(){
  update=()=>{
  const polar=$('complexForm').value==='polar',snap=$('complexSnap').checked,exact=$('complexExact').checked;
  for(const id of ['modulus','argument'])showControl(id,polar);for(const id of ['re','im'])showControl(id,!polar);
- if(polar){let r=value('modulus'),t=value('argument');if(snap){r=Math.round(r*2)/2;t=Math.round(t/15)*15;$('modulus').value=r;$('argument').value=t;}$('re').value=r*Math.cos(t*Math.PI/180);$('im').value=r*Math.sin(t*Math.PI/180);}
- else if(snap)for(const id of ['re','im'])$(id).value=Math.round(value(id)*2)/2;
+ if(polar){let r=value('modulus'),t=value('argument');if(snap){r=Math.round(r*100)/100;t=Math.round(t/15)*15;$('modulus').value=r;$('argument').value=t;}$('re').value=r*Math.cos(t*Math.PI/180);$('im').value=r*Math.sin(t*Math.PI/180);}
+ else if(snap)for(const id of ['re','im'])$(id).value=Math.round(value(id)*100)/100;
  const z=[value('re'),value('im')],w=[value('wr'),value('wi')],op=$('operation').value,n=value('power'),roots=op==='roots',usesW=['add','subtract','multiply','divide'].includes(op);
  const canTipTail=['add','subtract'].includes(op),tipTail=canTipTail&&$('complexTipTail').checked;showControl('complexTipTail',canTipTail);
  $('power').disabled=!['power','roots'].includes(op);$('wr').disabled=$('wi').disabled=!usesW;
@@ -37,14 +37,14 @@ labs.complex.setup=function(){
  formula(roots?'Roots: r¹⁄ⁿ cis((θ + 2kπ) / n)':'z = r(cos θ + i sin θ)');
  results([['|z|',num(M.norm(z))],['arg z',angleText(arg(z),exact)],['z',cart(z)],[roots?'Distinct roots':'Result',roots?out.length:cart(out[0])]]);
  legend([['z',C.purple],...(usesW?[['w',C.blue]]:[]),['Result / roots',C.teal]]);
- note((tipTail?(op==='subtract'?'−w starts at the tip of z and ends at z − w. ':'w starts at the tip of z and ends at z + w. ')+'The dashed vector shows w in its original position. ':'')+'Drag z or w to move it. Snapping uses ½-unit steps'+(polar?' and 15° angles.':'.')+' Exact values show recognised fractions, surds and multiples of π; other values are marked ≈. Zero has undefined argument.');
+ note((tipTail?(op==='subtract'?'−w starts at the tip of z and ends at z − w. ':'w starts at the tip of z and ends at z + w. ')+'The dashed vector shows w in its original position. ':'')+'Drag z or w to move it. '+(polar?'Snapping uses 0.01-unit modulus steps and 15° angles.':'Snapping uses 0.01-unit steps.')+' Exact values show recognised fractions, surds and multiples of π; other values are marked ≈. Zero has undefined argument.');
  table(['Value','Cartesian form','Modulus','Argument'],entries.map(([name,p])=>[name,cart(p),num(M.norm(p)),angleText(arg(p),exact)]));
  };
  const viz=$('viz');viz.style.touchAction='none';
  viz.onpointerdown=e=>{const handle=e.target.closest('[data-complex-drag]');if(!handle)return;drag={id:handle.dataset.complexDrag,graph};viz.setPointerCapture(e.pointerId);e.preventDefault();};
  viz.onpointermove=e=>{if(!drag)return;const root=viz.querySelector('svg'),pt=root.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(root.getScreenCTM().inverse());let [x,y]=drag.graph.inverse(p.x,p.y);const polar=$('complexForm').value==='polar',snap=$('complexSnap').checked;
- if(polar){let r=Math.min(10,Math.hypot(x,y)),t=Math.atan2(y,x);if(snap){r=Math.round(r*2)/2;t=Math.round(t/(Math.PI/12))*Math.PI/12;}x=r*Math.cos(t);y=r*Math.sin(t);if(drag.id==='z'){$('modulus').value=r;$('argument').value=t*180/Math.PI;}}
- else {x=Math.max(-10,Math.min(10,x));y=Math.max(-10,Math.min(10,y));if(snap){x=Math.round(x*2)/2;y=Math.round(y*2)/2;}}
+ if(polar){let r=Math.min(10,Math.hypot(x,y)),t=Math.atan2(y,x);if(snap){r=Math.round(r*100)/100;t=Math.round(t/(Math.PI/12))*Math.PI/12;}x=r*Math.cos(t);y=r*Math.sin(t);if(drag.id==='z'){$('modulus').value=r;$('argument').value=t*180/Math.PI;}}
+ else {x=Math.max(-10,Math.min(10,x));y=Math.max(-10,Math.min(10,y));if(snap){x=Math.round(x*100)/100;y=Math.round(y*100)/100;}}
  $(drag.id==='z'?'re':'wr').value=x;$(drag.id==='z'?'im':'wi').value=y;run();};
  viz.onpointerup=e=>{if(!drag)return;drag=null;if(viz.hasPointerCapture(e.pointerId))viz.releasePointerCapture(e.pointerId);$('re').dispatchEvent(new Event('change',{bubbles:true}));};viz.onpointercancel=()=>{drag=null;};
 };

@@ -7,7 +7,7 @@ const context={Math,M,Intl,Event,$:id=>controls[id],labs:{complex:{setup(){}}},c
 vm.createContext(context);vm.runInContext(source,context);context.labs.complex.setup();context.update();
 assert.equal((markup.match(/<circle cx="420"/g)||[]).length,4);assert.ok(markup.includes('data-complex-drag="z"'));assert.ok(markup.includes('data-complex-drag="w"'));assert.ok(markup.includes('z + w'));assert.ok(!markup.includes('NaN'));
 controls.complexExact.checked=true;context.update();assert.ok(rows[0][1].includes('√3'));assert.equal(rows[0][3],'π/6');
-controls.complexSnap.checked=true;controls.modulus.value=2.23;controls.argument.value=43;context.update();assert.equal(+controls.modulus.value,2);assert.equal(+controls.argument.value,45);assert.equal(rows[0][3],'π/4');
+controls.complexSnap.checked=true;controls.modulus.value=2.23;controls.argument.value=43;context.update();assert.equal(+controls.modulus.value,2.23);assert.equal(+controls.argument.value,45);assert.equal(rows[0][3],'π/4');
 controls.operation.value='roots';context.update();assert.equal(rows.length,4);assert.ok(!markup.includes('data-complex-drag="w"'));assert.ok(markup.includes('k = 2'));
 controls.modulus.value=0;context.update();assert.equal(rows[0][3],'Undefined');assert.ok(!markup.includes('NaN'));
 console.log('PASS: polar grid, vector labels, exact surds/angles, snapping, roots and zero.');
