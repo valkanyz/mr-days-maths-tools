@@ -27,16 +27,16 @@ function transition(before,after,u){
  before.forEach((t,i)=>{if(used.has(i))return;const p=from[i];s+=unit(t,p.x,lerp(p.y,p.y+90,u),p.size,1-u);if(u>0&&u<.9)s+=text(p.x,lerp(p.y,p.y+90,u)+5,'×',20,'#c6374e');});
  return s;
 }
-function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=false}){
+function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=false,sharedBelt=false,showInput=true,hideAfter=false}){
  const input=stage.beforeText||'',u=clamp((phase-.18)/.60),finished=phase>=.86,operand=scalar(stage.operandPoly),positive=before&&before.every(t=>t.sign>0&&t.amount===1&&!t.bundle),count=before?.length||0;
- let s='<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>'+text(150,110,'Input',19)+text(850,110,'Output',19);
- s+=`<path d="M45 345H955" stroke="#555565" stroke-width="26"/><path d="M45 345H955" stroke="#bbc0c9" stroke-width="3" stroke-dasharray="12 8" stroke-dashoffset="${-phase*200}"/>`;
+ let s=(sharedBelt?'':'<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>')+text(150,110,'Input',19)+text(850,110,'Output',19);
+ if(!sharedBelt)s+=`<path d="M45 345H955" stroke="#555565" stroke-width="26"/><path d="M45 345H955" stroke="#bbc0c9" stroke-width="3" stroke-dasharray="12 8" stroke-dashoffset="${-phase*200}"/>`;
  // The coloured housing remains visible around an exposed working chamber.
  s+=`<path d="M310 110L335 85H690V350H310Z" fill="${color}" stroke="${color}" stroke-width="4"/><path d="M310 110H665L690 85M665 110V350" fill="none" stroke="white" stroke-opacity=".4" stroke-width="3"/><rect x="330" y="145" width="330" height="185" rx="8" fill="${inside?'#f7f9fc':color}" stroke="${inside?'#b8a9c7':color}" stroke-width="2" ${inside?'stroke-dasharray="7 4"':''}/>`+text(500,123,stage.label,22,'white');
- s+=text(150,405,waiting?'Input: ?':input,20)+text(850,405,finished&&!hideResult&&!waiting?stage.text:'?',20);
+ s+=(showInput?text(150,405,waiting?'Input: ?':input,20):'')+text(850,405,finished&&!hideResult&&!waiting?stage.text:'?',20);
  if(waiting)return s+text(500,240,'Waiting',22,inside?'#806b91':'white');
  let description='';
- if(finished){if(!hideResult){s+=tiles(after,lerp(500,850,clamp((phase-.86)/.14)),245,210);if(after&&!after.length)s+=text(lerp(500,850,clamp((phase-.86)/.14)),245,'0',24);}s+=text(500,190,'Complete',19,inside?color:'white');description='Output ready.';}
+ if(finished){if(!hideResult&&!hideAfter){s+=tiles(after,lerp(500,850,clamp((phase-.86)/.14)),245,210);if(after&&!after.length)s+=text(lerp(500,850,clamp((phase-.86)/.14)),245,'0',24);}s+=text(500,190,'Complete',19,inside?color:'white');description='Output ready.';}
  else if(phase<.18){s+=tiles(before,lerp(150,500,phase/.18),245,210);if(before&&!before.length)s+=text(lerp(150,500,phase/.18),245,'0',24);description='Move the input into the machine.';}
  else if(!inside){s+=text(500,240,'Processing…',22,'white');description='Turn on “Cutaway view” to watch the operation.';}
  else if(hideResult){s+=text(500,235,'Result hidden',22);description='Show answers to see this final transformation.';}
