@@ -18,7 +18,7 @@ for(const u of [0,.25,.75,1])assert.ok(!A.transition(inputTiles,outputTiles,u).i
 const slots=A.tileSlots(outputTiles);const end=A.transition(inputTiles,outputTiles,1);for(const p of slots)assert.ok(end.includes(`translate(${p.x} ${p.y})`),'each retained/added tile ends in its output slot');
 const minus=A.transition(outputTiles,inputTiles,0);for(const p of A.tileSlots(outputTiles))assert.ok(minus.includes(`translate(${p.x} ${p.y})`),'each removed tile starts in its input slot');
 assert.equal((svg.match(/data-machine=/g)||[]).length,2,'all machines remain rendered at completion');
-els.machineRun.onclick();assert.equal((svg.match(/data-machine=/g)||[]).length,2,'all machines present before playback');assert.ok(svg.includes('Waiting'));clock+=10;cb(clock);clock+=3100;cb(clock);assert.ok(cards.includes('>8</strong>'),'first operation finishes in three seconds');assert.ok(!cards.includes('>11</strong>'));
+els.machineRun.onclick();assert.equal((svg.match(/data-machine=/g)||[]).length,2,'all machines present before playback');assert.ok(svg.includes('Waiting'));clock+=10;cb(clock);clock+=3600;cb(clock);assert.ok(cards.includes('>8</strong>'),'first operation finishes in three seconds');assert.ok(!cards.includes('>11</strong>'));
 console.log('PASS: empty subgroups, tile slot continuity, persistent machine housings and faster playback.');
 
 // A five-stage line wraps right-to-left and back, while production pipelines inputs.
@@ -44,6 +44,9 @@ c.revealed=()=>false;c.update();assert.ok(els.results.innerHTML.includes('>?</td
 els.machineFunction.value='x-1';c.update();assert.equal(JSON.parse(els.machineHistory.value).length,0);assert.ok(!els.results.innerHTML.includes('>23</td>'));
 console.log('PASS: horizontal x/y table, exact numerical sorting, repeated-input reuse, hidden answers and function-change reset.');
 
-els.machineContinuous.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);assert.ok(svg.includes('data-waiting-input'));clock+=3200;cb(clock);assert.ok(svg.includes('data-waiting-output'));assert.ok(svg.includes('data-push="0"'));clock+=2600;cb(clock);assert.ok(svg.includes('data-waiting-input'));assert.ok(svg.includes('data-waiting-output'));assert.ok(!svg.includes('data-push="0"'));els.machinePause.onclick();
-const jitter=arranged('x+3','4').g;for(const t of jitter.flat()){assert.ok(Math.abs(t.jitter.x)<=.04);assert.ok(Math.abs(t.jitter.y)<=.04);}assert.deepEqual(jitter[0][0].jitter,jitter[1][0].jitter);
-console.log('PASS: waiting feed, retained output, incoming-batch push and stable small block offsets.');
+els.machineContinuous.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);assert.ok(svg.includes('data-waiting-input'));clock+=3200;cb(clock);assert.ok(svg.includes('data-waiting-output'));assert.ok(svg.includes('data-push="0"'));clock+=2700;cb(clock);assert.ok(svg.includes('data-waiting-input'));assert.ok(svg.includes('data-waiting-output'));assert.ok(!svg.includes('data-push="0"'));els.machinePause.onclick();
+assert.ok(arranged('x+3','4').g.flat().every(t=>!t.jitter));
+console.log('PASS: waiting feed, retained output, incoming-batch push and clean block grid.');
+
+let randomIndex=0;c.Math=Object.assign(Object.create(Math),{random:()=>[.1,.9][randomIndex++%2]});els.machineFunction.value='3*x+4';c.update();const timings=[...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]);assert.equal(timings.length,2);assert.notEqual(timings[0],timings[1]);assert.ok(timings.every(t=>t>.85&&t<1.15));const beforeTimings=timings.join();c.update();assert.equal([...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]).join(),beforeTimings);
+console.log('PASS: machine processing times vary slightly and remain stable between frames.');

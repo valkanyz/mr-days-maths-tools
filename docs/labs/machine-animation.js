@@ -26,7 +26,7 @@ function arrangeGroups(groups,stages){
  for(const t of after)if(!t.cell){while(occupied.has(slot%cols+','+Math.floor(slot/cols)))slot++;t.cell={x:slot%cols,y:Math.floor(slot/cols)};occupied.add(t.cell.x+','+t.cell.y);}
  });
  const all=groups.filter(Boolean).flat(),w=Math.max(1,...all.map(t=>t.cell.x+1)),h=Math.max(1,...all.map(t=>t.cell.y+1)),size=Math.min(32,200/w,160/h);
- for(const t of all){const hash=Math.sin(t.cell.x*127.1+t.cell.y*311.7+17)*43758.5453,hashY=Math.sin(t.cell.x*269.5+t.cell.y*183.3+41)*43758.5453;t.jitter={x:(hash-Math.floor(hash)-.5)*.08,y:(hashY-Math.floor(hashY)-.5)*.08};t.slot={x:(t.cell.x+.5-w/2)*size,y:(t.cell.y+.5-h/2)*size,size};if(t.copyFrom)t.copySlot={x:(t.copyFrom.x+.5-w/2)*size,y:(t.copyFrom.y+.5-h/2)*size,size};}
+ for(const t of all){t.slot={x:(t.cell.x+.5-w/2)*size,y:(t.cell.y+.5-h/2)*size,size};if(t.copyFrom)t.copySlot={x:(t.copyFrom.x+.5-w/2)*size,y:(t.copyFrom.y+.5-h/2)*size,size};}
  return groups;
 }
 function operationTitle(stage){
@@ -38,7 +38,7 @@ function tiles(items,cx,cy,width=220,opacity=1){
  if(!items)return text(cx,cy,'Expression model',16);
  if(!items.length)return ''; // Empty animation subgroups must not display a zero label.
  const positions=tileSlots(items,cx,cy,width);
- return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}" transform="translate(${(t.jitter?.x||0)*size} ${(t.jitter?.y||0)*size})"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
+ return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
 }
 const scalar=p=>p&&(!p.size||p.size===1&&p.has(''))?(p.size?root.MachineMath.num(p.get('')):0):null;
 function working(stage,before){const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
