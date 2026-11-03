@@ -9,7 +9,7 @@ const exactNumber=x=>{
 const angleText=(t,exact)=>{if(t===null)return 'Undefined';if(!exact)return fmt(t*180/Math.PI,2)+'°';for(let d=1;d<=24;d++){const n=Math.round(t/Math.PI*d);if(Math.abs(t-n*Math.PI/d)<1e-10)return n===0?'0':`${n<0?'−':''}${Math.abs(n)===1?'':Math.abs(n)}π${d===1?'':'/'+d}`;}return '≈ '+fmt(t*180/Math.PI,3)+'°';};
 const previous=labs.complex.setup;
 labs.complex.setup=function(){
- previous();$('controls').insertAdjacentHTML('beforeend',check('complexSnap','Snap to grid',false)+check('complexExact','Exact values',false));
+ previous();$('controls').insertAdjacentHTML('beforeend',check('complexSnap','Snap to grid',false)+check('complexExact','Exact values',false)+check('complexTipTail','Tip to tail',false));
  let graph=null,drag=null;
  update=()=>{
  const polar=$('complexForm').value==='polar',snap=$('complexSnap').checked,exact=$('complexExact').checked;
@@ -17,6 +17,7 @@ labs.complex.setup=function(){
  if(polar){let r=value('modulus'),t=value('argument');if(snap){r=Math.round(r*2)/2;t=Math.round(t/15)*15;$('modulus').value=r;$('argument').value=t;}$('re').value=r*Math.cos(t*Math.PI/180);$('im').value=r*Math.sin(t*Math.PI/180);}
  else if(snap)for(const id of ['re','im'])$(id).value=Math.round(value(id)*2)/2;
  const z=[value('re'),value('im')],w=[value('wr'),value('wi')],op=$('operation').value,n=value('power'),roots=op==='roots',usesW=['add','subtract','multiply','divide'].includes(op);
+ const canTipTail=['add','subtract'].includes(op),tipTail=canTipTail&&$('complexTipTail').checked;showControl('complexTipTail',canTipTail);
  $('power').disabled=!['power','roots'].includes(op);$('wr').disabled=$('wi').disabled=!usesW;
  const out=roots?M.roots(z,n):[M.complex(z,w,op,n)],all=[z,...(usesW?[w]:[]),...out];if(all.some(p=>M.norm(p)>1e12))throw Error('Result is too large to display. Reduce the power.');
  const num=x=>exact?exactNumber(x):fmt(x,3),arg=p=>M.norm(p)<1e-10?null:Math.atan2(p[1],p[0]),cart=p=>`${num(p[0])} ${p[1]<0?'−':'+'} ${num(Math.abs(p[1]))}i`,label=p=>polar?`r = ${num(M.norm(p))}, θ = ${angleText(arg(p),exact)}`:cart(p);
@@ -28,14 +29,15 @@ labs.complex.setup=function(){
  }else{g=chart(...padded([0,...all.map(p=>p[0])]),...padded([0,...all.map(p=>p[1])]),'Real','Imaginary',true);s=g.s;g.inverse=(x,y)=>[(x-60)/750*(g.xmax-g.xmin)+g.xmin,(390-y)/365*(g.ymax-g.ymin)+g.ymin];}
  graph=g;
  const entries=[['z',z,C.purple,'z'],...(usesW?[['w',w,C.blue,'w']]:[]),...out.map((p,i)=>[roots?'k = '+i:({add:'z + w',subtract:'z − w',multiply:'z × w',divide:'z ÷ w',power:'zⁿ',conjugate:'z̄'}[op]),p,C.teal,''])];
- entries.forEach(([name,p,col,handle],i)=>{const x=g.X(p[0]),y=g.Y(p[1]);s+=line(g,[0,0],p,col)+`<circle ${handle?`data-complex-drag="${handle}" style="cursor:grab"`:''} cx="${x}" cy="${y}" r="${handle?7:5}" fill="${col}" stroke="white" stroke-width="1.5"><title>${esc(name+' = '+label(p))}</title></circle>`;const same=entries.slice(0,i).filter(e=>Math.hypot(g.X(e[1][0])-x,g.Y(e[1][1])-y)<28).length;s+=`<text x="${Math.max(70,Math.min(760,x+10))}" y="${Math.max(30,Math.min(390,y-12+same*20))}" font-size="15" fill="${col}" stroke="white" stroke-width="4" paint-order="stroke" pointer-events="none">${esc(name)}</text>`;});
+ entries.forEach(([name,p,col,handle],i)=>{const x=g.X(p[0]),y=g.Y(p[1]);s+=(tipTail?`<path d="M${g.X(0)} ${g.Y(0)}L${x} ${y}" fill="none" stroke="${col}" stroke-width="2.5" ${handle==='w'?'stroke-dasharray="5 4" opacity=".35"':'marker-end="url(#arrow)"'}/>`:line(g,[0,0],p,col))+`<circle ${handle?`data-complex-drag="${handle}" style="cursor:grab"`:''} cx="${x}" cy="${y}" r="${handle?7:5}" fill="${col}" stroke="white" stroke-width="1.5"><title>${esc(name+' = '+label(p))}</title></circle>`;const same=entries.slice(0,i).filter(e=>Math.hypot(g.X(e[1][0])-x,g.Y(e[1][1])-y)<28).length;s+=`<text x="${Math.max(70,Math.min(760,x+10))}" y="${Math.max(30,Math.min(390,y-12+same*20))}" font-size="15" fill="${col}" stroke="white" stroke-width="4" paint-order="stroke" pointer-events="none">${esc(name)}</text>`;});
+ if(tipTail){const end=out[0],name=op==='subtract'?'−w':'w',mid=z.map((v,i)=>(v+end[i])/2);s+=`<path data-tip-tail="${op}" d="M${g.X(z[0])} ${g.Y(z[1])}L${g.X(end[0])} ${g.Y(end[1])}" fill="none" stroke="${C.blue}" stroke-width="3" marker-end="url(#arrow)"/><text x="${g.X(mid[0])+10}" y="${g.Y(mid[1])-12}" fill="${C.blue}" font-size="15" stroke="white" stroke-width="4" paint-order="stroke" pointer-events="none">${name}</text>`;}
  // Full values stay in a labelled key so longer exact expressions never overlap the graph.
  s+=entries.slice(0,3).map(([name,p,col],i)=>`<text x="${i*275+12}" y="438" font-size="12" fill="${col}">${esc(name+' : '+label(p))}</text>`).join('');
  svg(s,polar?'Polar grid of complex values and results':'Labelled Argand diagram');
  formula(roots?'Roots: r¹⁄ⁿ cis((θ + 2kπ) / n)':'z = r(cos θ + i sin θ)');
  results([['|z|',num(M.norm(z))],['arg z',angleText(arg(z),exact)],['z',cart(z)],[roots?'Distinct roots':'Result',roots?out.length:cart(out[0])]]);
  legend([['z',C.purple],...(usesW?[['w',C.blue]]:[]),['Result / roots',C.teal]]);
- note('Drag z or w to move it. Snapping uses ½-unit steps'+(polar?' and 15° angles.':'.')+' Exact values show recognised fractions, surds and multiples of π; other values are marked ≈. Zero has undefined argument.');
+ note((tipTail?(op==='subtract'?'−w starts at the tip of z and ends at z − w. ':'w starts at the tip of z and ends at z + w. ')+'The dashed vector shows w in its original position. ':'')+'Drag z or w to move it. Snapping uses ½-unit steps'+(polar?' and 15° angles.':'.')+' Exact values show recognised fractions, surds and multiples of π; other values are marked ≈. Zero has undefined argument.');
  table(['Value','Cartesian form','Modulus','Argument'],entries.map(([name,p])=>[name,cart(p),num(M.norm(p)),angleText(arg(p),exact)]));
  };
  const viz=$('viz');viz.style.touchAction='none';
