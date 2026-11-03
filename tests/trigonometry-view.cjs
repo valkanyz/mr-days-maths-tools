@@ -1,0 +1,15 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),M=require('../docs/labs/maths.js');
+const html=fs.readFileSync('docs/labs/index.html','utf8'),els={};
+for(const [id,value]of Object.entries({mode:'right',tria:5,trib:7,tric:9,triA:35,triB:55,solution:0,sineCase:'aas'}))els[id]={value};
+for(const k of ['a','b','c','A'])els['lock'+k]={checked:false};els.reveal={checked:true};els.viz={style:{}};
+let rows,grid;
+const c={Math,M,current:'trigonometry',changedControl:'',softWarning:'',labs:{trigonometry:{setup(){}}},$:id=>els[id],controls(){},select:()=>'',slider:()=>'',pair:()=>'',input:()=>'',check:()=>'',showControl(){},value:id=>Number(els[id].value),fmt:(x,n=3)=>Number(x.toFixed(n)).toString(),esc:String,padded:xs=>{const min=Math.min(...xs),max=Math.max(...xs),d=(max-min||1)*.12;return[min-d,max+d]},line:()=>'',svg(){},formula(){},results(){},table:(h,r)=>rows=r,legend(){},note(){},C:{purple:'purple',teal:'teal',red:'red'}};
+vm.createContext(c);vm.runInContext(html.split('\n').find(l=>l.startsWith('function chart(')),c);const chart=c.chart;c.chart=(...args)=>{grid=chart(...args);return grid;};
+vm.runInContext(html.slice(html.indexOf('const oldTrig='),html.indexOf('const oldFinance=')),c);c.labs.trigonometry.setup();c.update();
+assert.equal(els.tria.value,'5.74');assert.equal(els.trib.value,'8.19');
+els.locka.checked=true;els.lockb.checked=true;c.changedControl='lockb';c.update();assert.equal(els.locka.checked,true);assert.equal(els.lockb.checked,true);assert.equal(els.tric.readOnly,true);
+const before=JSON.stringify(rows);els.tric.value=11;c.changedControl='tric';c.update();assert.equal(JSON.stringify(rows),before);assert.match(c.softWarning,/conflicts/);
+for(const k of ['c','A'])els['lock'+k].checked=true;c.changedControl='lockA';assert.doesNotThrow(()=>c.update());
+assert.ok(Math.abs((grid.X(1)-grid.X(0))-(grid.Y(0)-grid.Y(1)))<1e-9);
+for(const k of ['a','b','c','A'])els['lock'+k].checked=false;els.mode.value='cosine';c.changedControl='mode';c.update();els.lockb.checked=els.lockc.checked=true;c.changedControl='lockc';c.update();els.triA.value=60;c.changedControl='triA';c.update();assert.equal(+els.trib.value,7);assert.equal(+els.tric.value,9);assert.equal(+els.triA.value,60);
+console.log('PASS: multiple locks, conflict rejection, rounded displays, two-lock general triangle edits and equal axis scales.');
