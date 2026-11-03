@@ -58,6 +58,35 @@ function transition(before,after,u,copy=false){
  before.forEach((t,i)=>{if(used.has(i))return;const p=from[i];s+=unit(t,p.x,lerp(p.y,p.y+90,u),p.size,1-u);if(u>0&&u<.9)s+=text(p.x,lerp(p.y,p.y+90,u)+5,'×',20,'#c6374e');});
  return s;
 }
+// Deal whole units into equal groups; split only the remainder of each term.
+function divisionShares(before,n){
+ const shares=Array.from({length:n},()=>[]),terms=new Map();
+ before.forEach((t,i)=>{const key=t.key+'|'+t.sign;if(!terms.has(key))terms.set(key,[]);terms.get(key).push({t,i});});
+ for(const entries of terms.values()){
+  const whole=entries.filter(e=>e.t.amount===1),dealt=Math.floor(whole.length/n)*n,used=new Set();
+  whole.slice(0,dealt).forEach((e,j)=>{shares[j%n].push({...e.t,source:e.i,slot:null});used.add(e.i);});
+  for(const e of entries)if(!used.has(e.i))for(const share of shares)share.push({...e.t,amount:e.t.amount/n,source:e.i,slot:null});
+ }
+ return shares;
+}
+function sharing(before,after,n,u,color,result){
+ const shares=divisionShares(before,n),from=tileSlots(before),cols=Math.min(n,3),rows=Math.ceil(n/cols),height=150/rows,cellWidth=300/cols;
+ const collect=clamp((u-.76)/.24),fade=clamp((collect-.65)/.35);let s='';
+ const unit=(t,x,y,size,opacity=1)=>tiles([{...t,slot:{x:0,y:0,size}}],x,y,210,opacity);
+ shares.forEach((share,k)=>{
+  const cx=500+(k%cols-(cols-1)/2)*cellWidth,cy=245+(Math.floor(k/cols)-(rows-1)/2)*height;
+  const l=tileLayout(share.length,cellWidth-16),size=Math.min(l.size,(height-28)/l.rows),positions=share.map((t,j)=>({x:cx+(j%l.cols-(l.cols-1)/2)*size,y:cy+(Math.floor(j/l.cols)-(l.rows-1)/2)*size,size}));
+  s+=`<g data-division-group="${k}" opacity="${1-collect}"><rect x="${cx-cellWidth/2+3}" y="${cy-height/2+2}" width="${cellWidth-6}" height="${height-4}" rx="6" fill="${k===0?'#e0f3ee':'#fff'}" stroke="${color}" stroke-width="${k===0?3:1.5}"/>${text(cx,cy+height/2-7,u>=.64?result:'Group '+(k+1),12,color)}</g>`;
+  share.forEach((t,j)=>{
+   const origin=from[t.source],dest=positions[j],deal=clamp((u-.05-(t.source/Math.max(1,before.length))*.28)/.28),out=tileSlots(after)[j];
+   let x=lerp(origin.x,dest.x,deal),y=lerp(origin.y,dest.y,deal),sz=lerp(origin.size,dest.size,deal);
+   if(k===0){x=lerp(x,out?.x??500,collect);y=lerp(y,out?.y??245,collect);sz=lerp(sz,out?.size??dest.size,collect);}
+   s+=`<g data-shared-unit="${k}" data-source="${t.source}">`+unit(t,x,y,sz,k===0?1-fade:1-collect)+'</g>';
+  });
+ });
+ if(fade>0)s+=tiles(after,500,245,210,fade);
+ return s;
+}
 function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=false,sharedBelt=false,showInput=true,hideAfter=false}){
  const input=stage.beforeText||'',u=clamp((phase-.18)/.60),finished=phase>=.86,operand=scalar(stage.operandPoly),positive=before&&before.every(t=>t.sign>0&&t.amount===1&&!t.bundle),count=before?.length||0;
  let s=(sharedBelt?'':'<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>')+`<g data-flow-arrow="true" stroke="#725a82" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M115 110H180L165 95M180 110L165 125M815 110H880L865 95M880 110L865 125"/></g>`;
@@ -76,8 +105,7 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
   s+=transition(before,after,u,true);
  }else if(stage.op==='/'&&!stage.reverse&&Number.isInteger(operand)&&operand>=2&&operand<=8&&positive&&count<=144){
   const n=operand;description=`Share the input equally into ${n} groups. One group is the output.`;
-  // Split each original unit equally, retaining its colour and term, including fractional shares.
-  for(let k=0;k<n;k++){const cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*80,y=n>4?205+Math.floor(k/4)*80:245,share=count%n===0&&before.every(t=>t.key===before[0].key)?before.filter((t,i)=>i%n===k):before.map(t=>({...t,amount:t.amount/n}));s+=`<rect x="${x-40}" y="${y-43}" width="80" height="86" rx="7" fill="${k===0?'#eef7f4':'none'}" stroke="${color}" stroke-width="${k===0?3:1}"/>`+tiles(share,lerp(500,x,u),lerp(245,y,u),72,k===0?1:1-u*.5);}
+  s+=sharing(before,after,n,u,color,stage.text);
  }else if(['+','-'].includes(stage.op)&&before&&after&&!stage.reverse){
   description=stage.op==='+'?'Bring in the added units and combine like terms.':'Remove the subtracted units; use negative units if needed.';
   s+=transition(before,after,u);
@@ -103,5 +131,5 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  s+=text(500,40,finished&&!hideResult?working(stage,input)+' = '+stage.text:working(stage,input),22,color)+text(500,490,description,16);
  return s;
 }
-root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
+root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups,divisionShares,sharing};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
 })(typeof window!=='undefined'?window:globalThis);

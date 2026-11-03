@@ -57,3 +57,19 @@ const source=fs.readFileSync('docs/labs/function-machine.js','utf8'),motionCode=
 for(const d of [.88,1,1.12]){const out0=500+350*(motion.phase(d-.01,d)-.86)/.14,out1=500+350*(motion.phase(d,d)-.86)/.14,in0=850+350*motion.phase(0,d)/.18,in1=850+350*motion.phase(.01,d)/.18;assert.ok(Math.abs(out1-in0)<1e-9);assert.ok(Math.abs((out1-out0)-(in1-in0))<1e-9);}
 els.machineContinuous.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);const duration=+[...svg.matchAll(/data-duration="([^\"]+)"/g)][0][1];clock+=duration*3000+30;cb(clock);const outgoing=svg.slice(svg.indexOf('data-machine="0"'),svg.indexOf('data-machine="1"'));assert.ok(!outgoing.includes('data-amount='),'upstream machine must release the batch once downstream takes it');els.machinePause.onclick();
 console.log('PASS: equal hand-off positions and velocities across varying processing times, with no duplicate outgoing batch.');
+
+// Division conserves every term while dealing equal shares, including remainders.
+for(const [f,x,n] of [['x/3','12',3],['x/3','8',3],['x/8','144',8],['x/2','1',2],['x/3','6*y+3',3]]){
+ const {p,g}=arranged(f,x),shares=A.divisionShares(g[0],n);
+ for(const share of shares)for(const key of new Set(g[0].map(t=>t.key))){
+  const total=g[0].filter(t=>t.key===key).reduce((a,t)=>a+t.amount,0);
+  assert.ok(Math.abs(share.filter(t=>t.key===key).reduce((a,t)=>a+t.amount,0)-total/n)<1e-9);
+ }
+ if(x==='12')assert.ok(shares.every(g=>g.length===4&&g.every(t=>t.amount===1)));
+ const middle=A.scene({stage:p.stages[0],before:g[0],after:g[1],phase:.6,inside:true,color:'green'});
+ assert.equal((middle.match(/data-division-group=/g)||[]).length,n);
+ assert.ok(middle.includes('data-shared-unit='));assert.ok(!/NaN|undefined/.test(middle));
+ const end=A.sharing(g[0],g[1],n,1,'green',p.stages[0].text);
+ assert.ok(end.endsWith(A.tiles(g[1],500,245,210,1)),'chosen share finishes exactly in the outgoing layout');
+}
+console.log('PASS: division deals equal groups, conserves units and symbolic terms, splits remainders and hands off the chosen share.');
