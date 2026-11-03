@@ -23,24 +23,24 @@ for(const q of rectangles)for(let i=0;i<4;i++)assert(Math.abs(q[i][0]-q[i+1][0])
 console.log('PASS: flat triangular prism has three axis-aligned rectangular faces.');
 node('unfold').value='0';ctx.update();const minimal=(rendered.match(/class="net-dimension"/g)||[]).length;assert.equal(minimal,5);
 node('netAllLabels').checked=true;ctx.update();assert((rendered.match(/class="net-dimension"/g)||[]).length>minimal);node('netAllLabels').checked=false;
-for(const id of ['netTurnView','netTiltView','netYView','netRollView']){polygons=[];ctx.update();const before=JSON.stringify(polygons);node(id).value='80';polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),before);assert.equal(rows[0][1],132);}
+for(const id of ['netTurnView','netTiltView','netYView','netRollView']){polygons=[];ctx.update();const before=JSON.stringify(polygons);node(id).value='80';node(id).oninput();polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),before);assert.equal(rows[0][1],132);}
 node('netResetView').onclick();assert.equal(node('netTurnView').value,30);assert.equal(node('netTiltView').value,-30);assert.equal(node('netRollView').value,0);
 const view=node('viz');view.setPointerCapture=()=>{};ctx.run=()=>ctx.update();
 node('netPositionView').value='standing';
 view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});
 view.onpointermove({clientX:40,clientY:20,pointerId:2});assert.equal(node('netTurnView').value,30);
-view.onpointermove({clientX:40,clientY:20,pointerId:1});assert.equal(node('netTurnView').value,50);assert.equal(node('netTiltView').value,-40);view.onpointerup();assert.equal(node('netTurnView').value,45);assert.equal(node('netTiltView').value,-45);
-view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRollView').value,10);view.onpointerup();assert.equal(node('netRollView').value,15);
+view.onpointermove({clientX:40,clientY:20,pointerId:1});assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-20);view.onpointerup();assert.equal(node('netTurnViewval').textContent,10);assert.equal(node('netTiltViewval').textContent,-20);ctx.update();assert.equal(node('netTurnViewval').textContent,10);
+view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,shiftKey:true,preventDefault(){}});view.onpointermove({clientX:20,clientY:0});assert.equal(node('netRollViewval').textContent,-10);view.onpointerup();assert.equal(node('netRollViewval').textContent,-10);
 // A drag may start on a label without hiding it; a tap still hides the label.
 const label={dataset:{dimension:'test-dimension'}},target={closest:()=>label};
 view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,target,preventDefault(){}});view.onpointermove({clientX:70,clientY:0});view.onpointerup();const beforeClick=rendered;view.onclick({target});assert.equal(rendered,beforeClick);
-assert.equal(node('netYView').step,'15');node('netYView').value=75;node('netResetView').onclick();assert.equal(node('netYView').value,0);
+node('netYView').value=75;node('netResetView').onclick();assert.equal(node('netYView').value,0);
 console.log('PASS: four rotation controls, smooth drag, release snapping, pointer isolation, label drag and reset.');
 
 node('netResetView').onclick();assert.equal(node('netPositionView').value,'lying');assert.equal(node('netMirrorView').checked,false);
 polygons=[];ctx.update();const lying=JSON.stringify(polygons);node('netPositionView').value='standing';node('netPositionView').onchange();polygons=[];ctx.update();assert.notEqual(JSON.stringify(polygons),lying);
 const normal=polygons;node('netMirrorView').checked=true;polygons=[];ctx.update();normal.forEach((face,i)=>face.forEach((p,j)=>{assert(Math.abs(p[0]+polygons[i][j][0]-840)<1e-7);assert(Math.abs(p[1]-polygons[i][j][1])<1e-7)}));
-for(const id of ['netTurnView','netTiltView','netYView','netRollView']){node(id).value='22';ctx.update();assert.equal(node(id).value,15);}
+for(const id of ['netTurnView','netTiltView','netYView','netRollView']){node(id).value='22';node(id).oninput();ctx.update();assert.equal(node(id).value,15);}
 console.log('PASS: lying/standing presets, mirror symmetry and exact inputs snapped to 15 degrees.');
 
 node('netResetView').onclick();ctx.update();assert(rendered.includes('class="net-edge" data-visible="false"'));assert(rendered.includes('stroke-dasharray="3 5"'));assert(rendered.includes('class="net-face" data-visible="false"'));
@@ -49,3 +49,11 @@ const initial=count();choice.oninput({stopPropagation(){},target:{dataset:{dimen
 console.log('PASS: hidden edges dotted, back faces transparent, individual dimension choice persists when unfolding.');
 
 node('unfold').value='0';ctx.update();let altitudeId=Array.from(node('netDimensionChoices').innerHTML.matchAll(/data-dimension="([^"]+)"[^>]*>Triangle height/g),m=>m[1])[0];assert(altitudeId);node('netDimensionChoices').oninput({stopPropagation(){},target:{dataset:{dimension:altitudeId},checked:false}});node('unfold').value='1';ctx.update();assert(!rendered.includes('h△ ='));console.log('PASS: triangle height stays hidden across folded and flat views.');
+
+node('unfold').value='0';
+// Drag snaps only within 5 degrees of a multiple of 45, never to 15-degree steps.
+for(const [start,dx,expected] of [[30,-24,45],[75,-24,90],[0,-34,17],[0,84,-45],[165,-24,-180]]){
+ node('netResetView').onclick();node('netPositionView').value='standing';node('netTurnView').value=start;node('netTurnView').oninput();
+ view.onpointerdown({button:0,clientX:0,clientY:0,pointerId:1,preventDefault(){}});view.onpointermove({clientX:dx,clientY:0,pointerId:1});view.onpointerup();ctx.update();assert.equal(node('netTurnViewval').textContent,expected);
+}
+console.log('PASS: reversed drag direction, 45/90 proximity snapping, unsnapped angles persist after redraw.');
