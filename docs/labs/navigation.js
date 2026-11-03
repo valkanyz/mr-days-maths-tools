@@ -1,6 +1,7 @@
 // Topic order follows the home catalogue. Broad classroom tools come before niche tools.
 // Applied after all labs register, so earlier extension scripts cannot reorder the menu.
 (()=>{
+ // Simultaneous Equations is temporarily off the public menu; its implementation is retained.
  const groups={
   "Number & finance": [
     "percentages",
@@ -14,7 +15,6 @@
     "functions",
     "patterns",
     "tiles",
-    "simultaneous",
     "inequalities",
     "binomial",
     "calculus",
