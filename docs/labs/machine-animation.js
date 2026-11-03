@@ -4,17 +4,26 @@
 const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const text=(x,y,s,size=18,color='#493453')=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" fill="${color}">${esc(s)}</text>`;
 const lerp=(a,b,t)=>a+(b-a)*t,clamp=t=>Math.max(0,Math.min(1,t));
+function tileLayout(count,width=220){
+ const w=Math.max(20,width-10),h=Math.min(160,w),cols=Math.max(1,Math.min(count||1,Math.ceil(Math.sqrt(count*w/h)))),rows=Math.max(1,Math.ceil(count/cols));
+ return {cols,rows,size:Math.min(32,w/cols,h/rows)};
+}
+function operationTitle(stage){
+ if(stage.reverse&&['-','/','^'].includes(stage.op))return stage.label;
+ if(stage.op==='^')return stage.operand==='2'?'Square':stage.operand==='3'?'Cube':'Power '+stage.operand;
+ return stage.label.split(' · ')[0];
+}
 function tiles(items,cx,cy,width=220,opacity=1){
  if(!items)return text(cx,cy,'Expression model',16);
  if(!items.length)return ''; // Empty animation subgroups must not display a zero label.
- const cols=Math.min(10,Math.max(1,Math.ceil(Math.sqrt(items.length)))),size=Math.min(32,(width-10)/cols),rows=Math.ceil(items.length/cols);
- return `<g opacity="${opacity}">`+items.map((t,i)=>{const x=cx-cols*size/2+i%cols*size,y=cy-rows*size/2+Math.floor(i/cols)*size,term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-3}" height="${size-3}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-3)*(1-Math.min(t.amount,1))}" width="${size-3}" height="${(size-3)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
+ const {cols,rows,size}=tileLayout(items.length,width),gap=Math.min(3,size*.12);
+ return `<g opacity="${opacity}">`+items.map((t,i)=>{const x=cx-cols*size/2+i%cols*size,y=cy-rows*size/2+Math.floor(i/cols)*size,term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
 }
 const scalar=p=>p&&(!p.size||p.size===1&&p.has(''))?(p.size?root.MachineMath.num(p.get('')):0):null;
 function working(stage,before){const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
 // Match each retained unit to its original slot, then move it to its output slot.
 function tileSlots(items,cx=500,cy=245,width=210){
- const cols=Math.min(10,Math.max(1,Math.ceil(Math.sqrt(items.length)))),size=Math.min(32,(width-10)/cols),rows=Math.ceil(items.length/cols);
+ const {cols,rows,size}=tileLayout(items.length,width),gap=Math.min(3,size*.12);
  return items.map((t,i)=>({x:cx-cols*size/2+(i%cols+.5)*size,y:cy-rows*size/2+(Math.floor(i/cols)+.5)*size,size}));
 }
 function transition(before,after,u){
@@ -29,11 +38,11 @@ function transition(before,after,u){
 }
 function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=false,sharedBelt=false,showInput=true,hideAfter=false}){
  const input=stage.beforeText||'',u=clamp((phase-.18)/.60),finished=phase>=.86,operand=scalar(stage.operandPoly),positive=before&&before.every(t=>t.sign>0&&t.amount===1&&!t.bundle),count=before?.length||0;
- let s=(sharedBelt?'':'<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>')+text(150,110,'Input',19)+text(850,110,'Output',19);
+ let s=(sharedBelt?'':'<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>')+`<g data-flow-arrow="true" stroke="#725a82" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M115 110H180L165 95M180 110L165 125M815 110H880L865 95M880 110L865 125"/></g>`;
  if(!sharedBelt)s+=`<path d="M45 345H955" stroke="#555565" stroke-width="26"/><path d="M45 345H955" stroke="#bbc0c9" stroke-width="3" stroke-dasharray="12 8" stroke-dashoffset="${-phase*200}"/>`;
  // The coloured housing remains visible around an exposed working chamber.
- s+=`<path d="M310 110L335 85H690V350H310Z" fill="${color}" stroke="${color}" stroke-width="4"/><path d="M310 110H665L690 85M665 110V350" fill="none" stroke="white" stroke-opacity=".4" stroke-width="3"/><rect x="330" y="145" width="330" height="185" rx="8" fill="${inside?'#f7f9fc':color}" stroke="${inside?'#b8a9c7':color}" stroke-width="2" ${inside?'stroke-dasharray="7 4"':''}/>`+text(500,123,stage.label,22,'white');
- s+=(showInput?text(150,405,waiting?'Input: ?':input,20):'')+text(850,405,finished&&!hideResult&&!waiting?stage.text:'?',20);
+ s+=`<path d="M310 110L335 85H690V350H310Z" fill="${color}" stroke="${color}" stroke-width="4"/><path d="M310 110H665L690 85M665 110V350" fill="none" stroke="white" stroke-opacity=".4" stroke-width="3"/><rect x="330" y="145" width="330" height="185" rx="8" fill="${inside?'#f7f9fc':color}" stroke="${inside?'#b8a9c7':color}" stroke-width="2" ${inside?'stroke-dasharray="7 4"':''}/>`+`<rect x="347" y="91" width="296" height="47" rx="7" fill="white"/><g data-operation-sign="true" font-weight="750">${text(495,126,operationTitle(stage),Math.min(36,430/Math.max(10,operationTitle(stage).length)),color)}<title>${esc(stage.label)}</title></g>`;
+ s+=(showInput?text(150,405,waiting?'?':input,20):'')+text(850,405,finished&&!hideResult&&!waiting?stage.text:'?',20);
  if(waiting)return s+text(500,240,'Waiting',22,inside?'#806b91':'white');
  let description='';
  if(finished){if(!hideResult&&!hideAfter){s+=tiles(after,lerp(500,850,clamp((phase-.86)/.14)),245,210);if(after&&!after.length)s+=text(lerp(500,850,clamp((phase-.86)/.14)),245,'0',24);}s+=text(500,190,'Complete',19,inside?color:'white');description='Output ready.';}
@@ -42,11 +51,11 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  else if(hideResult){s+=text(500,235,'Result hidden',22);description='Show answers to see this final transformation.';}
  else if(stage.op==='*'&&!stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144 || stage.op==='*'&&stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144){
   const n=operand;description=stage.label.includes('distribute')?`Make ${n} copies of every term in the bracket.`:`Make ${n} equal copies of the input.`;
-  for(let k=0;k<n;k++){const col=k===0?null:color,copy=before.map(t=>({...t,color:col||t.color})),cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*85,y=n>4?215+Math.floor(k/4)*85:245;s+=`<rect x="${x-40}" y="${y-40}" width="80" height="80" rx="7" fill="none" stroke="${color}" opacity=".3"/>`+tiles(copy,lerp(500,x,u),lerp(245,y,u),72,k===0?1:u);}
+  for(let k=0;k<n;k++){const col=k===0?null:color,copy=before.map(t=>({...t,color:col||t.color})),cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*80,y=n>4?205+Math.floor(k/4)*80:245;s+=`<rect x="${x-40}" y="${y-40}" width="80" height="80" rx="7" fill="none" stroke="${color}" opacity=".3"/>`+tiles(copy,lerp(500,x,u),lerp(245,y,u),72,k===0?1:u);}
  }else if(stage.op==='/'&&!stage.reverse&&Number.isInteger(operand)&&operand>=2&&operand<=8&&positive&&count<=144){
   const n=operand;description=`Share the input equally into ${n} groups. One group is the output.`;
   // Split each original unit equally, retaining its colour and term, including fractional shares.
-  for(let k=0;k<n;k++){const cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*85,y=n>4?210+Math.floor(k/4)*85:245,share=count%n===0&&before.every(t=>t.key===before[0].key)?before.filter((t,i)=>i%n===k):before.map(t=>({...t,amount:t.amount/n}));s+=`<rect x="${x-40}" y="${y-43}" width="80" height="86" rx="7" fill="${k===0?'#eef7f4':'none'}" stroke="${color}" stroke-width="${k===0?3:1}"/>`+tiles(share,lerp(500,x,u),lerp(245,y,u),72,k===0?1:1-u*.5);}
+  for(let k=0;k<n;k++){const cols=Math.min(n,4),x=500+(k%cols-(cols-1)/2)*80,y=n>4?205+Math.floor(k/4)*80:245,share=count%n===0&&before.every(t=>t.key===before[0].key)?before.filter((t,i)=>i%n===k):before.map(t=>({...t,amount:t.amount/n}));s+=`<rect x="${x-40}" y="${y-43}" width="80" height="86" rx="7" fill="${k===0?'#eef7f4':'none'}" stroke="${color}" stroke-width="${k===0?3:1}"/>`+tiles(share,lerp(500,x,u),lerp(245,y,u),72,k===0?1:1-u*.5);}
  }else if(['+','-'].includes(stage.op)&&before&&after&&!stage.reverse){
   description=stage.op==='+'?'Bring in the added units and combine like terms.':'Remove the subtracted units; use negative units if needed.';
   s+=transition(before,after,u);
@@ -62,5 +71,5 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  s+=text(500,40,finished&&!hideResult?working(stage,input)+' = '+stage.text:working(stage,input),22,color)+text(500,490,description,16);
  return s;
 }
-root.MachineAnimation={scene,tiles,working,tileSlots,transition};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
+root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
 })(typeof window!=='undefined'?window:globalThis);
