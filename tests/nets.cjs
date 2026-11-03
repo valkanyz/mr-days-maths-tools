@@ -47,3 +47,12 @@ const before=lengths();down();view.onpointermove({pointerId:1,clientX:60,clientY
 node('unfold').value=1;const flat=geometry();down();view.onpointermove({pointerId:1,clientX:100,clientY:100});view.onpointerup();assert.equal(geometry(),flat);
 assert(!rendered.includes('data-rotation-axis'));
 console.log('PASS: showroom drag, fixed elevation and scale, no release snapping, reset to isometric, full turn and flat-net lock.');
+
+node('unfold').value=0;node('netResetView').onclick();const standing=geometry();node('netPositionView').value='lying';const lying=geometry();assert.notEqual(standing,lying);
+for(const position of ['standing','lying']){
+ node('netPositionView').value=position;node('netMirrorView').checked=false;const normal=JSON.parse(geometry());node('netMirrorView').checked=true;const flipped=JSON.parse(geometry());normal.forEach((f,i)=>f.forEach((p,j)=>{assert(Math.abs(p[0]+flipped[i][j][0]-840)<1e-7);assert(Math.abs(p[1]-flipped[i][j][1])<1e-7)}));
+ const before=geometry();down();view.onpointermove({pointerId:1,clientX:60,clientY:0});view.onpointerup();assert.notEqual(geometry(),before);
+}
+node('netResetView').onclick();assert.equal(node('netPositionView').value,'standing');assert.equal(node('netMirrorView').checked,false);assert.equal(geometry(),standing);
+node('unfold').value=1;const flatStanding=geometry();node('netPositionView').value='lying';assert.equal(geometry(),flatStanding);
+console.log('PASS: standing/lying model orientation, exact L/R mirror, turntable in both positions, reset and unchanged flat net.');
