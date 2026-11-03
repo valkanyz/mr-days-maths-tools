@@ -25,7 +25,7 @@ console.log('PASS: empty subgroups, tile slot continuity, persistent machine hou
 els.machineFunction.value='(((x+1)*2)-3)/2+4';els.machineInput.value='4';c.update();
 assert.equal((svg.match(/data-machine=/g)||[]).length,5);assert.ok(svg.includes('data-continuous-belt="true"'));assert.equal((svg.match(/data-direction="left"/g)||[]).length,2);assert.ok(svg.includes('scale(-1 1)'));
 els.machineContinuous.checked=true;els.machineContinuous.onchange();const prior=JSON.parse(els.machineHistory.value).length;els.machineRun.onclick();clock+=10;cb(clock);clock+=15100;cb(clock);assert.equal(JSON.parse(els.machineHistory.value).length,prior+1);assert.equal(els.machinePause.textContent,'Pause');assert.equal(els.machinePause.disabled,false);assert.equal(els.machineNext.disabled,true);
-clock+=3000;cb(clock);assert.equal(JSON.parse(els.machineHistory.value).length,prior+2);c.update();assert.equal(JSON.parse(els.machineHistory.value).length,prior+2);els.machinePause.onclick();assert.equal(els.machinePause.textContent,'Resume');assert.equal(cb,null);
+clock+=3000;cb(clock);assert.equal(JSON.parse(els.machineHistory.value).length,prior+1);c.update();assert.equal(JSON.parse(els.machineHistory.value).length,prior+1);els.machinePause.onclick();assert.equal(els.machinePause.textContent,'Resume');assert.equal(cb,null);
 els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equal(els.machineNext.disabled,false);assert.ok(svg.includes('Waiting'));
 console.log('PASS: connected serpentine belt, reversed lower rows, continuous throughput, pause and return to single production.');
 for(const count of [1,4,36,55,72,100,144,300])for(const width of [72,130,210,220]){const l=A.tileLayout(count,width);assert.ok(l.cols*l.size<=width-10+1e-9);assert.ok(l.rows*l.size<=Math.min(160,width-10)+1e-9);const slots=A.tileSlots(Array.from({length:count},()=>({})),500,245,width);for(const p of slots){assert.ok(p.y-p.size/2>=165-1e-9);assert.ok(p.y+p.size/2<=325+1e-9);}}
@@ -35,3 +35,15 @@ function arranged(f,x){const p=M.plan(f,x),g=[M.tiles(p.input,[],'purple')];p.st
 for(const [f,x]of [['x-18','73'],['x+18','55'],['x*3','6'],['((x+2)^2)*2-18','4']]){const {p,g}=arranged(f,x);p.stages.forEach((s,i)=>{if(!['+','-','*'].includes(s.op))return;const used=new Set();g[i+1].forEach(t=>{const j=g[i].findIndex((b,k)=>!used.has(k)&&b.key===t.key&&b.color===t.color&&b.sign===t.sign&&b.amount===t.amount);if(j>=0){used.add(j);assert.deepEqual(t.slot,g[i][j].slot,'retained block must not shift or resize');}});});}
 for(const n of [2,3,6,10,12]){const {g}=arranged('x^2',String(n)),slots=A.tileSlots(g[1]);assert.equal(new Set(slots.map(s=>s.x)).size,n);assert.equal(new Set(slots.map(s=>s.y)).size,n);assert.ok(slots.every(s=>s.size===slots[0].size));const exit=A.tileSlots(g[1],850,245);exit.forEach((s,i)=>{assert.ok(Math.abs(s.x-slots[i].x-350)<1e-9);assert.equal(s.y,slots[i].y);assert.equal(s.size,slots[i].size);});}
 console.log('PASS: survivors never move or resize in addition/subtraction/multiplication; square outputs remain square on the belt.');
+
+// The values table grows across inputs, deduplicates repeats, and resets with the equation.
+els.machineFunction.value='2*x+3';c.update();assert.equal(JSON.parse(els.machineHistory.value).length,0);
+for(const input of ['3','-2','0.5','-1.5','10','3','1/2']){els.machineInput.value=input;c.update();els.machineRun.onclick();clock+=10;cb(clock);clock+=6100;cb(clock);}
+assert.deepEqual(JSON.parse(els.machineHistory.value).map(r=>r[1]),['−2','−3/2','1/2','3','10']);assert.deepEqual(JSON.parse(els.machineHistory.value).map(r=>r[2]),['−1','0','4','9','23']);assert.equal((els.results.innerHTML.match(/<tr>/g)||[]).length,2);assert.ok(els.results.innerHTML.includes('scope="row"'));assert.ok(!els.results.innerHTML.includes('<th>Function'));
+c.revealed=()=>false;c.update();assert.ok(els.results.innerHTML.includes('>?</td>'));c.revealed=()=>true;
+els.machineFunction.value='x-1';c.update();assert.equal(JSON.parse(els.machineHistory.value).length,0);assert.ok(!els.results.innerHTML.includes('>23</td>'));
+console.log('PASS: horizontal x/y table, exact numerical sorting, repeated-input reuse, hidden answers and function-change reset.');
+
+els.machineContinuous.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);assert.ok(svg.includes('data-waiting-input'));clock+=3200;cb(clock);assert.ok(svg.includes('data-waiting-output'));assert.ok(svg.includes('data-push="0"'));clock+=2600;cb(clock);assert.ok(svg.includes('data-waiting-input'));assert.ok(svg.includes('data-waiting-output'));assert.ok(!svg.includes('data-push="0"'));els.machinePause.onclick();
+const jitter=arranged('x+3','4').g;for(const t of jitter.flat()){assert.ok(Math.abs(t.jitter.x)<=.04);assert.ok(Math.abs(t.jitter.y)<=.04);}assert.deepEqual(jitter[0][0].jitter,jitter[1][0].jitter);
+console.log('PASS: waiting feed, retained output, incoming-batch push and stable small block offsets.');
