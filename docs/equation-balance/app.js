@@ -5,8 +5,24 @@ const num=q=>q.toString().replace('-','−');
 const pretty=s=>s.replace(/(\d+)\/(\d+)/g,'<span class="frac"><span>$1</span><span>$2</span></span>');
 function clearMessage(){$('error').textContent='';$('hinttext').hidden=true}
 function tell(s){$('hinttext').textContent=s;$('hinttext').hidden=false}
-function blocks(s){let list=[];for(const [q,isX] of [[s.a,true],[s.b,false]]){if(!q.n)continue;let abs=Math.abs(q.value()),full=Math.floor(abs),remainder=Math.abs(q.n)%q.d,compact=full>12||Math.abs(s.a.value())+Math.abs(s.b.value())>12;if(compact){list.push({q,isX,fill:1,compact:true});continue}for(let i=0;i<full;i++)list.push({q:new Q(Math.sign(q.n)),isX,fill:1});if(remainder)list.push({q:new Q(Math.sign(q.n)*remainder,q.d),isX,fill:remainder/q.d})}return list}
-function tileMarkup(s){const pieces=blocks(s);if(!pieces.length)return '<text y="145" text-anchor="middle" fill="#9682a7" font-size="18">0</text>';return pieces.map((p,i)=>{const cols=4,row=Math.floor(i/cols),actual=Math.min(cols,pieces.length-row*cols),x=(i%cols-(actual-1)/2)*48-22,y=116-row*43,color=p.isX?'#7952a5':'#bc8a2f',negative=p.q.n<0,label=p.isX?(Math.abs(p.q.value())===1?(negative?'−x':'x'):num(p.q)+'x'):num(p.q);let lines='';if(p.q.d>1&&p.q.d<=12&&!p.compact)for(let j=1;j<p.q.d;j++)lines+=`<line x1="${x+44*j/p.q.d}" x2="${x+44*j/p.q.d}" y1="${y}" y2="${y+32}" stroke="${color}" opacity=".45"/>`;return `<g class="tile"><title>${label}${p.q.d>1?' of a whole bar':''}</title><rect x="${x}" y="${y}" width="44" height="32" rx="4" fill="#fff"/><rect x="${x}" y="${y}" width="${44*p.fill}" height="32" rx="4" fill="${color}" opacity="${negative?.2:.35}"/>${lines}<rect x="${x}" y="${y}" width="44" height="32" rx="4" fill="none" stroke="${color}" stroke-width="2" ${negative?'stroke-dasharray="4 3"':''}/><text x="${x+22}" y="${y+21}" text-anchor="middle" fill="${color}" font-size="${label.length>5?10:13}" font-weight="750" ${label.length>6?'textLength="38" lengthAdjust="spacingAndGlyphs"':''}>${label}</text></g>`}).join('')}
+function blocks(s){
+ const terms=[[s.a,true],[s.b,false]].filter(([q])=>q.n).map(([q,isX])=>({q,isX,count:Math.ceil(Math.abs(q.value())),compact:false}));
+ // Four rows of four blocks fit on each pan. Bundle only the term that needs it.
+ let count=terms.reduce((sum,t)=>sum+t.count,0);
+ for(const term of [...terms].sort((a,b)=>b.count-a.count)){if(count<=16)break;if(term.count>1){count-=term.count-1;term.compact=true}}
+ const list=[];
+ for(const {q,isX,compact} of terms){
+  if(compact){list.push({q,isX,fill:1,compact:true});continue}
+  const full=Math.floor(Math.abs(q.value())),remainder=Math.abs(q.n)%q.d;
+  for(let i=0;i<full;i++)list.push({q:new Q(Math.sign(q.n)),isX,fill:1});
+  if(remainder)list.push({q:new Q(Math.sign(q.n)*remainder,q.d),isX,fill:remainder/q.d});
+ }
+ return list;
+}
+function tileMarkup(s){const pieces=blocks(s);if(!pieces.length)return '<text y="145" text-anchor="middle" fill="#9682a7" font-size="18">0</text>';return pieces.map((p,i)=>{
+ const cols=4,row=Math.floor(i/cols),actual=Math.min(cols,pieces.length-row*cols),x=(i%cols-(actual-1)/2)*48-22,h=p.compact?32:28,y=148-h-row*36,color=p.isX?'#7952a5':'#bc8a2f',negative=p.q.n<0,label=p.isX?(Math.abs(p.q.value())===1?(negative?'−x':'x'):num(p.q)+'x'):num(p.q),opacity=p.compact?Math.min(.95,.65+Math.log10(Math.max(1,Math.abs(p.q.value())))*.1):(negative?.2:.35);let lines='';
+ if(p.q.d>1&&p.q.d<=12&&!p.compact)for(let j=1;j<p.q.d;j++)lines+=`<line x1="${x+44*j/p.q.d}" x2="${x+44*j/p.q.d}" y1="${y}" y2="${y+h}" stroke="${color}" opacity=".45"/>`;
+ return `<g class="tile" data-grouped="${!!p.compact}"><title>${label}${p.compact?' — grouped quantity':p.q.d>1?' of a whole bar':''}</title><rect x="${x}" y="${y}" width="44" height="${h}" rx="4" fill="#fff"/><rect x="${x}" y="${y}" width="${44*p.fill}" height="${h}" rx="4" fill="${color}" opacity="${opacity}"/>${lines}<rect x="${x}" y="${y}" width="44" height="${h}" rx="4" fill="none" stroke="${color}" stroke-width="${p.compact?3:2}" ${negative?'stroke-dasharray="4 3"':''}/><text x="${x+22}" y="${y+h/2+5}" text-anchor="middle" fill="${p.compact?'#fff':color}" font-size="${label.length>5?10:13}" font-weight="750" ${label.length>6?'textLength="38" lengthAdjust="spacingAndGlyphs"':''}>${label}</text></g>`}).join('')}
 function draw(){const rad=angle*Math.PI/180;$('beam').setAttribute('transform',`rotate(${angle} 400 120)`);for(const [id,d] of [['leftpan',-225],['rightpan',225]])$(id).setAttribute('transform',`translate(${400+d*Math.cos(rad)} ${120+d*Math.sin(rad)})`)}
 function animate(t){const dt=Math.min((t-lastTime)/1000||1/60,.032);lastTime=t;velocity+=(55*(targetAngle-angle)-9*velocity)*dt;angle+=velocity*dt;draw();if(Math.abs(targetAngle-angle)>.005||Math.abs(velocity)>.01)frame=requestAnimationFrame(animate);else{angle=targetAngle;velocity=0;draw();frame=0}}
 function physics(){targetAngle=solve(state).kind==='none'?12*Math.sign(state.r.b.sub(state.l.b).value()):0;if(reduced.matches){cancelAnimationFrame(frame);frame=0;angle=targetAngle;velocity=0;draw()}else if(!frame){lastTime=performance.now();frame=requestAnimationFrame(animate)}}
