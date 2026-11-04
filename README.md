@@ -28,6 +28,8 @@ Angle arcs, right-angle marks, equal-side ticks and parallel arrows can be added
 
 Single-variable displays include dot plots, histograms and box plots, alongside parallel box plots and a linked draggable data view. Two-variable data supports scatterplots, regression and residuals.
 
+- Select box plots, histograms, dot plots or parallel box plots; the linked draggable view applies to the single box plot and scatterplot.
+- **Show mean** toggles the mean indicator and summary.
 - Outliers appear as **×** when enabled.
 - Whiskers reach the most extreme observed non-outliers. Ends are open on sides with outliers and capped on sides without outliers.
 - Turning off outlier crosses extends the whiskers to the minimum and maximum.
