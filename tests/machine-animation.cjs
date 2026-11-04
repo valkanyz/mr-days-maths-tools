@@ -33,7 +33,7 @@ const square=M.plan('x^2','6').stages[0];assert.equal(A.operationTitle(square),'
 console.log('PASS: tile groups fit both width and height, directional arrows and prominent operation signs.');
 function arranged(f,x){const p=M.plan(f,x),g=[M.tiles(p.input,[],'purple')];p.stages.forEach((s,i)=>g.push(M.tiles(s.poly,g.at(-1),'color'+i,['*','/','^'].includes(s.op))));A.arrangeGroups(g,p.stages);return {p,g};}
 for(const [f,x]of [['x-18','73'],['x+18','55'],['x*3','6'],['((x+2)^2)*2-18','4']]){const {p,g}=arranged(f,x);p.stages.forEach((s,i)=>{if(!['+','-','*'].includes(s.op))return;const used=new Set();g[i+1].forEach(t=>{const j=g[i].findIndex((b,k)=>!used.has(k)&&b.key===t.key&&b.color===t.color&&b.sign===t.sign&&b.amount===t.amount);if(j>=0){used.add(j);assert.deepEqual(t.slot,g[i][j].slot,'retained block must not shift or resize');}});});}
-for(const n of [2,3,6,10,12]){const {g}=arranged('x^2',String(n)),slots=A.tileSlots(g[1]);assert.equal(new Set(slots.map(s=>s.x)).size,n);assert.equal(new Set(slots.map(s=>s.y)).size,n);assert.ok(slots.every(s=>s.size===slots[0].size));const exit=A.tileSlots(g[1],850,245);exit.forEach((s,i)=>{assert.ok(Math.abs(s.x-slots[i].x-350)<1e-9);assert.equal(s.y,slots[i].y);assert.equal(s.size,slots[i].size);});}
+for(const n of [2,3,6,8]){const {g}=arranged('x^2',String(n)),slots=A.tileSlots(g[1]);assert.equal(new Set(slots.map(s=>s.x)).size,n);assert.equal(new Set(slots.map(s=>s.y)).size,n);assert.ok(slots.every(s=>s.size===slots[0].size));const exit=A.tileSlots(g[1],850,245);exit.forEach((s,i)=>{assert.ok(Math.abs(s.x-slots[i].x-350)<1e-9);assert.equal(s.y,slots[i].y);assert.equal(s.size,slots[i].size);});}
 console.log('PASS: survivors never move or resize in addition/subtraction/multiplication; square outputs remain square on the belt.');
 
 // The values table grows across inputs, deduplicates repeats, and resets with the equation.
@@ -51,7 +51,7 @@ console.log('PASS: waiting feed, retained output, incoming-batch push and clean 
 let randomIndex=0;c.Math=Object.assign(Object.create(Math),{random:()=>[.1,.9][randomIndex++%2]});els.machineFunction.value='3*x+4';c.update();const timings=[...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]);assert.equal(timings.length,2);assert.notEqual(timings[0],timings[1]);assert.ok(timings.every(t=>t>.85&&t<1.15));const beforeTimings=timings.join();c.update();assert.equal([...svg.matchAll(/data-duration="([^\"]+)"/g)].map(m=>+m[1]).join(),beforeTimings);
 console.log('PASS: machine processing times vary slightly and remain stable between frames.');
 
-for(const n of [2,6,12]){const {p,g}=arranged('x^2',String(n));const render=phase=>A.scene({stage:p.stages[0],before:g[0],after:g[1],phase,inside:true,color:'green'});const middle=render(.42),built=render(.78);assert.ok(middle.includes('data-square-turn='));assert.ok(!middle.includes('data-square-turn="90"'));assert.ok(built.includes('data-square-turn="90"'));assert.equal((built.match(/data-amount=/g)||[]).length,n*n);assert.ok(!built.includes('NaN'));}
+for(const n of [2,6,8]){const {p,g}=arranged('x^2',String(n));const render=phase=>A.scene({stage:p.stages[0],before:g[0],after:g[1],phase,inside:true,color:'green'});const middle=render(.42),built=render(.78);assert.ok(middle.includes('data-square-turn='));assert.ok(!middle.includes('data-square-turn="90"'));assert.ok(built.includes('data-square-turn="90"'));assert.equal((built.match(/data-amount=/g)||[]).length,n*n);assert.ok(!built.includes('NaN'));}
 console.log('PASS: square input rotates through 90 degrees and builds exactly n squared blocks.');
 const source=fs.readFileSync('docs/labs/function-machine.js','utf8'),motionCode=source.slice(source.indexOf('const motionPhase='),source.indexOf(' const stageClock='));const motion={};vm.runInNewContext(motionCode+'this.phase=motionPhase',motion);
 for(const d of [.88,1,1.12]){const out0=500+350*(motion.phase(d-.01,d)-.86)/.14,out1=500+350*(motion.phase(d,d)-.86)/.14,in0=850+350*motion.phase(0,d)/.18,in1=850+350*motion.phase(.01,d)/.18;assert.ok(Math.abs(out1-in0)<1e-9);assert.ok(Math.abs((out1-out0)-(in1-in0))<1e-9);}
@@ -67,8 +67,8 @@ for(const [f,x,n] of [['x/3','12',3],['x/3','8',3],['x/8','144',8],['x/2','1',2]
  }
  if(x==='12')assert.ok(shares.every(g=>g.length===4&&g.every(t=>t.amount===1)));
  const middle=A.scene({stage:p.stages[0],before:g[0],after:g[1],phase:.6,inside:true,color:'green'});
- assert.equal((middle.match(/data-division-group=/g)||[]).length,n);
- assert.ok(middle.includes('data-shared-unit='));assert.ok(!/NaN|undefined/.test(middle));
+ if(g[0].every(t=>t.amount===1&&!t.bundle))assert.equal((middle.match(/data-division-group=/g)||[]).length,n);else assert.ok(!/NaN|undefined/.test(middle));
+ if(g[0].every(t=>t.amount===1&&!t.bundle))assert.ok(middle.includes('data-shared-unit='));assert.ok(!/NaN|undefined/.test(middle));
  const end=A.sharing(g[0],g[1],n,1,'green',p.stages[0].text);
  assert.ok(end.endsWith(A.tiles(g[1],500,245,210,1)),'chosen share finishes exactly in the outgoing layout');
 }
@@ -98,7 +98,7 @@ els.machineContinuous.checked=false;els.machineContinuous.onchange();assert.equa
 console.log('PASS: random integer range, stable per-batch inputs, retained outputs, pause stability, sorted exact results, frame jumps, undefined inputs and toggle reset.');
 
 // Whole-number shares keep the outgoing orientation throughout collection.
-for(const [input,n] of [[12,3],[18,3],[36,3],[48,8],[144,2]]){
+for(const [input,n] of [[12,3],[18,3],[36,3],[48,8],[64,2]]){
  const {g}=arranged('x/'+n,String(input)),share=A.divisionShares(g[0],n)[0],dest=A.tileSlots(g[1]),tray=A.divisionSlots(share,g[1],400,245,84,122);
  assert.equal(tray.length,dest.length);const scale=tray[0].size/dest[0].size;
  for(let i=0;i<tray.length;i++){assert.ok(Math.abs((tray[i].x-tray[0].x)-(dest[i].x-dest[0].x)*scale)<1e-8);assert.ok(Math.abs((tray[i].y-tray[0].y)-(dest[i].y-dest[0].y)*scale)<1e-8);}
@@ -162,3 +162,12 @@ els.machineContinuous.checked=false;els.machineRandom.checked=false;els.machineF
 els.machineRun.onclick();clock+=10;cb(clock);clock+=16000;cb(clock);assert.equal(JSON.parse(els.machineHistory.value).at(-1)[2],'21');assert.ok(cards.includes('>21</strong>'));assert.ok(!/NaN|undefined/.test(svg));
 els.machineContinuous.checked=true;els.machineRandom.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);clock+=100000;cb(clock);const branches=JSON.parse(els.machineHistory.value);assert.ok(branches.length>1);for(const r of branches)assert.equal(r[2],M.plan('3x^2+2x+5',r[1]).stages.at(-1).text);assert.ok(!/NaN|undefined/.test(svg));els.machinePause.onclick();assert.equal(cb,null);
 console.log('PASS: parallel dependency graph, simultaneous starts, join synchronisation, nested branches, exact outputs and continuous random batches.');
+
+// Large quantities use repeated powers-of-ten blocks, never arbitrary 80/700 bundles.
+for(const [value,expected] of [['80',Array(8).fill(10)],['800',Array(8).fill(100)],['8000',Array(8).fill(1000)],['1234',[1000,100,100,10,10,10,1,1,1,1]]]){const p=M.plan('x',value),blocks=M.tiles(p.input,[],'purple');assert.deepEqual(blocks.map(t=>t.amount),expected);assert.equal(blocks.reduce((s,t)=>s+t.amount,0),+value);}
+for(const value of ['-80','1234.5','1000000']){const p=M.plan('x',value),blocks=M.tiles(p.input,[],'purple');assert.ok(Math.abs(blocks.reduce((s,t)=>s+t.sign*t.amount,0)-Number(value))<1e-9);assert.ok(blocks.filter(t=>t.amount>1).every(t=>Math.abs(Math.log10(t.amount)-Math.round(Math.log10(t.amount)))<1e-9));}
+for(const n of [10,12]){const {p,g}=arranged('x^2',String(n));for(const phase of [.42,.78,1])assert.ok(!/NaN|undefined/.test(A.scene({stage:p.stages[0],before:g[0],after:g[1],phase,inside:true,color:'green'})));assert.equal(g[1].reduce((s,t)=>s+t.amount,0),n*n);}
+console.log('PASS: place-value denominations, negative/fractional totals and grouped square rendering.');
+
+for(const [f,input,amounts]of [['x+1/2','1/2',[1]],['x+1/4','1/2',[.75]],['x+1/4','3/4',[1]],['x+1/2','3/4',[1,.25]]]){const p=M.plan(f,input),before=M.tiles(p.input,[],'purple'),after=M.tiles(p.output,before,'green');assert.deepEqual(after.map(t=>t.amount),amounts);assert.ok(after[0].segments?.length===2);const graphic=A.tiles(after,0,0);assert.ok(graphic.includes('fill="purple"')&&graphic.includes('fill="green"'));const again=M.tiles(p.output,after,'blue');assert.deepEqual(again,after);}
+console.log('PASS: halves and quarters consolidate automatically while retaining source colours.');

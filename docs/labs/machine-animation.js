@@ -39,7 +39,7 @@ function tiles(items,cx,cy,width=220,opacity=1){
  if(!items)return text(cx,cy,'Expression model',16);
  if(!items.length)return ''; // Empty animation subgroups must not display a zero label.
  const positions=tileSlots(items,cx,cy,width);
- return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/><rect x="${x+1}" y="${y+1+(size-gap)*(1-Math.min(t.amount,1))}" width="${size-gap}" height="${(size-gap)*Math.min(t.amount,1)}" rx="3" fill="${t.color}" opacity="${t.sign<0?.55:1}"/>${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
+ return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));let filled=0;const segments=t.segments||[{color:t.color,amount:t.amount}],capacity=Math.max(1,t.amount),fills=segments.map(part=>{const h=(size-gap)*part.amount/capacity,sy=y+1+(size-gap)-filled-h;filled+=h;return `<rect x="${x+1}" y="${sy}" width="${size-gap}" height="${h}" fill="${part.color}" opacity="${t.sign<0?.55:1}"/>`;}).join('');return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/>${fills}${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
 }
 const scalar=p=>p&&(!p.size||p.size===1&&p.has(''))?(p.size?root.MachineMath.num(p.get('')):0):null;
 function working(stage,before){const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
@@ -120,7 +120,7 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  }else if(['+','-'].includes(stage.op)&&before&&after&&!stage.reverse){
   description=stage.op==='+'?'Bring in the added units and combine like terms.':'Remove the subtracted units; use negative units if needed.';
   s+=transition(before,after,u);
- }else if(stage.op==='^'&&!stage.reverse&&operand===2&&positive&&count>0&&count<=12&&before.every(t=>t.key==='')){
+ }else if(stage.op==='^'&&!stage.reverse&&operand===2&&positive&&count>0&&count<=12&&before.every(t=>t.key==='')&&after.every(t=>t.amount===1&&!t.bundle)){
   description=`Rotate a copy by 90° to form the second side, then build a ${count} by ${count} square.`;
   // Form one side, swing its copy through a quarter-turn, then extend the remaining rows.
   if(!after.every(t=>t.slot)){const side=Math.sqrt(after.length),size=Math.min(32,160/side);after.forEach((t,i)=>t.slot={x:(i%side-(side-1)/2)*size,y:(Math.floor(i/side)-(side-1)/2)*size,size});}

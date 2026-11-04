@@ -55,12 +55,21 @@ function plan(functionText,inputText){
 }
 function tiles(poly,previous,color,transform=false){
  if(!poly)return null;
+ previous=(previous||[]).flatMap(t=>t.segments?.length?t.segments.map(part=>({...t,color:part.color,amount:part.amount,segments:undefined})):t);
  const out=[],used=new Set;
  const append=(key,amount,sign,color)=>{const last=out.at(-1);if(last&&last.key===key&&last.sign===sign&&last.color===color)last.amount+=amount;else out.push({key,amount,sign,color})};
  for(const[k,v]of poly){let remaining=Math.abs(num(v));if(!Number.isFinite(remaining))return null;const sign=v[0]<0n?-1:1;for(let i=0;i<(previous||[]).length&&remaining>1e-9;i++){const t=previous[i];if(!used.has(i)&&t.sign===sign&&(t.key===k||transform&&!poly.has(t.key))){const amount=Math.min(t.amount,remaining);append(k,amount,sign,t.color);remaining-=amount;used.add(i)}}if(remaining>1e-9)append(k,remaining,sign,color)}
- const total=out.reduce((sum,t)=>sum+Math.ceil(t.amount),0);
- const packed=[];
- for(const t of out){let remaining=t.amount;if(total<=144){while(remaining>1e-9){const amount=Math.min(1,remaining);packed.push({...t,amount});remaining-=amount}}else{for(let power=Math.floor(Math.log10(remaining));power>=0;power--){const unit=10**power,count=Math.floor(remaining/unit+1e-10);if(count){packed.push({...t,amount:count*unit,bundle:true});remaining-=count*unit}}if(remaining>1e-9)packed.push({...t,amount:remaining,bundle:true})}}
+ // Consolidate equal signed terms before choosing blocks, including fractional pieces.
+ const terms=new Map();for(const t of out){const id=t.key+'|'+t.sign;if(!terms.has(id))terms.set(id,[]);terms.get(id).push(t);}
+ const total=out.reduce((sum,t)=>sum+t.amount,0),packed=[];
+ for(const pieces of terms.values()){
+  let remaining=pieces.reduce((sum,t)=>sum+t.amount,0),source=0,available=pieces[0].amount;
+  const emit=amount=>{const segments=[];let need=amount;while(need>1e-9&&source<pieces.length){const take=Math.min(need,available),color=pieces[source].color,last=segments.at(-1);if(last&&last.color===color)last.amount+=take;else segments.push({color,amount:take});need-=take;available-=take;if(available<1e-9){source++;available=pieces[source]?.amount||0;}}const block={key:pieces[0].key,sign:pieces[0].sign,color:segments[0].color,amount,bundle:amount>1};if(segments.length>1)block.segments=segments;packed.push(block);};
+  if(total<=64){while(remaining>=1-1e-9){emit(1);remaining-=1;}}
+  else for(let power=Math.floor(Math.log10(remaining));power>=0;power--){const unit=10**power,count=Math.floor(remaining/unit+1e-10);for(let i=0;i<count;i++)emit(unit);remaining-=count*unit;}
+  if(remaining>1e-9)emit(remaining);
+ }
+
  return packed;
 }
 const api={parse,plan,format,tiles,monoText,num};if(typeof module!=='undefined'&&module.exports)module.exports=api;root.MachineMath=api;
