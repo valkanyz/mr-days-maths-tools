@@ -1,153 +1,214 @@
-# Mr. Day's Maths Tools
+# Mr Day’s maths tools
 
-Thirty silent, static classroom mathematics tools. All run entirely in a modern browser without accounts, databases, paid services or external JavaScript dependencies.
+Interactive classroom tools for Years 7–12, including Essential, Applications, Methods and Specialist mathematics, plus teacher-hosted games and science simulations.
 
-## This update (23 October 2026)
+**[Open the live site](https://valkanyz.github.io/mr-days-maths-tools/)**
 
-Tree Diagram Lab now has independent switches for branch labels, combinations and probabilities. The Custom example defaults to Bottoms (Shorts/Pants), Top (Shirt/Jumper), and Accessory (Hat/Sunglasses). Names update while typing.
+The site runs in a modern browser with no accounts or backend database. It uses static HTML, CSS and JavaScript, with no build step or package installation required. Search and course filters help teachers find activities; course tags indicate suggested audiences, not complete syllabus coverage.
 
-The homepage adds search and course filters. Twelve new activities are served by `docs/labs/index.html`, with the activity selected by the URL fragment:
+## Classroom features
 
-| Fragment | Activity | Main features |
-|---|---|---|
-| `#functions` | Function Lab | Linear, quadratic, cubic, sine and exponential transformations; analytic tangents and signed integrals |
-| `#statistics` | Statistics Lab | Box plots, histograms, dot plots, mean/median/quartiles, population/sample SD, scatterplots and least-squares regression |
-| `#distributions` | Distribution Lab | Binomial and normal probabilities, selectable regions and shaded graphs |
-| `#trigonometry` | Trigonometry Lab | Unit circle, right triangles and SAS cosine rule |
-| `#finance` | Finance & Sequence Lab | Simple/compound interest, end-of-period deposits, loans, arithmetic/geometric sequences |
-| `#vectors` | Vector & Matrix Lab | 2D addition/subtraction/scaling/projection; dot product; 2x2 transformations and determinants |
-| `#complex` | Complex Number Lab | Argand diagram; addition, multiplication, division, powers and nth roots |
-| `#networks` | Network Lab | Editable positive-weight undirected networks; Dijkstra and Kruskal solutions |
-| `#arrays` | Probability Array Lab | Two fair dice; custom independent choices; event selection and sample spaces |
-| `#measurement` | Measurement & Scale Lab | Areas, perimeters, solid surface areas/volumes and similar-shape scaling |
-| `#ratios` | Ratio & Rate Lab | Sharing in ratios, speed conversions and unit-price comparisons |
-| `#sampling` | Sampling Lab | Crypto-generated fair-die sample means, normal approximation and approximate confidence intervals |
+- Topic-grouped navigation, favourites and recently used activities.
+- On supported labs: presentation mode, settings visibility, answer reveal, step-by-step teaching, undo/reset and shareable activity links.
+- Diagram and table exports where available, with classroom annotation, image-copy and print tools on supported pages.
+- Browser-local preferences and saved state. Editable links can include the entered data; check their contents before sharing student information.
+- Teacher-hosted games designed for students to play on paper, without individual student score tracking.
 
-Existing tools remain in `docs/dice-lab`, `docs/coin-lab`, `docs/equation-balance`, `docs/fraction-lab` and `docs/tree-lab`.
+## Recent additions and improvements
 
-## Classroom feedback update
+### Geometry Diagram Maker
 
-- Activity selector grouped by topic; inactive inputs hidden.
-- Function Lab: draggable tangent, sine/cosine/tangent, degrees/radians, π axis labels, discontinuity-safe tangent rendering and integrals.
-- Statistics: up to six parallel boxplots, outlier crosses or full-range whiskers, automatic/manual histogram width, integer frequency ticks.
-- Distribution: integer successes ticks; normal μ ± 1σ/2σ/3σ presets (approximately 68/95/99.7%).
-- Trigonometry: editable sides/angle, fixed-value constraints, separate unit circle controls, sine rule with both SSA solutions.
-- Finance: pointer readout and up to five simultaneous sequences.
-- Matrix presets: rotation, reflection, enlargement and shear; inverse transformation with singular-matrix validation.
-- Complex numbers: Cartesian/polar input, subtraction and conjugation.
-- Arrays: named outcomes directly in cells, with scrolling for large custom arrays.
-- Measurement: 2D/3D selector and shaded rotatable cuboids, cylinders and spheres.
-- Sampling: variable-face dice, fair coins and custom finite populations; changing settings resets samples.
+[Open the maker](https://valkanyz.github.io/mr-days-maths-tools/geometry-maker/).
 
-Triangle constraints: right triangles allow one fixed value; general triangles allow two. With no locks, side edits preserve A and angle edits preserve c. Inconsistent changes restore the prior triangle. General SSA editing retains the nearest prior solution; dedicated sine-rule mode exposes both solutions. Custom sampling treats each entered item as equally likely (repeated values provide weights), with replacement. The 3D view uses orthographic projection, with mathematically calculated areas and volumes.
+Create test diagrams with a white background, black lines and Arial text. Add triangles, quadrilaterals, circles, sectors, line segments, angles, parallel lines, free text and labelled points. Drag shapes, vertices and labels; nearby vertices snap together when moving points or whole shapes. Hold **Alt** to bypass snapping. **Add point** lets you click to place a point, then enter its label.
 
-## Interaction refinements
+Angle arcs, right-angle marks, equal-side ticks and parallel arrows can be added independently. Measurements are entered labels: reshaping a diagram does not recalculate them. Undo/redo, browser saving, editable links, SVG/PNG exports, image copying and printing are included. Exports omit selection handles, snap indicators and the editing grid.
 
-- Trigonometry uses equal physical axis units and a square grid, with a right-angle marker. Drag A, B or C in right/general triangle mode. The right angle and checked fixed values are preserved; the view fits all vertices on release. Sine-rule examples retain their given-data controls.
-- Measurement offers independent Show 2D and Show 3D switches, including simultaneous views with separate shape selections and shared dimensions/scale factor.
-- Function Lab adds zoom in/out, reset view, and independent horizontal/vertical view ranges.
-- Boxplot exports include Q1 − 1.5 IQR and Q3 + 1.5 IQR fences. Values exactly on either fence are not outliers; tests cover both boundaries.
-- Unit prices have a labelled zero-based dollar scale, selectable common quantity units, and optional third option C.
-- The former speed calculator is replaced by two journey comparisons: independent speeds, optional delayed start/stopping time, and a time slider on a shared distance–time graph.
+### Statistics
 
-## Local use
+Single-variable displays include dot plots, histograms and box plots, alongside parallel box plots and a linked draggable data view. Two-variable data supports scatterplots, regression and residuals.
 
-Unzip the package. Open `docs/index.html` in Chrome or Edge. The pages also work through any static web server. If a browser restricts Web Crypto on a local file, use localhost or HTTPS for Sampling Lab.
+- Outliers appear as **×** when enabled.
+- Whiskers reach the most extreme observed non-outliers. Ends are open on sides with outliers and capped on sides without outliers.
+- Turning off outlier crosses extends the whiskers to the minimum and maximum.
+- **Show Q₁ − 1.5 × IQR and Q₃ + 1.5 × IQR** adds labelled dashed fences. The horizontal scale includes both fences.
+- Quartiles use medians of the lower and upper halves, excluding the middle observation for odd sample sizes. Values exactly on a fence are not outliers.
 
-No build step or installation is needed. Hash links work on GitHub Pages project URLs.
+### Functions and matrices
 
-## Publish the update
+- **Patterns & Function Machines:** enter a function, starting with `2x+3`; watch animated operations and converging branches, then inspect input/output pairs. Place-value blocks and combined fractional blocks keep larger values readable. Random inputs progress through finer increments. Trigonometric functions support radians/degrees, suitable exact values and asymptotes, with graph bounds established before points accumulate.
+- **Function Lab:** transformations, logarithms, original/inverse comparisons with relevant domain restrictions, tangents and signed integrals.
+- **Matrices Lab:** matrix orders up to 4 × 4, arithmetic, transpose, powers, determinant, inverse, AX = B, transitions and 2D transformations. Bracketed inputs and output are arranged as an equation, with colour-matched working that can be hidden. Includes matrix-order comparison and transition playback.
 
-The existing repository is `valkanyz/mr-days-maths-tools`. GitHub Pages serves **main → /docs**.
+### New investigations
 
-Commit updates to the existing main branch. Its Pages workflow publishes the site automatically. Keep the existing Pages settings.
+- **Time Series:** centred moving averages, seasonal indices, deseasonalisation and model forecasts.
+- **Circle Theorems:** draggable points and revealable angle relationships.
+- **Volume & Capacity:** compare containers, fill and pour, convert cubic centimetres/millilitres/litres and account for spills.
+- **Timetable & Journey Planner:** editable services, connections, transfer allowances and journey timelines.
+- Other improvements include composite area/perimeter construction, rotatable nets, linked conditional-probability views, finance comparisons and guided network decisions.
 
-Alternatively, upload the contents of `docs/` to any static hosting service. Set the publish directory to `docs`, with no build command.
+## Activity catalogue
 
-## Tests
+The following list follows the current homepage. Shared labs use `docs/labs/index.html` with an activity fragment, such as `#statistics`. Standalone labs have their own directories.
 
-With Node.js installed:
+### Number & finance
 
+- [Fraction Lab](docs/fraction-lab/)
+- [Percentages Lab](docs/labs/#percentages)
+- [Ratio & Rate Lab](docs/labs/#ratios)
+- [Number Line Lab](docs/labs/#numberline)
+- [Decimal Lab](docs/labs/#decimals)
+- [Powers & Roots Lab](docs/labs/#powers)
+- [Finance & Sequence Lab](docs/labs/#finance)
+
+### Algebra, functions & calculus
+
+- [Function Lab](docs/labs/#functions)
+- [Equation Balance](docs/equation-balance/)
+- [Patterns & Function Machines](docs/labs/#patterns)
+- [Algebra Tiles](docs/labs/#tiles)
+- [Linear Inequalities](docs/labs/#inequalities)
+- [Binomial Expansion & Pascal’s Triangle](docs/labs/#binomial)
+- [First Principles](docs/labs/#calculus)
+- [Rectangle & Trapezium Rules](docs/labs/#integration)
+
+### Measurement & geometry
+
+- [Perimeter & Area Builder](docs/labs/#area)
+- [Angle Lab](docs/labs/#angles)
+- [Measurement & Scale Lab](docs/labs/#measurement)
+- [Nets Lab](docs/labs/#nets)
+- [Pythagoras Lab](docs/labs/#pythagoras)
+- [Trigonometry Lab](docs/labs/#trigonometry)
+- [Coordinates & Transformations](docs/labs/#transformations)
+- [Bearings Lab](docs/labs/#bearings)
+- [Time & Time Zones](docs/labs/#timezones)
+- [Circle Theorems Lab](docs/labs/#circles)
+- [Volume & Capacity Lab](docs/labs/#capacity)
+- [Timetable & Journey Planner](docs/labs/#journeys)
+- [Geometry Diagram Maker](docs/geometry-maker/)
+
+### Probability
+
+- [Dice Lab](docs/dice-lab/)
+- [Coin Lab](docs/coin-lab/)
+- [Probability Array Lab](docs/labs/#arrays)
+- [Venn & Two-way Table Lab](docs/labs/#venn)
+- [Tree Diagram Lab](docs/tree-lab/)
+- [Distribution Lab](docs/labs/#distributions)
+- [Plinko Probability Lab](docs/plinko-lab/)
+- [Permutations & Combinations](docs/labs/#counting)
+
+### Statistics
+
+- [Statistics Lab](docs/labs/#statistics)
+- [Sampling Lab](docs/labs/#sampling)
+- [Confidence Interval Lab](docs/labs/#inference)
+- [Time Series Lab](docs/labs/#timeseries)
+
+### Matrices, vectors & complex numbers
+
+- [Matrices Lab](docs/matrices-lab/)
+- [Vectors & Transformations](docs/labs/#vectors)
+- [Transition Matrix Lab](docs/labs/#transitions)
+- [Complex Number Lab](docs/labs/#complex)
+- [3D Vector Lab](docs/labs/#vectors3)
+
+### Networks & optimisation
+
+- [Network Lab](docs/labs/#networks)
+- [Project Networks](docs/labs/#projects)
+
+### Class games
+
+- [Target Number Lab](docs/class-games/#target)
+- [Multiplication Bingo Lab](docs/class-games/#bingo)
+- [Risky Dice Lab](docs/class-games/#risk)
+- [Pirate Game Lab](docs/class-games/#pirate)
+- [Cray Pots Lab](docs/class-games/#cray)
+
+### Science
+
+- [Ecology Sampling Lab](docs/ecology-lab/)
+- [Natural Selection Lab](docs/natural-selection-lab/)
+
+The simultaneous-equations workshop remains in the source but is currently excluded from the public catalogue/menu.
+
+## Run locally
+
+From the repository root, start any static server, for example:
+
+```sh
+python -m http.server 8000 --directory docs
 ```
-node tests/expansion.cjs
-node tests/labs.cjs
-node tests/tree-lab.cjs
-node tests/fraction-lab.cjs
-node tests/equation-balance.cjs
-node tests/dice-lab.cjs
-node tests/coin-lab.cjs
-```
 
-The new tests cover independent expected values and identities for statistics, regression, binomial/normal distributions, analytic derivatives and integrals, loan payoff behaviour, vector products, complex roots, shortest paths and spanning trees. Browser checks cover every new activity, including custom array cell selection, sampling, results and the tree visibility switches.
+Open <http://localhost:8000/>. Most pages can also be opened directly from `docs/index.html`, but localhost or HTTPS is preferable for browser clipboard and Web Crypto features. Image copying may require browser permission; PNG/SVG downloads provide an alternative.
 
-## Model conventions
+## Repository structure
 
-- Statistics quartiles use medians of halves, excluding the middle observation for odd n. This differs from some spreadsheet percentile conventions.
-- Normal probabilities use a numerical CDF approximation; displays are rounded.
-- Finance rates are per period. Interest is applied before end-of-period deposits/repayments. Fees and taxes are not modelled. Full precision is retained internally.
-- Networks are undirected with positive weights; one solution is shown when ties occur.
-- Sampling uses the selected finite population, replacement and its known population standard deviation. Normal confidence intervals use 1.96 and are approximate. For the default six-sided die the mean is 3.5 and population variance is 35/12. Interval view shows the latest 30 samples; exports contain all retained samples (up to 10,000).
-- Course tags are suggested classroom audiences, not a claim of full syllabus coverage. Teachers should select activities appropriate to their class.
-
-## Curriculum references consulted
-
-- WA Mathematics P–10: https://k10outline.scsa.wa.edu.au/home/wa-curriculum/learning-areas/mathematics/p-10-mat-curriculum
-- Applications: https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-applications
-- Methods: https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-methods
-- Specialist: https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-specialist
-
-
-## Thirteen additional investigations
-
-The new module `docs/labs/expansion.js` adds the following hash routes to the existing lab shell. All appear in the topic-grouped activity menu and homepage course filters.
-
-| Route | Activity |
+| Location | Purpose |
 |---|---|
-| #tiles | Signed draggable algebra tiles, zero pairs, rectangle expansion and square completion |
-| #angles | Parallel lines, draggable triangles and regular polygons |
-| #venn | Two/three named sets, draggable objects, linked A/B table and conditional events |
-| #simultaneous | Guided elimination, generated problems, substitution and checking |
-| #pythagoras | Side squares, triple snapping and rigid four-triangle area rearrangement |
-| #numberline | Directed signed operations and open/closed inequalities |
-| #counting | Enumerated permutations/combinations with optional repetition |
-| #inequalities | Equivalent operations and number-line solutions |
-| #integration | Adjustable rectangle/trapezium strip widths |
-| #calculus | First-principles limit, polynomial expansion and simplification |
-| #vectors3 | Rotatable 3D vectors, projection, cross products and line/plane intersection |
-| #projects | Directed task networks, earliest/latest times, critical tasks and float |
-| #transitions | Two/three-category transition matrices and repeated population changes |
-| #inference | Repeated normal-population confidence intervals with known sigma |
-| #nets | Six fully unfolding solids, including cylinder |
+| `docs/index.html` | Homepage, search, course filters and catalogue |
+| `docs/labs/index.html` | Shared lab shell, core activities and initial controls |
+| `docs/labs/*.js` | Mathematical models, activity extensions and interaction/rendering modules |
+| `docs/classroom*.js`, `docs/classroom*.css` | Shared classroom controls and presentation tools |
+| `docs/geometry-maker/` | Standalone test-diagram editor |
+| `docs/matrices-lab/` | Standalone matrix workspace |
+| Other `docs/*-lab/` directories | Standalone maths and science activities |
+| `docs/class-games/` | Teacher-hosted classroom games |
+| `tests/*.cjs` | Node.js calculation and rendering regression checks |
 
-The existing network, vector/matrix, statistics and measurement labs link directly to their extensions.
+The shared lab extensions wrap existing setup/update functions. Preserve script order when editing the shell, and check both the base display and any linked or enhanced view affected by a change.
 
-### Scope and conventions
+## Tests and checks
 
-- Algebra tiles stay on a bounded snap grid. Generated completing-square problems use even positive x coefficients; free tiles support signed expressions.
-- Angle diagrams use coloured arcs and independently selected relationships. Triangle vertices remain draggable.
-- Venn defaults to shaded events and region counts. Elements are assigned independently and uniformly among regions; optional objects are draggable. The table summarises A/B and highlights corresponding event cells.
-- Simultaneous equations is a guided elimination workshop with generated integer-solution problems and step reveals.
-- Linear inequalities applies reversible operations and automatically reverses signs for negative multiplication/division.
-- Pythagoras includes triple snapping and rigid triangle rearrangement. Cross-sections and the square-root number-line view have been removed.
-- Permutations/combinations shows formulas and appends outcomes in batches of 120 while scrolling. CSV exports outcomes loaded so far.
-- First principles expands custom polynomials up to degree 3. Numerical integration is separate, with adjustable widths, shortened final strips, signed areas and a 1,000-strip limit.
-- 3D vectors supports drag-to-orbit and a separate vector-tip editing mode.
-- Nets includes cube, cuboid, triangular/pentagonal prisms, square pyramid and cylinder. Every solid unfolds; the camera turns face-on at the flat endpoint. Intermediate surfaces may overlap.
-- Project networks has five editable examples, supports up to 18 tasks and assumes unlimited resources.
-- Transition matrices are column-stochastic; confidence intervals assume a normal population and known sigma.
+Run from the repository root with Node.js installed. No dependency installation is required.
 
-### Verification
+Run every current suite:
 
-Run `node tests/expansion.cjs` and the other six test suites. Browser checks cover revised controls, all default activities, alternative nets, angle modes, Venn shading, triple selection, worked derivatives, signed inequalities and numerical integration.
+```sh
+node -e "const fs=require('node:fs'),cp=require('node:child_process'); for(const f of fs.readdirSync('tests').filter(f=>f.endsWith('.cjs')).sort()){console.log(f);cp.execFileSync(process.execPath,['tests/'+f],{stdio:'inherit'}); }"
+```
 
-### Catalogue organisation (November 2026)
+For focused work, examples include:
 
-The home catalogue and final in-lab menu group tools by mathematical topic, with broadly reusable classroom tools before narrower investigations. This utility order is an editorial teaching judgement, not an official SCSA sequence. The site serves **Years 7–12 including ATAR**, with an Essential General course filter alongside Applications, Methods and Specialist ATAR. Course tags indicate relevant parts of multi-topic tools, not complete course coverage.
+```sh
+node tests/labs.cjs
+node tests/statistics-box.cjs
+node tests/geometry-maker.cjs
+node tests/matrices-lab.cjs
+node tests/function-machine.cjs
+node tests/classroom-models.cjs
+```
 
-The categories split the WA Number and algebra, Measurement and geometry, and Probability and statistics strands into browsable topic groups, with matrices/vectors/complex numbers and networks visible separately. Sampling distributions and confidence intervals sit under Statistics; time zones sit under Measurement and geometry; transition matrices sit with matrices. Science and class games remain separate from the maths topics.
+The suites cover mathematical results and selected rendering/interaction rules; they do not replace browser checks. Check affected controls, reveal states, dragging and exports in a browser after UI changes. Use `git diff --check` before committing.
 
-Sources consulted: the [2026 WA Years 7–10 scope and sequence](https://k10outline.scsa.wa.edu.au/__data/assets/pdf_file/0004/1229467/Mathematics_Scope-and-sequence7-10_For-implementation-in-2026.PDF) and current SCSA syllabuses linked from [Essential](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-essential), [Applications](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-applications), [Methods](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-methods) and [Specialist](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-specialist). Use syllabuses in force for 2026 rather than future or draft versions.
+## Publishing
 
-## Matrices Lab
+Repository: `valkanyz/mr-days-maths-tools`.
 
-`docs/matrices-lab/` provides an Applications and Specialist matrix workspace for orders up to 4 × 4. It includes arithmetic, transpose, powers (0–20), determinants, inverses, AX = B, column-stochastic transitions and 2D linear transformations. Inputs accept finite decimals and fractions. Select an output entry to inspect colour-matched operands, or turn off **Show working** for output only. Canteen, travel-choice, equation, rotation, shear and inverse presets are included. Calculations use JavaScript floating-point numbers; the precision selector controls display rounding only. Run `node tests/matrices-lab.cjs` to verify calculations and rendering behaviour.
+GitHub Pages serves **`main` → `/docs`**. Commit and push changes to the existing branch; retain the existing Pages configuration. Alternatively, publish `docs/` with any static hosting service, with no build command. Fragment routes work under the GitHub Pages project URL.
+
+## Mathematical and modelling conventions
+
+- **Precision:** calculations generally use JavaScript floating-point numbers. Display rounding does not imply exact arithmetic; exact-value notation is used where supported.
+- **Statistics:** the median-of-halves quartile convention can differ from spreadsheet percentile functions. Outlier tests use strict 1.5 × IQR inequalities.
+- **Finance:** rates are per period; interest is applied before end-of-period deposits/repayments. The models omit fees and taxes.
+- **Sampling:** finite-population samples use replacement; repeated custom values provide weights. Normal confidence intervals use 1.96 and are approximate. The separate normal-population inference model assumes known population standard deviation.
+- **Time series:** seasonal indices are normalised to average 1. Forecasts fit a straight line to deseasonalised data and then restore seasonality; they are model estimates.
+- **Networks:** the basic network model uses positive-weight undirected edges. Project networks use directed dependencies and assume unlimited resources. Ties may have more than one valid solution.
+- **Transitions:** transition matrices are column-stochastic.
+- **Geometry:** the diagram maker uses manually entered measurements. Container illustrations are schematic; pouring conserves volume including spill. Intermediate net surfaces may overlap during unfolding.
+- **Journeys:** timetable results depend on the entered services and transfer assumptions; this is a classroom planner, not a live transport feed.
+- **Science:** sampling and natural-selection activities are simplified teaching models. Their assumptions and limitations are explained within each lab.
+
+## Curriculum context
+
+The catalogue is organised for Western Australian classrooms. Topic order and course tags are teaching aids rather than an official teaching sequence or an assertion of full syllabus alignment.
+
+- [WA Mathematics P–10](https://k10outline.scsa.wa.edu.au/home/wa-curriculum/learning-areas/mathematics/p-10-mat-curriculum)
+- [Mathematics Essential](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-essential)
+- [Mathematics Applications](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-applications)
+- [Mathematics Methods](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-methods)
+- [Mathematics Specialist](https://senior-secondary.scsa.wa.edu.au/syllabus-and-support-materials/mathematics/mathematics-specialist)
