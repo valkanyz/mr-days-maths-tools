@@ -197,3 +197,14 @@ assert.deepStrictEqual(global.MachineTrig.describe('tan(-x)','degrees').asymptot
 assert.strictEqual(global.MachineTrig.describe('sin(x)').asymptotes.length,0);
 assert.strictEqual((global.MachinePlot.render([],true,'tan(x)','degrees').match(/data-asymptote=/g)||[]).length,2);
 console.log('PASS: dotted tangent asymptotes with horizontal shifts, stretches and reflections.');
+
+for(const [f,x,expected] of [['sin(x)','45','√2/2'],['cos(x)','30','√3/2'],['tan(x)','30','√3/3'],['sin(x)','15','(√6 − √2)/4'],['tan(x)','75','2 + √3'],['2sin(x)+5','45','5 + √2']]){
+ const model=global.MachineMath.plan(f,x,'degrees');
+ assert.strictEqual(model.stages.at(-1).text,expected);
+ const numeric=global.MachinePlot.number(expected);
+ assert.ok(Number.isFinite(numeric));
+ assert.ok(Math.abs(numeric-global.MachineMath.num(model.output.get('')))<1e-9);
+}
+assert.strictEqual(global.MachineMath.plan('sin(x)','pi/4').stages[0].beforeText,'π/4');
+assert.ok(!global.MachineMath.plan('sin(x)','10','degrees').stages[0].text.includes('√'));
+console.log('PASS: exact special-angle outputs, transformed surds and numeric graph coordinates.');
