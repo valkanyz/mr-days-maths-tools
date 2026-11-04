@@ -171,3 +171,8 @@ console.log('PASS: place-value denominations, negative/fractional totals and gro
 
 for(const [f,input,amounts]of [['x+1/2','1/2',[1]],['x+1/4','1/2',[.75]],['x+1/4','3/4',[1]],['x+1/2','3/4',[1,.25]]]){const p=M.plan(f,input),before=M.tiles(p.input,[],'purple'),after=M.tiles(p.output,before,'green');assert.deepEqual(after.map(t=>t.amount),amounts);assert.ok(after[0].segments?.length===2);const graphic=A.tiles(after,0,0);assert.ok(graphic.includes('fill="purple"')&&graphic.includes('fill="green"'));const again=M.tiles(p.output,after,'blue');assert.deepEqual(again,after);}
 console.log('PASS: halves and quarters consolidate automatically while retaining source colours.');
+
+// Axis bounds depend on the function, never on production history or input order.
+for(const f of ['2x+3','3x^2+2x+5','-x^2','5','0','1/x']){const bound=JSON.stringify(Plot.bounds(f));const empty=Plot.render([],true,f);for(const x of ['-10','0','2.25','10']){let p;try{p=M.plan(f,x);}catch{continue;}const result=Plot.render([[f,x,M.format(p.output)]],true,f);assert.equal(JSON.stringify(Plot.bounds(f)),bound);const grid=html=>html.slice(0,html.indexOf('<circle')<0?html.indexOf('<text x="415" y="30"'):html.indexOf('<circle'));assert.equal(grid(result),grid(empty));assert.ok(!/NaN|Infinity/.test(result));}}
+assert.deepEqual(Plot.bounds('2x+3').x,{min:-10,max:10,step:2});assert.ok(Plot.bounds('2x+3').y.min<=-17&&Plot.bounds('2x+3').y.max>=23);assert.ok(Plot.bounds('x^2').y.max>=100);assert.ok(Plot.render([['x','80','80']],true,'x').includes('outside these fixed axes'));
+console.log('PASS: precomputed fixed axes for linear, quadratic, constant and reciprocal functions; out-of-range values remain in table.');
