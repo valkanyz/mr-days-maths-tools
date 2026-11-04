@@ -29,7 +29,7 @@
     "trigonometry",
     "transformations",
     "bearings",
-    "timezones"
+    "timezones", "circles", "capacity", "journeys"
   ],
   "Probability": [
     "arrays",
@@ -38,7 +38,7 @@
     "counting"
   ],
   "Statistics": [
-    "statistics",
+    "statistics", "timeseries",
     "sampling",
     "inference"
   ],
@@ -56,4 +56,5 @@
  const selected=$('activity').value;
  $('activity').innerHTML=Object.entries(groups).map(([topic,ids])=>`<optgroup label="${esc(topic)}">${ids.filter(id=>labs[id]).map(id=>`<option value="${id}">${esc(labs[id].title)}</option>`).join('')}</optgroup>`).join('');
  $('activity').value=selected;
+ if(['timeseries','circles','capacity','journeys'].includes(location.hash.slice(1)))launch(location.hash.slice(1));
 })();
