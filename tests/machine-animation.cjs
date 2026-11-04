@@ -176,3 +176,24 @@ console.log('PASS: halves and quarters consolidate automatically while retaining
 for(const f of ['2x+3','3x^2+2x+5','-x^2','5','0','1/x']){const bound=JSON.stringify(Plot.bounds(f));const empty=Plot.render([],true,f);for(const x of ['-10','0','2.25','10']){let p;try{p=M.plan(f,x);}catch{continue;}const result=Plot.render([[f,x,M.format(p.output)]],true,f);assert.equal(JSON.stringify(Plot.bounds(f)),bound);const grid=html=>html.slice(0,html.indexOf('<circle')<0?html.indexOf('<text x="415" y="30"'):html.indexOf('<circle'));assert.equal(grid(result),grid(empty));assert.ok(!/NaN|Infinity/.test(result));}}
 assert.deepEqual(Plot.bounds('2x+3').x,{min:-10,max:10,step:2});assert.ok(Plot.bounds('2x+3').y.min<=-17&&Plot.bounds('2x+3').y.max>=23);assert.ok(Plot.bounds('x^2').y.max>=100);assert.ok(Plot.render([['x','80','80']],true,'x').includes('outside these fixed axes'));
 console.log('PASS: precomputed fixed axes for linear, quadratic, constant and reciprocal functions; out-of-range values remain in table.');
+
+// Trig evaluation, phased random angles, transformed windows and visual mechanisms.
+const Trig=require('../docs/labs/machine-trig.js');global.MachineTrig=Trig;c.MachineTrig=Trig;
+els.machineAngleMode={value:'radians'};els.machineAngleControls={hidden:true};
+const approx=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`),output=(f,x,mode='radians')=>{const p=M.plan(f,x,mode).output;return p.size?M.num(p.get('')):0;};
+for(const [f,x,mode,v]of [['sin(x)','pi/2','radians',1],['cos(x)','pi','radians',-1],['tan(x)','pi/4','radians',1],['sin(x)','30','degrees',.5],['2cos(x)+3','60','degrees',4],['3sin(x)+2cos(x)','0','radians',2],['sin(2*(x-pi/4))','pi/2','radians',1]])approx(output(f,x,mode),v);
+assert.throws(()=>M.plan('tan(x)','90','degrees'),/undefined/);assert.throws(()=>M.plan('tan(x)','pi/2'),/undefined/);
+for(const mode of ['radians','degrees']){const entries=Trig.inputs('sin(x)',mode);assert.equal(entries.length,73);assert.deepEqual(entries.slice(0,5).map(e=>e.tier),[0,0,0,0,0]);assert.equal(new Set(entries.map(e=>e.value.toFixed(10))).size,73);assert.equal(entries.filter(e=>e.tier===1).length,4);assert.ok(entries.every((e,i)=>!i||e.tier>=entries[i-1].tier));assert.equal(Trig.inputs('tan(x)',mode).length,71);}
+const rad=Plot.bounds('sin(x)','radians');approx(rad.x.min,0);approx(rad.x.max,2*Math.PI);assert.ok(rad.x.ticks.some(t=>t.label==='π/2'));
+const shifted=Plot.bounds('2sin(2*(x-30))+5','degrees');approx(shifted.x.min,30);approx(shifted.x.max,210);assert.ok(shifted.y.min<=3&&shifted.y.max>=7);
+const tan=Plot.bounds('3tan(2*(x-pi/4))+100','radians');approx(tan.x.min,Math.PI/4);approx(tan.x.max,5*Math.PI/4);assert.ok(tan.y.min>=50&&tan.y.max<=150,'tangent vertical cutoff follows shift and scale');
+for(const op of ['sin','cos','tan']){const p=M.plan(op+'(x)','pi/4');for(const phase of [.2,.5,.78,1]){const html=A.scene({stage:p.stages[0],before:M.tiles(p.input,[],'purple'),after:M.tiles(p.output,[],'green'),phase,inside:true,color:'green'});assert.ok(!/NaN|undefined/.test(html));if(phase<.86)assert.ok(html.includes('data-trig-mechanism="'+op+'"'));}}
+els.machineSpeed.value='1';els.machineFunction.value='sin(x)';els.machineInput.value='0';els.machineContinuous.checked=true;els.machineRandom.checked=true;c.update();assert.equal(els.machineAngleControls.hidden,false);els.machineRun.onclick();clock+=10;cb(clock);clock+=16000;cb(clock);const trigRows=JSON.parse(els.machineHistory.value);assert.ok(trigRows.length>=5);assert.ok(trigRows.slice(0,5).every(r=>['0','π/2','π','3π/2','2π'].includes(r[1])));assert.ok(!/NaN|undefined/.test(svg));els.machinePause.onclick();
+console.log('PASS: trig modes, pi input, progressive angle tiers, transformed windows, tangent cutoffs, animation mechanisms and random playback.');
+
+const trigAsymptotes=global.MachineTrig.describe('3tan(2*(x-30))+5','degrees').asymptotes;
+assert.deepStrictEqual(trigAsymptotes,[75,165]);
+assert.deepStrictEqual(global.MachineTrig.describe('tan(-x)','degrees').asymptotes,[90,270]);
+assert.strictEqual(global.MachineTrig.describe('sin(x)').asymptotes.length,0);
+assert.strictEqual((global.MachinePlot.render([],true,'tan(x)','degrees').match(/data-asymptote=/g)||[]).length,2);
+console.log('PASS: dotted tangent asymptotes with horizontal shifts, stretches and reflections.');

@@ -31,6 +31,7 @@ function arrangeGroups(groups,stages){
  return groups;
 }
 function operationTitle(stage){
+ if(['sin','cos','tan'].includes(stage.op))return {sin:'Sine wheel',cos:'Cosine slider',tan:'Tangent projector'}[stage.op];
  if(stage.reverse&&['-','/','^'].includes(stage.op))return stage.label;
  if(stage.op==='^')return stage.operand==='2'?'Square':stage.operand==='3'?'Cube':'Power '+stage.operand;
  return stage.label.split(' · ')[0];
@@ -42,7 +43,7 @@ function tiles(items,cx,cy,width=220,opacity=1){
  return `<g opacity="${opacity}">`+items.map((t,i)=>{const {x:mx,y:my,size}=positions[i],x=mx-size/2,y=my-size/2,gap=Math.min(3,size*.12),term=root.MachineMath.monoText(t.key),caption=(t.sign<0?'−':'')+(t.bundle?String(Number(t.amount.toPrecision(5))):'')+(term||(!t.bundle&&t.sign<0?'1':''));let filled=0;const segments=t.segments||[{color:t.color,amount:t.amount}],capacity=Math.max(1,t.amount),fills=segments.map(part=>{const h=(size-gap)*part.amount/capacity,sy=y+1+(size-gap)-filled-h;filled+=h;return `<rect x="${x+1}" y="${sy}" width="${size-gap}" height="${h}" fill="${part.color}" opacity="${t.sign<0?.55:1}"/>`;}).join('');return `<g data-amount="${t.amount}" data-origin="${t.color}"><rect x="${x+1}" y="${y+1}" width="${size-gap}" height="${size-gap}" rx="3" fill="white" stroke="${t.color}" ${t.sign<0?'stroke-dasharray="3 2"':''}/>${fills}${caption?text(x+size/2,y+size*.62,caption,Math.min(12,size*.4,(size-gap)*1.5/Math.max(1,caption.length)),'white'):''}<title>${esc((t.sign<0?'-':'')+t.amount+' '+(term||'units'))}</title></g>`;}).join('')+'</g>';
 }
 const scalar=p=>p&&(!p.size||p.size===1&&p.has(''))?(p.size?root.MachineMath.num(p.get('')):0):null;
-function working(stage,before){const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
+function working(stage,before){if(['sin','cos','tan'].includes(stage.op))return stage.op+'('+before+(stage.angleMode==='degrees'?'°':'')+')';const op={'*':'×','/':'÷','-':'−','+':'+','^':'^'}[stage.op];if(!op)return stage.label;const a=stage.reverse?stage.operand:before,b=stage.reverse?before:stage.operand;return `(${a}) ${op} (${b})`;}
 // Match each retained unit to its original slot, then move it to its output slot.
 function tileSlots(items,cx=500,cy=245,width=210){
  if(items.length&&items.every(t=>t.slot)){const scale=Math.min(1,(width-10)/200);return items.map(t=>({x:cx+t.slot.x*scale,y:cy+t.slot.y*scale,size:t.slot.size*scale}));}
@@ -98,6 +99,28 @@ function sharing(before,after,n,u,color,result){
  if(fade>0)s+=tiles(after,500,245,210,fade);
  return s;
 }
+// A crank-and-projection mechanism gives each trig operation its own motion.
+function trigAnimation(stage,u,color){
+ let angle=null;try{const p=root.MachineMath.plan('x',stage.beforeText||'0').input;if(!p.size)angle=0;else if(p.size===1&&p.has(''))angle=root.MachineMath.num(p.get(''));}catch{}
+ if(angle===null)return text(500,220,stage.op+'('+stage.beforeText+')',25,color)+text(500,265,'Enter a number to turn the wheel',16,color);
+ if(stage.angleMode==='degrees')angle*=Math.PI/180;
+ const theta=angle*clamp(u),cx=425,cy=235,r=59,px=cx+r*Math.cos(theta),py=cy-r*Math.sin(theta),n=v=>String(Number(v.toFixed(3))),op=stage.op;
+ let s=`<g data-trig-mechanism="${op}"><circle cx="${cx}" cy="${cy}" r="${r+7}" fill="#fff" stroke="${color}" stroke-width="3"/>`;
+ for(let i=0;i<24;i++){const a=i*Math.PI/12;s+=`<path d="M${cx+(r+7)*Math.cos(a)} ${cy-(r+7)*Math.sin(a)}L${cx+(r+12)*Math.cos(a)} ${cy-(r+12)*Math.sin(a)}" stroke="${color}" stroke-width="3"/>`;}
+ s+=`<path d="M${cx-r} ${cy}H${cx+r}M${cx} ${cy-r}V${cy+r}" stroke="#c6bbd0"/><circle cx="${cx}" cy="${cy}" r="4" fill="${color}"/><path d="M${cx} ${cy}L${px} ${py}" stroke="${color}" stroke-width="4"/><circle cx="${px}" cy="${py}" r="6" fill="#e6a53e" stroke="white" stroke-width="2"/>`;
+ if(op==='sin'){
+  s+=`<rect x="555" y="${cy-r}" width="30" height="${2*r}" rx="12" fill="#e8e2ef"/><path d="M${px} ${py}H570" stroke="#b489d1" stroke-width="2" stroke-dasharray="4 3"/><path d="M570 ${cy}V${py}" stroke="${color}" stroke-width="7"/><rect data-sine-piston="true" x="548" y="${py-6}" width="44" height="12" rx="4" fill="${color}"/>`+text(620,cy-r+5,'1',13)+text(620,cy+5,'0',13)+text(620,cy+r+5,'−1',13)+text(570,319,'height = '+n(Math.sin(theta)),16,color);
+ }else if(op==='cos'){
+  const sx=570+r*Math.cos(theta),sy=263;
+  s+=`<path d="M510 ${sy}H635" stroke="#ddd3e6" stroke-width="16" stroke-linecap="round"/><path d="M570 ${sy}H${sx}" stroke="${color}" stroke-width="5"/><path d="M${px} ${py}L${sx} ${sy}" stroke="#b489d1" stroke-width="2" stroke-dasharray="4 3"/><rect data-cosine-slider="true" x="${sx-7}" y="${sy-13}" width="14" height="26" rx="4" fill="${color}"/>`+text(510,290,'−1',13)+text(570,290,'0',13)+text(634,290,'1',13)+text(570,319,'horizontal = '+n(Math.cos(theta)),16,color);
+ }else{
+  const raw=Math.tan(theta),limited=Math.max(-5,Math.min(5,raw)),tx=570,ty=cy-limited*13,clipped=Math.abs(Math.cos(theta))<1e-6||Math.abs(raw)>5;
+  // Keep the ray geometrically correct at the circle's tangent; a separate scaled ruler shows larger values.
+  const rayDx=Math.min(r,70/Math.max(1e-9,Math.abs(raw))),rayX=cx+rayDx,rayY=cy-rayDx*raw;
+  s+=`<path d="M${cx+r} 165V305" stroke="#c79527" stroke-width="2"/><path d="M${cx} ${cy}L${rayX} ${rayY}" stroke="${color}" stroke-width="3"/><path d="M${rayX} ${rayY}L${tx} ${ty}" stroke="#b489d1" stroke-dasharray="3 3"/><path d="M570 165V305" stroke="#c79527" stroke-width="4"/><circle data-tangent-intersection="true" cx="${tx}" cy="${ty}" r="7" fill="${clipped?'#c74b46':color}"/>`+text(618,174,'+5',13)+text(618,cy+5,'0',13)+text(618,302,'−5',13)+text(560,319,clipped?'Beyond ruler ±5':'tan θ = '+n(raw),16,color);
+ }
+ const angleLabel=stage.angleMode==='degrees'?n(theta*180/Math.PI)+'°':n(theta)+' rad';s+=text(425,319,angleLabel,14,color)+'</g>';return s;
+}
 function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=false,sharedBelt=false,showInput=true,hideAfter=false}){
  const input=stage.beforeText||'',u=clamp((phase-.18)/.60),finished=phase>=.86,operand=scalar(stage.operandPoly),positive=before&&before.every(t=>t.sign>0&&t.amount===1&&!t.bundle),count=before?.length||0;
  let s=(sharedBelt?'':'<rect x="25" y="80" width="950" height="370" rx="18" fill="#f5f0f8"/>')+`<g data-flow-arrow="true" stroke="#725a82" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M115 110H180L165 95M180 110L165 125M815 110H880L865 95M880 110L865 125"/></g>`;
@@ -111,6 +134,7 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  else if(phase<.18){s+=tiles(before,lerp(150,500,phase/.18),245,210);if(before&&!before.length)s+=text(lerp(150,500,phase/.18),245,'0',24);description='Move the input into the machine.';}
  else if(!inside){s+=text(500,240,'Processing…',22,'white');description='Turn on “Cutaway view” to watch the operation.';}
  else if(hideResult){s+=text(500,235,'Result hidden',22);description='Show answers to see this final transformation.';}
+ else if(['sin','cos','tan'].includes(stage.op)){s+=trigAnimation(stage,u,color);description=stage.op==='sin'?'Sine reads the vertical projection of a rotating radius.':stage.op==='cos'?'Cosine reads the horizontal projection of a rotating radius.':'Tangent reads sin θ ÷ cos θ; the ruler stops at ±5 near vertical asymptotes.';}
  else if(stage.op==='*'&&!stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144 || stage.op==='*'&&stage.reverse&&Number.isInteger(operand)&&operand>=1&&operand<=8&&before&&count*operand<=144){
   const n=operand;description=stage.label.includes('distribute')?`Make ${n} copies of every term in the bracket.`:`Make ${n} equal copies of the input.`;
   s+=transition(before,after,u,true);
@@ -142,5 +166,5 @@ function scene({stage,before,after,phase,inside,color,hideResult=false,waiting=f
  s+=text(500,40,finished&&!hideResult?working(stage,input)+' = '+stage.text:working(stage,input),22,color)+text(500,490,description,16);
  return s;
 }
-root.MachineAnimation={scene,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups,divisionShares,divisionSlots,sharing};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
+root.MachineAnimation={scene,trigAnimation,tiles,working,tileSlots,transition,tileLayout,operationTitle,arrangeGroups,divisionShares,divisionSlots,sharing};if(typeof module!=='undefined'&&module.exports)module.exports=root.MachineAnimation;
 })(typeof window!=='undefined'?window:globalThis);
