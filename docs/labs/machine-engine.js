@@ -37,7 +37,21 @@ const depends=(a,v)=>a.op==='variable'?a.v===v:a.a?depends(a.a,v)||depends(a.b,v
 function plan(functionText,inputText){
  const ast=parse(functionText),inputAst=parse(inputText),vars=[];function collect(a){if(a.op==='variable')vars.push(a.v);else if(a.a){collect(a.a);collect(a.b)}}collect(ast);const variable=vars.includes('x')?'x':vars[0]||'x',input=evaluate(inputAst,'',null);if(!input)throw Error('Use a number, fraction, letter or polynomial as the input.');const stages=[];
  function build(a){if(!a.a)return;const left=depends(a.a,variable),right=depends(a.b,variable);let branch,other,reverse=false;if(left){branch=a.a;other=a.b}else if(right){branch=a.b;other=a.a;reverse=true}else{stages.push({label:'Set '+format(evaluate(a,'',null)),op:'set',poly:evaluate(a,'',null),text:format(evaluate(a,'',null))});return}build(branch);const otherPoly=evaluate(other,variable,input),otherText=format(otherPoly)||expression(other,variable,format(input)),poly=evaluate(a,variable,input),text=format(poly)||expression(a,variable,format(input));let label=({'*':'×','/':'÷','+':'+','-':'−','^':'Power'}[a.op]||a.op)+' '+otherText;if(reverse&&['/','-','^'].includes(a.op))label=otherText+' '+({'/':'÷','-':'−','^':'^'}[a.op])+' current';if((a.op==='*')&&(branch.op==='+'||branch.op==='-'))label+=' · distribute';stages.push({label,op:a.op,poly,text,operand:otherText,operandPoly:otherPoly,reverse,beforeText:format(evaluate(branch,variable,input))||expression(branch,variable,format(input))})}
- build(ast);if(!depends(ast,variable)&&!ast.a)stages.push({label:'Set '+format(evaluate(ast,'',null)),op:'set',poly:evaluate(ast,'',null),text:format(evaluate(ast,'',null))});if(stages.length>10)throw Error('Use at most 10 operations in one production line.');return{variable,input,inputText:format(input),stages,output:evaluate(ast,variable,input)};
+ const hasFork=a=>!!(a.a&&((depends(a.a,variable)&&depends(a.b,variable))||hasFork(a.a)||hasFork(a.b)));
+ const branched=hasFork(ast);
+ function graph(a){
+  if(!a.a)return -1;
+  const left=depends(a.a,variable),right=depends(a.b,variable),both=left&&right;
+  const branch=left?a.a:a.b,other=left?a.b:a.a,reverse=!left&&right;
+  const parents=both?[graph(a.a),graph(a.b)]:[graph(branch)];
+  const otherPoly=evaluate(other,variable,input),operand=format(otherPoly)||expression(other,variable,format(input));
+  const poly=evaluate(a,variable,input),text=format(poly)||expression(a,variable,format(input));
+  let label=both?({'+' : 'Add branches','-':'Subtract branches','*':'Multiply branches','/':'Divide branches','^':'Power from branches'}[a.op]):({'*':'×','/':'÷','+':'+','-':'−','^':'Power'}[a.op]||a.op)+' '+operand;
+  if(!both&&reverse&&['/','-','^'].includes(a.op))label=operand+' '+({'/':'÷','-':'−','^':'^'}[a.op])+' current';
+  const symbolic=new Map([[variable+'^1',rat(1n)]]),expressionText=format(evaluate(a,variable,symbolic))||expression(a,variable,variable);
+  stages.push({label,op:a.op,poly,text,operand,operandPoly:otherPoly,reverse,beforeText:format(evaluate(branch,variable,input))||expression(branch,variable,format(input)),parents,join:both,expressionText});return stages.length-1;
+ }
+ if(branched)graph(ast);else build(ast);if(!depends(ast,variable)&&!ast.a)stages.push({label:'Set '+format(evaluate(ast,'',null)),op:'set',poly:evaluate(ast,'',null),text:format(evaluate(ast,'',null))});if(stages.length>10)throw Error('Use at most 10 operations in one production line.');return{variable,input,inputText:format(input),stages,branched,output:evaluate(ast,variable,input)};
 }
 function tiles(poly,previous,color,transform=false){
  if(!poly)return null;

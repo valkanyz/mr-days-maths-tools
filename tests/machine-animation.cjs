@@ -8,7 +8,7 @@ const els={};for(const [id,value]of Object.entries({fMode:'machine',machineFunct
 for(const id of ['controls','machineExpressionControls','machineRun','machinePause','machineNext','machineExample','machineClearHistory','error','results','viz'])els[id]||={};
 els.machineInput.dataset={};els.machineRandom={checked:false,dataset:{}};els.machineInside={checked:true};els.machineContinuous={checked:false};els.error.textContent='';els.controls.insertAdjacentHTML=els.machineExpressionControls.insertAdjacentHTML=()=>{};els.viz.style={};
 let svg='',cards='',cb,clock=100;const root={style:{},setAttribute(){},insertAdjacentHTML:(pos,html)=>cards=html};els.viz.querySelector=()=>root;
-const c={MachinePlot:require('../docs/labs/machine-plot.js'),MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
+const c={MachineBranches:require('../docs/labs/machine-branches.js'),MachinePlot:require('../docs/labs/machine-plot.js'),MachineMath:M,MachineAnimation:A,labs:{patterns:{setup(){}}},current:'patterns',launch(){},$:id=>els[id],update(){},slider:()=>'',btn:()=>'',check:()=>'',showControl(){},revealed:()=>true,esc:String,svg:s=>svg=s,formula(){},table(){},legend(){},note(){},cancelAnimationFrame(){cb=null;},requestAnimationFrame:f=>(cb=f,1)};c.run=()=>c.update();vm.createContext(c);vm.runInContext(fs.readFileSync('docs/labs/function-machine.js','utf8'),c);c.labs.patterns.setup();c.update();
 assert.ok(cards.includes('Input'));assert.ok(!cards.includes('>8</strong>'));els.machineNext.onclick();cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>8</strong>'));assert.ok(!cards.includes('>11</strong>'));assert.equal(els.machinePause.textContent,'Resume');
 els.machineNext.onclick();clock+=10;cb(clock);clock+=8100;cb(clock);assert.ok(cards.includes('>11</strong>'));assert.equal(JSON.parse(els.machineHistory.value).length,1);c.update();assert.equal(JSON.parse(els.machineHistory.value).length,1);
 console.log('PASS: operation scenes, fractions, negatives, symbolic inputs, hidden results, stage stepping and single history entry.');
@@ -150,3 +150,15 @@ for(const omitZero of [false,true]){
  context.reset();assert.equal(context.randomOrders.size,0);assert.equal(new Set(Array.from({length:n},(_,i)=>context.get(i).value)).size,n);
 }
 console.log('PASS: non-repeating integer, half and quarter rounds, undefined-value omissions, stable batches, reshuffling and restart.');
+
+// Branching functions run each dependent operand from the same input and join in dependency order.
+global.MachineAnimation=A;
+const Branch=require('../docs/labs/machine-branches.js');
+const branch=M.plan('3x^2+2x+5','2');
+assert.equal(branch.branched,true);assert.deepEqual(branch.stages.map(s=>s.text),['4','12','4','16','21']);assert.deepEqual(branch.stages.map(s=>s.parents),[[-1],[0],[-1],[1,2],[3]]);
+const timing=Branch.schedule(branch.stages,[1,1,1,1,1]);assert.equal(timing.starts[0],timing.starts[2]);assert.ok(timing.starts[3]>=timing.ends[1]&&timing.starts[3]>=timing.ends[2]);assert.equal(timing.ends.at(-1),5);
+for(const [f,want]of [['x+x','4'],['(x+1)*(x-1)','3'],['(x+2)/(x+1)','4/3'],['3x^2-2x+5','13'],['(x+x)+(x*x)','8']])assert.equal(M.plan(f,'2').stages.at(-1).text,want);
+els.machineContinuous.checked=false;els.machineRandom.checked=false;els.machineFunction.value='3x^2+2x+5';els.machineInput.value='2';c.update();assert.ok(svg.includes('Add branches'));assert.ok(svg.includes('data-branch-source'));assert.equal((svg.match(/data-branch-join="true"/g)||[]).length,1);
+els.machineRun.onclick();clock+=10;cb(clock);clock+=16000;cb(clock);assert.equal(JSON.parse(els.machineHistory.value).at(-1)[2],'21');assert.ok(cards.includes('>21</strong>'));assert.ok(!/NaN|undefined/.test(svg));
+els.machineContinuous.checked=true;els.machineRandom.checked=true;els.machineContinuous.onchange();els.machineRun.onclick();clock+=10;cb(clock);clock+=100000;cb(clock);const branches=JSON.parse(els.machineHistory.value);assert.ok(branches.length>1);for(const r of branches)assert.equal(r[2],M.plan('3x^2+2x+5',r[1]).stages.at(-1).text);assert.ok(!/NaN|undefined/.test(svg));els.machinePause.onclick();assert.equal(cb,null);
+console.log('PASS: parallel dependency graph, simultaneous starts, join synchronisation, nested branches, exact outputs and continuous random batches.');
