@@ -21,7 +21,8 @@ const hover={Intl,Date};vm.runInNewContext(source.slice(source.indexOf('const zo
 assert.match(hover.label('Asia/Kathmandu',Date.parse('2026-06-30T05:00Z')),/UTC\+5:45 \/ GMT\+5:45/);
 assert.match(hover.label('Australia/Sydney',Date.parse('2026-06-30T05:00Z')),/UTC\+10 \/ GMT\+10/);
 assert.match(hover.label('Australia/Sydney',Date.parse('2026-10-30T05:00Z')),/UTC\+11 \/ GMT\+11/);
-const bands={real:false,offsetLabel:Z.offsetLabel,esc:s=>s,txt:()=>''};vm.runInNewContext("let s='';"+source.slice(source.indexOf(' if(!real)for(let i=-12;'),source.indexOf(' if(real&&zoneMap)'))+';this.markup=s',bands);
+const bands={real:false,offsetLabel:Z.offsetLabel,esc:s=>s,txt:()=>'',landMap:null,timeZoneMapFill:()=> '#d8c6db'};
+vm.runInNewContext("let s='';"+source.slice(source.indexOf(' if(!real){'),source.indexOf(' if(real){',source.indexOf(' if(!real){')))+';this.markup=s',bands);
 const rects=[...bands.markup.matchAll(/<rect[^>]* x="([^"]+)"[^>]* width="([^"]+)"/g)].map(m=>[+m[1],+m[2]]);
 assert.equal(rects.length,25);assert.equal(rects[0][0],30);assert.equal(rects.at(-1)[0]+rects.at(-1)[1],810);
 assert.equal(rects.reduce((sum,r)=>sum+r[1],0),780);for(let i=1;i<rects.length;i++)assert.equal(rects[i][0],rects[i-1][0]+rects[i-1][1]);
