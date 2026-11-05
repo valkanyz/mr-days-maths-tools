@@ -118,7 +118,7 @@ canvas.onpointerdown=e=>{
  if(e.target.dataset.edge!==undefined)edgeChoices.set(id,+e.target.dataset.edge);
  const item=object();if(!item)return;
  remember();
- drag={kind:'object',x:p.x,y:p.y,moved:false,point:e.target.dataset.point!==undefined?+e.target.dataset.point:null,label:e.target.dataset.label||null,original:clone(item),ids:[...selectedIds],originals:selection().map(clone)};
+ drag={kind:'object',x:p.x,y:p.y,moved:false,point:e.target.dataset.point!==undefined?+e.target.dataset.point:null,label:e.target.dataset.label||null,angleMark:e.target.dataset.angleMark??null,original:clone(item),ids:[...selectedIds],originals:selection().map(clone)};
  canvas.setPointerCapture(e.pointerId);draw();editor();e.preventDefault();
 };
 canvas.onpointermove=e=>{
@@ -168,10 +168,12 @@ function focusLabel(key,angleArc=false){
 }
 canvas.onpointerup=canvas.onpointercancel=()=>{
  const clickedLabel=drag?.kind==='object'&&!drag.moved?drag.label:null;
+ const clickedAngle=drag?.kind==='object'&&!drag.moved?drag.angleMark:null;
  const clickedArc=drag?.kind==='object'&&!drag.moved&&object()?.type==='angleArc'&&drag.point===null&&!drag.label;
  if(drag?.kind==='marquee')finishMarquee(drag);
  drag=null;snapTarget=null;draw();editor();
- if(clickedLabel||clickedArc)focusLabel(clickedLabel,clickedArc);
+ if(clickedAngle!==null&&clickedAngle!==undefined){const field=$('editor').querySelector(`[data-angle-target="${clickedAngle}"]`)||$('editor').querySelector(`[data-edit="a${clickedAngle}.label"]`);if(field){field.closest('details')?.setAttribute('open','');field.focus();field.select?.();}}
+ else if(clickedLabel||clickedArc)focusLabel(clickedLabel,clickedArc);
 };
 // Editing labels uses the normal click-to-select gesture, while dragging
 // still moves labels without opening a dialog.
@@ -179,7 +181,7 @@ canvas.ondblclick=e=>{
  const hit=e.target.closest('[data-shape]');if(!hit)return;
  const id=+hit.dataset.shape;
  if(selectedIds.size!==1||!selectedIds.has(id))selectOnly(id);
- editor();focusLabel(e.target.dataset.label,object()?.type==='angleArc');
+ editor();if(e.target.dataset.angleMark!==undefined){const field=$('editor').querySelector(`[data-angle-target="${e.target.dataset.angleMark}"]`);field?.focus();field?.select?.();}else focusLabel(e.target.dataset.label,object()?.type==='angleArc');
  e.preventDefault();
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){drag=null;placingPoint=false;canvas.style.cursor='';for(const b of $('tools').children)b.removeAttribute('aria-pressed');notify('Point placement cancelled.');return;}if(e.target.matches('input,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}else if(e.key==='Delete'||e.key==='Backspace')$('delete').click();});
