@@ -49,7 +49,7 @@ function constructAngle(first,firstEdge,second,secondEdge){
  if(Math.abs(det)<1e-8)return null;
  const ac=[c[0]-a[0],c[1]-a[1]],t=(ac[0]*v[1]-ac[1]*v[0])/det,centre=[a[0]+t*u[0],a[1]+t*u[1]];
  if(!centre.every(x=>Number.isFinite(x)&&Math.abs(x)<10000))return null;
- function ray(p,q){const end=dist(p,centre)>dist(q,centre)?p:q,d=dist(end,centre);if(d<1)return null;return [centre[0]+(end[0]-centre[0])*Math.min(120/d,1),centre[1]+(end[1]-centre[1])*Math.min(120/d,1)];}
+ function ray(p,q){/* Use a stable endpoint to prevent an angle switching to its supplement as lines rotate. */const end=dist(p,centre)>1?p:q,d=dist(end,centre);if(d<1)return null;return [centre[0]+(end[0]-centre[0])*Math.min(120/d,1),centre[1]+(end[1]-centre[1])*Math.min(120/d,1)];}
  const x=ray(a,b),y=ray(c,d);return x&&y?[x,centre,y]:null;
 }
 
