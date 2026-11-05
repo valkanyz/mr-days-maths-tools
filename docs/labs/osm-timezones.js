@@ -117,7 +117,8 @@
      const id=feature.properties.tzid,z=zoneCanonical(id);
      const chosen=z===startZone||z===endZone;
      const colour=z===startZone?startColor:endColor;
-     const offset=offsetAt(ms,id);
+     let offset=NaN;
+     try{offset=offsetAt(ms,id)}catch{}
      return chosen?{
       color:colour,weight:2.5,opacity:.94,fillColor:colour,fillOpacity:.16
      }:{
