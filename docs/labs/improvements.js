@@ -112,12 +112,19 @@ const offsetAt=(ms,zone)=>(asUTC(partsAt(ms,zone))-Math.floor(ms/1000)*1000)/600
 const utcFromLocal=(text,zone,occurrence='earlier')=>{const wall=Date.parse(text+'Z');if(!Number.isFinite(wall))throw Error('Enter a departure date and time.');const offsets=[...new Set([-36,0,36].map(h=>offsetAt(wall+h*3600000,zone)))],matches=offsets.map(o=>wall-o*60000).filter(ms=>asUTC(partsAt(ms,zone))===wall).sort((a,b)=>a-b);if(!matches.length)throw Error('This local time does not exist because clocks move forward. Choose another departure time.');return{ms:matches[occurrence==='later'?matches.length-1:0],ambiguous:matches.length>1}};
 const offsetLabel=n=>'UTC'+(n<0?'−':'+')+Math.floor(Math.abs(n)/60)+(Math.abs(n)%60?':'+String(Math.abs(n)%60).padStart(2,'0'):'');
 const zoneHoverLabel=(zone,ms)=>{try{const label=offsetLabel(offsetAt(ms,zone));return zone.replaceAll('_',' ')+' · '+label+' / '+label.replace('UTC','GMT')+' (at departure)'}catch{return zone.replaceAll('_',' ')+' · offset unavailable'}};
-// Subdued, continuous UTC-offset colour scale (not arbitrary polygon order).
-// Equal offsets use identical shades, including fractional offsets and DST.
+// Discrete cartographic palette: no misleading gradients or dataset-order colours.
+// Nine deliberately contrasted hues repeat with distinct tone groups, giving
+// every whole-hour UTC offset from -12 to +14 its own mapped shade.
+// Non-hour offsets receive a separate variation of the preceding hour's shade.
 const timeZoneMapFill=minutes=>{
  if(!Number.isFinite(minutes))return '#e9eef1';
- const t=Math.max(0,Math.min(1,(minutes+12*60)/(26*60)));
- return `hsl(${Math.round(208-162*t)} 26% 88%)`;
+ const hour=Math.floor(minutes/60),index=Math.max(0,Math.min(26,hour+12));
+ const hues=[206,139,37,278,12,178,94,329,244];
+ const tier=Math.floor(index/9),fraction=Math.round(minutes-hour*60);
+ const h=(hues[index%9]+(fraction?11+fraction/3:0))%360;
+ const saturation=[38,42,44][tier]+(fraction?4:0);
+ const lightness=[80,85,77][tier]-(fraction?5:0);
+ return `hsl(${Math.round(h)} ${saturation}% ${lightness}%)`;
 };
 // City search is local: no typed query is sent to a third-party service.
 const cityCountry=new Intl.DisplayNames(['en'],{type:'region'}),cityKey=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),cityLabel=r=>[r[0],r[2],cityCountry.of(r[1])].filter(Boolean).join(', ');
@@ -133,7 +140,22 @@ labs.timezones.setup=function(){
  if(!mapPromise){mapPromise=Promise.all(['timezones.geojson','world-land.geojson','zone-points.json'].map(f=>fetch('assets/'+f).then(r=>{if(!r.ok)throw Error('Map unavailable');return r.json()}))).then(([zones,land,points])=>{zoneMap=zones;landMap=land;zonePoints=points;for(const z of Object.keys(points)){try{new Intl.DateTimeFormat('en',{timeZone:z});if(!zoneNames.includes(z))zoneNames.push(z)}catch{}}zoneNames.sort();if(current==='timezones'){for(const id of ['cityFrom','cityTo'])citySuggestions(id);run()}}).catch(()=>{mapPromise=null;if(current==='timezones')note('The map could not load. Time calculations still work; reload to retry the geographic map.')});}
  update=()=>{const origin=cityMatch($('cityFrom').value),destination=cityMatch($('cityTo').value);if(!origin||!destination)throw Error(cityReady?'Choose a matching city from the suggestions, including its region and country.':'Loading the city database…');$('zoneFrom').value=origin[3];$('zoneTo').value=destination[3];const from=origin[3],to=destination[3],{ms,ambiguous}=utcFromLocal($('zoneDate').value,from,$('zoneOccurrence').value),duration=value('journeyHours')*60+value('journeyMinutes'),arrival=ms+duration*60000,fo=offsetAt(ms,from),toStart=offsetAt(ms,to),toEnd=offsetAt(arrival,to),real=$('zoneView').value==='real',time=(t,z)=>new Intl.DateTimeFormat('en-AU',{timeZone:z,day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:$('zone12').checked}).format(new Date(t)),P=([lon,lat])=>[30+(lon+180)/360*780,65+(90-lat)/180*390];showControl('zoneOccurrence',ambiguous);let s='<rect x="30" y="65" width="780" height="390" fill="#eef6fa" rx="4"/>';
  const geometry=(geom)=>{const polys=geom.type==='Polygon'?[geom.coordinates]:geom.coordinates;return polys.map(poly=>poly.map(ring=>'M'+ring.map(p=>P(p).map(n=>n.toFixed(1)).join(',')).join('L')+'Z').join('')).join('')};
- if(!real)for(let i=-12;i<=12;i++){const x=Math.max(30,30+(i+11.5)*32.5),width=(Math.abs(i)===12?16.25:32.5),label=offsetLabel(i*60)+' / '+offsetLabel(i*60).replace('UTC','GMT')+' · simplified 15° band';s+=`<rect data-zone-label="${esc(label)}" x="${x}" y="65" width="${width}" height="390" fill="${timeZoneMapFill(i*60)}" stroke="#756283" stroke-width=".7"><title>${esc(label)}</title></rect>`+txt(x+width/2,478,(i>=0?'+':'')+i,10)}
+ if(!real){
+  // Each 15-degree band is a separate, legible colour category.
+  for(let i=-12;i<=12;i++){
+   const x=Math.max(30,30+(i+11.5)*32.5),width=(Math.abs(i)===12?16.25:32.5);
+   const label=offsetLabel(i*60)+' / '+offsetLabel(i*60).replace('UTC','GMT')+' · approximate 15° band';
+   s+=`<rect data-zone-label="${esc(label)}" x="${x}" y="65" width="${width}" height="390" fill="${timeZoneMapFill(i*60)}" stroke="#ffffff" stroke-width="1.1"><title>${esc(label)}</title></rect>`;
+   s+=txt(x+width/2,475,(i>=0?'+':'')+i,10);
+  }
+  // The world silhouette makes the longitude bands understandable rather
+  // than presenting a large, context-free wall of coloured stripes.
+  if(landMap){
+   s+='<g pointer-events="none">';
+   for(const f of landMap.features)s+=`<path d="${geometry(f.geometry)}" fill="#ffffff" fill-opacity=".16" stroke="#536c79" stroke-opacity=".65" stroke-width=".7" fill-rule="evenodd"/>`;
+   s+='</g>';
+  }
+ }
  if(real){
   // Geographic zone shading is deliberately restricted to the populated world.
   // The broad, simplified Antarctic station polygons otherwise create a
@@ -149,13 +171,18 @@ labs.timezones.setup=function(){
     let offset=NaN;
     try{offset=offsetAt(ms,id)}catch{}
     const label=Number.isFinite(offset)?zone.replaceAll('_',' ')+' · '+offsetLabel(offset)+' / '+offsetLabel(offset).replace('UTC','GMT')+' (at departure)':zoneHoverLabel(id,ms);
-    const fill=selected?(sameZone?'#bce0dc':isStart?'#ddcbed':'#f5c5cc'):timeZoneMapFill(offset);
-    const stroke=selected?(sameZone?C.teal:isStart?C.purple:C.red):'#9babb3';
-    const shape=`<path data-zone-label="${esc(label)}" d="${geometry(f.geometry)}" fill="${fill}" stroke="${stroke}" stroke-width="${selected?1.3:.35}" fill-rule="evenodd"><title>${esc(label)}</title></path>`;
+    // Highlight with an outline, not a different fill: all regions with
+    // the same actual offset must remain the SAME colour, even selected ones.
+    const fill=timeZoneMapFill(offset);
+    const stroke=selected?(sameZone?C.teal:isStart?C.purple:C.red):fill;
+    const shape=`<path data-zone-label="${esc(label)}" d="${geometry(f.geometry)}" fill="${fill}" stroke="${stroke}" stroke-width="${selected?2.2:.5}" fill-rule="evenodd"><title>${esc(label)}</title></path>`;
     if(selected)highlightPaths+=shape;else basePaths+=shape;
    }
-   // Draw the selected regions last so borders and highlights stay visible.
-   s+=`<g clip-path="url(#tz-mainland-clip)">${basePaths}${highlightPaths}</g>`;
+   // Fill colours identify offsets; separate coastline outlines keep the
+   // map recognisable without drawing busy seams between same-offset zones.
+   s+=`<g clip-path="url(#tz-mainland-clip)">${basePaths}</g>`;
+   if(landMap){s+='<g clip-path="url(#tz-mainland-clip)" pointer-events="none">';for(const f of landMap.features)s+=`<path d="${geometry(f.geometry)}" fill="none" stroke="#718795" stroke-width=".65" fill-rule="evenodd"/>`;s+='</g>';}
+   s+=`<g clip-path="url(#tz-mainland-clip)">${highlightPaths}</g>`;
   }
   // Keep Antarctica on the map, but neutral: these are station-based time
   // zones, not an explanatory 15° band of coloured jurisdictions.
@@ -169,21 +196,21 @@ labs.timezones.setup=function(){
  B=P(destination[4]===null?position(to,toStart):[destination[4],destination[5]]);
  const sharedZone=zoneCanonical(from)===zoneCanonical(to);
  const fromColour=sharedZone?C.teal:C.purple,toColour=sharedZone?C.teal:C.red;
- if(origin!==destination)s+=`<path d="M${A} Q${(A[0]+B[0])/2} ${Math.max(40,Math.min(A[1],B[1])-65)} ${B}" fill="none" stroke="${C.gold}" stroke-width="3" marker-end="url(#arrow)"/>`;
+ if(origin!==destination)s+=`<path d="M${A} Q${(A[0]+B[0])/2} ${Math.max(40,Math.min(A[1],B[1])-65)} ${B}" fill="none" stroke="${C.gold}" stroke-opacity=".85" stroke-width="2.5" marker-end="url(#arrow)"/>`;
  for(const [p,z,col]of [[A,origin[0],fromColour],[B,destination[0],toColour]])
  s+=`<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="${col}" stroke="white" stroke-width="2"/><text class="map-marker" x="${Math.max(90,Math.min(750,p[0]))}" y="${p[1]+19}" text-anchor="middle" font-size="12" fill="${col}" stroke="white" stroke-width="3" paint-order="stroke">${esc(z.split('/').at(-1).replaceAll('_',' '))}</text>`;
  s+=txt(420,35,real?'Geographic time-zone boundaries':'Simplified 15° UTC bands',19);
- // The map and its legend use the same offset scale, rather than a repeating
- // palette assigned by GeoJSON feature index.
- s+='<g aria-label="UTC-offset map legend">';
- for(let i=0;i<27;i++)s+=`<rect x="${47+i*5.6}" y="495" width="5.7" height="10" fill="${timeZoneMapFill((i-12)*60)}"/>`;
- s+=txt(47,518,'UTC−12',10)+txt(122,518,'0',10)+txt(198,518,'UTC+14',10);
- s+=`<circle cx="318" cy="501" r="5" fill="${fromColour}"/>`+txt(373,506,'Departure zone',12);
- s+=`<circle cx="485" cy="501" r="5" fill="${toColour}"/>`+txt(542,506,'Destination zone',12);
+ // The key explains the selected places directly. There is deliberately
+ // no gradient legend: time zones are a stepped classification.
+ s+='<g aria-label="Selected time zones">';
+ s+=`<circle cx="190" cy="501" r="6" fill="${fromColour}" stroke="white" stroke-width="1.5"/>`;
+ s+=txt(305,506,`Departure · ${offsetLabel(fo)}`,15);
+ s+=`<circle cx="512" cy="501" r="6" fill="${toColour}" stroke="white" stroke-width="1.5"/>`;
+ s+=txt(636,506,`Destination · ${offsetLabel(toStart)}`,15);
  s+='</g>';
- s+=txt(420,546,real?'Same UTC offset = same shade (on the selected date); Antarctic stations shown neutrally.':'The colour scale shows UTC offsets; 15° bands are schematic.',12);
+ s+=txt(420,545,real?'Distinct colours = distinct UTC offsets at departure · Hover to inspect · Antarctica shown neutrally.':'Each 15° band represents an approximate UTC hour · Actual borders vary.',12);
  svg(s,'World time-zone map and journey');
- const mapSvg=$('viz').querySelector('svg');mapSvg.setAttribute('viewBox','0 0 840 560');mapSvg.style.height='auto';mapSvg.insertAdjacentHTML('beforeend','<g id="zoneTooltip" pointer-events="none" visibility="hidden"><rect rx="5" height="28" fill="#2e193d"/><text x="9" y="19" font-size="13" fill="white"></text></g>');const tip=mapSvg.querySelector('#zoneTooltip'),tipText=tip.querySelector('text'),tipBox=tip.querySelector('rect');mapSvg.onpointermove=e=>{const label=e.target.closest('[data-zone-label]')?.getAttribute('data-zone-label');if(!label){tip.setAttribute('visibility','hidden');return}tipText.textContent=label;const width=Math.min(820,tipText.getComputedTextLength()+18),point=mapSvg.createSVGPoint();point.x=e.clientX;point.y=e.clientY;const p=point.matrixTransform(mapSvg.getScreenCTM().inverse());tipBox.setAttribute('width',width);tip.setAttribute('transform',`translate(${Math.max(10,Math.min(830-width,p.x+12))},${Math.max(5,p.y-36)})`);tip.setAttribute('visibility','visible')};mapSvg.onpointerleave=()=>tip.setAttribute('visibility','hidden');$('viz').style.height='auto';formula('Arrival = departure instant + journey duration, shown in destination local time');results([['Departure',time(ms,from)],['Destination at departure',time(ms,to)],['Arrival',time(arrival,to)],['Departure offset',offsetLabel(fo)],['Destination arrival offset',offsetLabel(toEnd)]]);note((ambiguous?'This time occurs twice when clocks move back; your selected occurrence is used. ':'')+'Daylight saving is calculated for the chosen date using your browser’s IANA time-zone data. Simple bands are schematic; geographic regions are coloured by their UTC offset on the departure date. Antarctic station zones are muted for clarity. '+(toStart!==toEnd?'The destination changes its UTC offset during this journey. ':''));$('note').insertAdjacentHTML('beforeend','<br>City database: <a style="color:#68418a" href="https://www.geonames.org/">GeoNames</a> (CC BY) · <a style="color:#68418a" href="https://github.com/evansiroky/timezone-boundary-builder">Timezone Boundary Builder / © OpenStreetMap contributors</a> · <a style="color:#68418a" href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a> · Land: Natural Earth (public domain).');table(['Event','Local date and time','UTC offset'],[['Departure',time(ms,from),offsetLabel(fo)],['Destination at departure',time(ms,to),offsetLabel(toStart)],['Arrival',time(arrival,to),offsetLabel(toEnd)]]);
+ const mapSvg=$('viz').querySelector('svg');mapSvg.setAttribute('viewBox','0 0 840 560');mapSvg.style.height='auto';mapSvg.insertAdjacentHTML('beforeend','<g id="zoneTooltip" pointer-events="none" visibility="hidden"><rect rx="5" height="28" fill="#2e193d"/><text x="9" y="19" font-size="13" fill="white"></text></g>');const tip=mapSvg.querySelector('#zoneTooltip'),tipText=tip.querySelector('text'),tipBox=tip.querySelector('rect');mapSvg.onpointermove=e=>{const label=e.target.closest('[data-zone-label]')?.getAttribute('data-zone-label');if(!label){tip.setAttribute('visibility','hidden');return}tipText.textContent=label;const width=Math.min(820,tipText.getComputedTextLength()+18),point=mapSvg.createSVGPoint();point.x=e.clientX;point.y=e.clientY;const p=point.matrixTransform(mapSvg.getScreenCTM().inverse());tipBox.setAttribute('width',width);tip.setAttribute('transform',`translate(${Math.max(10,Math.min(830-width,p.x+12))},${Math.max(5,p.y-36)})`);tip.setAttribute('visibility','visible')};mapSvg.onpointerleave=()=>tip.setAttribute('visibility','hidden');$('viz').style.height='auto';formula('Arrival = departure instant + journey duration, shown in destination local time');results([['Departure',time(ms,from)],['Destination at departure',time(ms,to)],['Arrival',time(arrival,to)],['Departure offset',offsetLabel(fo)],['Destination arrival offset',offsetLabel(toEnd)]]);note((ambiguous?'This time occurs twice when clocks move back; your selected occurrence is used. ':'')+'Daylight saving is calculated for the chosen date using your browser’s IANA time-zone data. Simple bands approximate one UTC hour per 15° longitude. Actual geographic time-zone regions are given distinct, discrete colours by UTC offset on the departure date. Antarctic station zones are muted for clarity. '+(toStart!==toEnd?'The destination changes its UTC offset during this journey. ':''));$('note').insertAdjacentHTML('beforeend','<br>City database: <a style="color:#68418a" href="https://www.geonames.org/">GeoNames</a> (CC BY) · <a style="color:#68418a" href="https://github.com/evansiroky/timezone-boundary-builder">Timezone Boundary Builder / © OpenStreetMap contributors</a> · <a style="color:#68418a" href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a> · Land: Natural Earth (public domain).');table(['Event','Local date and time','UTC offset'],[['Departure',time(ms,from),offsetLabel(fo)],['Destination at departure',time(ms,to),offsetLabel(toStart)],['Arrival',time(arrival,to),offsetLabel(toEnd)]]);
  };
 };
 
