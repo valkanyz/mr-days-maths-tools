@@ -31,31 +31,28 @@ console.log('PASS: hover offsets follow the date and 15-degree bands cover the f
 const paletteContext={Intl};
 vm.runInNewContext(source.slice(source.indexOf('const timeZoneMapFill='),source.indexOf('// City search is local:'))+';this.fill=timeZoneMapFill;',paletteContext);
 const fill=paletteContext.fill,departure=Date.parse('2026-11-05T07:00:00Z');
-for(const hours of [-12,-8,-5,0,3,5.5,5.75,8,9.5,11,14]){
- const value=hours*60;
- assert.equal(fill(value),fill(value),'Same UTC offset must have the same colour.');
- assert.match(fill(value),/^hsl\\(\\d+ 26% 88%\\)$/);
+const allHours=Array.from({length:27},(_,i)=>(i-12)*60);
+const distinct=new Set(allHours.map(fill));
+assert.equal(distinct.size,27,'Each full-hour UTC offset must have a distinct colour (no gradient or repeated key).');
+for(const minutes of allHours.concat([-210,330,345,570])){
+ assert.match(fill(minutes),/^hsl\(\d+ \d+% \d+%\)$/);
+ assert.equal(fill(minutes),fill(minutes),'Same UTC offset uses the same colour.');
 }
-assert.notEqual(fill(-300),fill(480),'Different UTC offsets use distinguishable shades.');
-assert.equal(fill(NaN),'#e9eef1','Unknown zones stay neutral.');
+assert.notEqual(fill(330),fill(345),'Half-hour and 45-minute offsets need distinct colours.');
+assert.notEqual(fill(0),fill(60),'Adjacent hourly zones must be distinguishable.');
+assert.equal(fill(NaN),'#e9eef1','Unknown zones remain neutral.');
 const geodata=JSON.parse(fs.readFileSync('docs/labs/assets/timezones.geojson','utf8'));
 const known=new Set(geodata.features.map(x=>x.properties.tzid));
 for(const id of ['Australia/Perth','Europe/Istanbul','Asia/Shanghai','Asia/Singapore'])assert(known.has(id),id+' missing from geographic layer');
-assert.equal(
- fill(Z.offsetAt(departure,'Australia/Perth')),
- fill(Z.offsetAt(departure,'Asia/Singapore')),
- 'Perth and Singapore share a colour because both are UTC+8 at departure.'
-);
-assert.equal(
- fill(Z.offsetAt(departure,'Europe/Istanbul')),
- fill(Z.offsetAt(departure,'Europe/Moscow')),
- 'Istanbul and Moscow share a colour because both are UTC+3 at departure.'
-);
-assert.notEqual(
- fill(Z.offsetAt(departure,'Australia/Perth')),
- fill(Z.offsetAt(departure,'Europe/Istanbul'))
-);
-assert.match(source,/clip-path="url\\(#tz-mainland-clip\\)"/);
-assert.match(source,/clip-path="url\\(#tz-polar-clip\\)"/);
+assert.equal(fill(Z.offsetAt(departure,'Australia/Perth')),fill(Z.offsetAt(departure,'Asia/Singapore')),'Perth and Singapore are both UTC+8.');
+assert.equal(fill(Z.offsetAt(departure,'Europe/Istanbul')),fill(Z.offsetAt(departure,'Europe/Moscow')),'Istanbul and Moscow are both UTC+3.');
+assert.notEqual(fill(Z.offsetAt(departure,'Australia/Perth')),fill(Z.offsetAt(departure,'Europe/Istanbul')));
+assert.match(source,/clip-path="url\(#tz-mainland-clip\)"/);
+assert.match(source,/clip-path="url\(#tz-polar-clip\)"/);
+assert.match(source,/const fill=timeZoneMapFill\(offset\)/,'Selected zones must retain their offset fill.');
+assert.match(source,/Each 15-degree band is a separate, legible colour category/);
+assert.match(source,/world silhouette makes the longitude bands understandable/i);
+assert.doesNotMatch(source,/saturation.*gradient|Math\.round\(208-162\*t\)/);
 assert.doesNotMatch(source,/#d3e5d6','#e9d6e7'/);
-console.log('PASS: Geographic map colours follow IANA offsets, match fractional offsets, distinguish selected examples and mute Antarctic station polygons.');
+console.log('PASS: Discrete UTC offset colours are unique, match IANA offsets, work with fractions, and keep Antarctic zones neutral.');
+
