@@ -11,7 +11,7 @@ const layer=(kind,options)=>({kind,options,bindTooltip(value){assert.equal(typeo
 const L={
  map(node,options){
   counts.maps++;
-  activeMap={layers:[],options,attributionControl:{addAttribution(text){assert.match(text,/OpenMapTiles/);assert.match(text,/OpenStreetMap/);}},fitBounds(bounds,options){this.fit={bounds,options}},setView(point,zoom){this.view={point,zoom}},removeLayer(item){this.layers.splice(this.layers.indexOf(item),1)},off(){},remove(){counts.destroyed++},invalidateSize(){this.invalidated=true}};
+  activeMap={layers:[],options,attributionControl:{setPrefix(text){assert.equal(text,false,'Do not render Leaflet branding / Ukrainian flag SVG');this.prefix=text}},fitBounds(bounds,options){this.fit={bounds,options}},setView(point,zoom){this.view={point,zoom}},removeLayer(item){this.layers.splice(this.layers.indexOf(item),1)},off(){},remove(){counts.destroyed++},invalidateSize(){this.invalidated=true}};
   return activeMap;
  },
  maplibreGL(options){counts.tiles++;styleUrl=options.style;return layer('vector-basemap',options)},
@@ -60,6 +60,8 @@ assert(O.render(settings));
 assert.deepEqual(featuresSeen[0].sort(),['Australia/Perth','Europe/Istanbul']);
 assert.equal(counts.tiles,1);
 assert.equal(counts.maps,1);
+assert.equal(activeMap.attributionControl.prefix,false,'Leaflet SVG flag prefix is disabled');
+assert(!source.includes('addAttribution('),'Do not duplicate automatically provided map credits');
 assert.equal(styleUrl,'https://tiles.openfreemap.org/styles/positron');
 assert(!source.includes('tile.openstreetmap.org/{z}/{x}/{y}.png'),'Old raster tiles should not be requested');
 assert(!source.includes('basemaps.cartocdn.com'),'Avoid CARTO tiles that require an API key');
@@ -84,3 +86,8 @@ assert(activeMap.fit,'World view button can fit global bounds');
 O.destroy();
 assert.equal(counts.destroyed,1,'Map and Leaflet handlers are removed when switching labs');
 console.log('PASS: OpenFreeMap Positron vector style, geographic polygons, both map modes, controls, markers, great circle, lifecycle and attribution.');
+// Maths diagram SVG sizing must not affect SVGs inserted by Leaflet or MapLibre.
+const labHTML=fs.readFileSync('docs/labs/index.html','utf8');
+assert(labHTML.includes('.viz > svg{user-select:none;display:block;width:100%;height:100%'));
+assert(!labHTML.includes('.viz svg{user-select:none;display:block;width:100%;height:100%'));
+console.log('PASS: Scoped maths SVG rules leave map attribution and geographic SVG overlays untouched.');
