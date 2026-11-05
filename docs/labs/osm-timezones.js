@@ -84,14 +84,13 @@
   // Use keyless vector tiles rather than OSM's standard raster tiles, which
   // can contain third-party campaign imagery baked into individual tiles.
   // OpenFreeMap's Positron style provides a clean, restrained classroom map.
+  // Remove Leaflet's optional branding prefix (which embeds a small SVG
+  // Ukrainian flag). The OpenFreeMap vector style provides the actual map
+  // data attribution itself, so adding it again here would duplicate credits.
+  map.attributionControl.setPrefix(false);
   root.L.maplibreGL({
    style:'https://tiles.openfreemap.org/styles/positron'
   }).addTo(map);
-  map.attributionControl.addAttribution(
-   '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> · '+
-   '<a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a> · '+
-   'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
-  );
   rootEl.querySelector('.tz-osm-actions').addEventListener('click',function(event){
    const button=event.target.closest('[data-tz-action]');
    if(!button||!map)return;
