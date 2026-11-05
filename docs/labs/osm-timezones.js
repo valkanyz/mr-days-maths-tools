@@ -1,12 +1,13 @@
-/* An actual slippy map for the Time Zones Lab, using OpenStreetMap raster
-   tiles and OSM-derived IANA boundaries from Timezone Boundary Builder.
-   Only the visible viewport requests tiles; no bulk downloads/prefetch. */
+/* Interactive Time Zones Lab map. OpenFreeMap Positron supplies a clean,
+   keyless, OSM-based vector basemap via MapLibre/Leaflet. Geographic IANA
+   boundaries are overlaid from Timezone Boundary Builder (OSM-derived).
+   Only visible tiles are loaded; no bulk downloads or tile scraping. */
 (function(root){
  'use strict';
  let map=null, host=null, overlays=[], latest=null, previousLocations='';
  const START='#8050b4',END='#d24452',SHARED='#078477';
 
- function available(){return !!(root.L && root.L.map && root.L.geoJSON && root.L.tileLayer);}
+ function available(){return !!(root.L && root.L.map && root.L.geoJSON && root.L.maplibreGL);}
  function clearLayers(){
   if(!map)return;
   for(const layer of overlays)map.removeLayer(layer);
@@ -73,17 +74,24 @@
   rootEl.style.height='auto';
   rootEl.style.overflow='visible';
   rootEl.style.touchAction='auto';
-  rootEl.innerHTML='<div class="tz-osm-heading"><div><strong>Geographic map</strong><small>OpenStreetMap basemap · pan or zoom to explore</small></div><div class="tz-osm-actions"><button type="button" data-tz-action="places">Fit places</button><button type="button" data-tz-action="world">World</button></div></div><div class="timezone-osm-map" role="region" aria-label="Interactive OpenStreetMap with time zones"></div><div class="tz-osm-key" aria-live="polite"></div>';
+  rootEl.innerHTML='<div class="tz-osm-heading"><div><strong>Geographic map</strong><small>OpenFreeMap Positron (OpenStreetMap data) · pan or zoom</small></div><div class="tz-osm-actions"><button type="button" data-tz-action="places">Fit places</button><button type="button" data-tz-action="world">World</button></div></div><div class="timezone-osm-map" role="region" aria-label="Interactive OpenStreetMap-based map with time zones"></div><div class="tz-osm-key" aria-live="polite"></div>';
   const mapEl=rootEl.querySelector('.timezone-osm-map');
   map=root.L.map(mapEl,{
    center:[12,16],zoom:2,minZoom:1,maxZoom:16,zoomSnap:.25,zoomDelta:.5,
    scrollWheelZoom:false,worldCopyJump:true,preferCanvas:true,
    attributionControl:true
   });
-  root.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-   minZoom:1,maxZoom:19,noWrap:true,detectRetina:false,updateWhenIdle:true,
-   keepBuffer:1,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
+  // Use keyless vector tiles rather than OSM's standard raster tiles, which
+  // can contain third-party campaign imagery baked into individual tiles.
+  // OpenFreeMap's Positron style provides a clean, restrained classroom map.
+  root.L.maplibreGL({
+   style:'https://tiles.openfreemap.org/styles/positron'
   }).addTo(map);
+  map.attributionControl.addAttribution(
+   '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> · '+
+   '<a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a> · '+
+   'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
+  );
   rootEl.querySelector('.tz-osm-actions').addEventListener('click',function(event){
    const button=event.target.closest('[data-tz-action]');
    if(!button||!map)return;
@@ -165,7 +173,7 @@
    add(marker);
   }
   const key=container.querySelector('.tz-osm-key');
-  key.innerHTML='<span class="tz-osm-key-item"><i class="tz-key-start"></i><b>Departure</b><span data-tz-offset="from"></span></span><span class="tz-osm-key-item"><i class="tz-key-end"></i><b>Destination</b><span data-tz-offset="to"></span></span><small>Time-zone outlines: OpenStreetMap-derived boundaries. Map: OpenStreetMap contributors.</small>';
+  key.innerHTML='<span class="tz-osm-key-item"><i class="tz-key-start"></i><b>Departure</b><span data-tz-offset="from"></span></span><span class="tz-osm-key-item"><i class="tz-key-end"></i><b>Destination</b><span data-tz-offset="to"></span></span><small>Time-zone boundaries: OpenStreetMap-derived IANA polygons · Basemap: OpenFreeMap Positron.</small>';
   key.querySelector('[data-tz-offset="from"]').textContent=offsetLabel(offsetAt(ms,from));
   key.querySelector('[data-tz-offset="to"]').textContent=offsetLabel(offsetAt(ms,to));
   const places=positions.map(p=>p&&p.join(',')).join('|');
