@@ -50,10 +50,14 @@ assert.equal(fill(Z.offsetAt(departure,'Europe/Istanbul')),fill(Z.offsetAt(depar
 assert.notEqual(fill(Z.offsetAt(departure,'Australia/Perth')),fill(Z.offsetAt(departure,'Europe/Istanbul')));
 assert.match(source,/clip-path="url\(#tz-mainland-clip\)"/);
 assert.match(source,/clip-path="url\(#tz-polar-clip\)"/);
-assert.match(source,/const fill=timeZoneMapFill\(offset\)/,'Selected zones must retain their offset fill.');
+assert.match(source,/const offsetFill=timeZoneMapFill\\(offset\\)/,'Full comparison colours remain driven by UTC offset.');
+assert.match(source,/const fill=focusColours\\?\\(selected\\?chosenFill:'#e5ecef'\\):offsetFill/,'Focus mode must neutralise all unselected regions.');
+assert.match(source,/\\['focus','Highlight selected time zones'\\]/,'The focused, uncluttered map is the default.');
+assert.match(source,/\\['all','Show all UTC offsets'\\]/,'A detailed comparison mode remains available.');
+assert.match(source,/showControl\\('zoneColours',real\\)/,'Colour mode is shown only on the geographic map.');
 assert.match(source,/Each 15-degree band is a separate, legible colour category/);
 assert.match(source,/world silhouette makes the longitude bands understandable/i);
 assert.doesNotMatch(source,/saturation.*gradient|Math\.round\(208-162\*t\)/);
 assert.doesNotMatch(source,/#d3e5d6','#e9d6e7'/);
-console.log('PASS: Discrete UTC offset colours are unique, match IANA offsets, work with fractions, and keep Antarctic zones neutral.');
+console.log('PASS: Default focused map, optional all-offset colours, distinct UTC offset shades, and Antarctic neutrality.');
 
