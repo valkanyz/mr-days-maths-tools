@@ -30,7 +30,7 @@
   return d;
  }
  labs.angles.setup=()=>{
-  let pts=[[190,330],[650,330],[360,90]],lastRule='sum';
+  let pts=[[125,335],[450,335],[255,100]],lastRule='sum';
   const palette=[C.purple,C.teal,C.gold,C.blue,C.red];
   controls(select('angleMode','Diagram',[['triangle','Triangle'],['parallel','Parallel lines'],['polygon','Regular polygon']])
    +select('triangleRule','Triangle theorem',[['sum','Interior angle sum'],['exterior','Exterior angle theorem'],['isosceles','Isosceles base angles'],['exteriorSum','Exterior angle sum (360°)']])
@@ -47,7 +47,7 @@
    showControl('triangleRule',mode==='triangle');showControl('exteriorCorner',mode==='triangle'&&rule==='exterior');
    showControl('sides',mode==='polygon');showControl('exterior',mode==='triangle'&&rule==='sum');
    showControl('turnStep',walk);$('nextTurn').hidden=!walk;
-   if(isIso&&lastRule!==rule)pts=[[220,335],[620,335],[420,100]];
+   if(isIso&&lastRule!==rule)pts=[[130,335],[450,335],[290,100]];
    lastRule=rule;
    let s='',rows=[],leg=[],summary=[],description='';
    if(mode==='parallel'){
@@ -123,7 +123,7 @@
    if(id==='angle'){$('theta').value=Math.max(25,Math.min(155,Math.atan2(220-y,x-420)*180/Math.PI));$('thetaval').textContent=$('theta').value;return;}
    if($('angleMode').value!=='triangle')return;
    const idx=+id,isIso=$('triangleRule').value==='isosceles';
-   let next=pts.map(q=>q.slice());next[idx]=[Math.max(95,Math.min(745,x)),Math.max(75,Math.min(355,y))];
+   let next=pts.map(q=>q.slice());next[idx]=[Math.max(65,Math.min(495,x)),Math.max(75,Math.min(355,y))];
    if(isIso){
     const a=next[0],b=next[1],base=[b[0]-a[0],b[1]-a[1]],length=Math.hypot(...base);
     if(length<120)return;
