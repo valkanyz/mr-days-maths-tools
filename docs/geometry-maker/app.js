@@ -36,7 +36,7 @@ function editor(){
  s+='<div class="actions"><button data-action="rotate">Rotate 15°</button><button data-action="flip">Flip horizontally</button></div>';
  if(o.type!=='text')s+='<details><summary>Point labels</summary>'+o.points.map((_,i)=>input('Point '+(i+1),'v'+i,o.labels[i],'A, B, O…')).join('')+'</details>';
  const sides=G.edges(o);
- if(sides.length)s+='<details open><summary>Side length labels &amp; marks</summary><p class="hint">Double-click a label on the diagram to edit it here. Labels are annotations; enter units or expressions such as 6 cm or x.</p>'+sides.map(([a,b],i)=>{
+ if(sides.length)s+='<details open><summary>Side length labels &amp; marks</summary><p class="hint">Click a label on the diagram to edit it here. Labels are annotations; enter units or expressions such as 6 cm or x.</p>'+sides.map(([a,b],i)=>{
   const e=o.edges[i]||{};
   return '<div class="edge-heading">'+(o.type==='circle'?'Radius':'Side '+(i+1)+' · points '+(a+1)+'–'+(b+1))+'</div>'
    +input('Side label','e'+i+'.label',e.label,'6 cm, x, 2x + 3…')
@@ -44,7 +44,7 @@ function editor(){
    +option('Side line','e'+i+'.dashed',e.dashed?'1':'0',[['0','Solid'],['1','Dashed']]);
  }).join('')+'</details>';
  const corners=['angle','angleArc'].includes(o.type)?[1]:o.type==='sector'?[0]:!['circle','text','point','line','parallel'].includes(o.type)?o.points.map((_,i)=>i):[];
- if(corners.length)s+='<details open><summary>Angle arcs &amp; labels</summary><p class="hint">Enter an exact angle and press Enter (or click Set angle) to reshape the arc. Drag a label to reposition it; double-click to edit.</p>'
+ if(corners.length)s+='<details open><summary>Angle arcs &amp; labels</summary><p class="hint">Enter an exact angle and press Enter (or click Set angle) to reshape the arc. Drag a label to reposition it; click to edit.</p>'
  +corners.map(i=>{
   const a=o.angles[i]||{},measure=G.angleAt(o,i).degrees,settable=G.canSetAngle(o,i);
   let item='<div class="edge-heading">Angle at point '+(i+1)+'</div>';
@@ -118,7 +118,7 @@ canvas.onpointerdown=e=>{
  if(e.target.dataset.edge!==undefined)edgeChoices.set(id,+e.target.dataset.edge);
  const item=object();if(!item)return;
  remember();
- drag={kind:'object',x:p.x,y:p.y,point:e.target.dataset.point!==undefined?+e.target.dataset.point:null,label:e.target.dataset.label||null,original:clone(item),ids:[...selectedIds],originals:selection().map(clone)};
+ drag={kind:'object',x:p.x,y:p.y,moved:false,point:e.target.dataset.point!==undefined?+e.target.dataset.point:null,label:e.target.dataset.label||null,original:clone(item),ids:[...selectedIds],originals:selection().map(clone)};
  canvas.setPointerCapture(e.pointerId);draw();editor();e.preventDefault();
 };
 canvas.onpointermove=e=>{
@@ -126,7 +126,7 @@ canvas.onpointermove=e=>{
  const p=coordinates(e);
  if(drag.kind==='marquee'){drag.currentX=p.x;drag.currentY=p.y;draw();return;}
  const o=object(),dx=p.x-drag.x,dy=p.y-drag.y,orig=drag.original;
- if(!o)return;snapTarget=null;
+ if(!o)return;snapTarget=null;if(Math.hypot(dx,dy)>3)drag.moved=true;
  if(drag.label){const offset=orig.offsets[drag.label]||[0,0];o.offsets[drag.label]=[offset[0]+dx,offset[1]+dy];}
  else if(drag.point!==null){
   const i=drag.point;
@@ -154,28 +154,32 @@ canvas.onpointermove=e=>{
  }
  draw();
 };
+function focusLabel(key,angleArc=false){
+ let selector='';
+ const o=object();
+ if(key?.startsWith('e'))selector=`[data-edit="${key}.label"]`;
+ else if(key?.startsWith('a')){
+  const i=+key.slice(1);
+  selector=o&&G.canSetAngle(o,i)&&o.angles[i]?.showMeasure?`[data-angle-target="${i}"]`:`[data-edit="${key}.label"]`;
+ }else if(angleArc)selector='[data-angle-target="1"]';
+ if(!selector)return;
+ const field=$('editor').querySelector(selector);
+ if(field){field.closest('details')?.setAttribute('open','');field.focus();field.select?.();}
+}
 canvas.onpointerup=canvas.onpointercancel=()=>{
+ const clickedLabel=drag?.kind==='object'&&!drag.moved?drag.label:null;
+ const clickedArc=drag?.kind==='object'&&!drag.moved&&object()?.type==='angleArc'&&drag.point===null&&!drag.label;
  if(drag?.kind==='marquee')finishMarquee(drag);
  drag=null;snapTarget=null;draw();editor();
+ if(clickedLabel||clickedArc)focusLabel(clickedLabel,clickedArc);
 };
-// Double-click a side/angle label (or the standalone arc itself) to jump straight
-// to its editable control. A single pointer drag still moves the label.
+// Editing labels uses the normal click-to-select gesture, while dragging
+// still moves labels without opening a dialog.
 canvas.ondblclick=e=>{
  const hit=e.target.closest('[data-shape]');if(!hit)return;
  const id=+hit.dataset.shape;
  if(selectedIds.size!==1||!selectedIds.has(id))selectOnly(id);
- editor();
- const obj=object(),key=e.target.dataset.label;
- let selector='';
- if(key?.startsWith('e'))selector=`[data-edit="${key}.label"]`;
- else if(key?.startsWith('a')){
-  const index=+key.slice(1);
-  selector=obj&&G.canSetAngle(obj,index)&&obj.angles[index]?.showMeasure?`[data-angle-target="${index}"]`:`[data-edit="${key}.label"]`;
- }else if(obj?.type==='angleArc')selector='[data-angle-target="1"]';
- if(selector){
-  const field=$('editor').querySelector(selector);
-  if(field){field.closest('details')?.setAttribute('open','');field.focus();field.select?.();notify('Edit the selected label or enter an exact angle.');}
- }
+ editor();focusLabel(e.target.dataset.label,object()?.type==='angleArc');
  e.preventDefault();
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){drag=null;placingPoint=false;canvas.style.cursor='';for(const b of $('tools').children)b.removeAttribute('aria-pressed');notify('Point placement cancelled.');return;}if(e.target.matches('input,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}else if(e.key==='Delete'||e.key==='Backspace')$('delete').click();});
