@@ -42,3 +42,35 @@ const both=G.render(state,[21,22],true);
 assert(both.includes('data-shape="21" data-point="0"'));
 assert(both.includes('data-shape="22" data-point="0"'));
 console.log('Angle construction, live angle toggles, multi-object selection handles, segment snapping and alignment passed.');
+
+const editableArc=G.preset('angleArc',31);editableArc.angles[1]={mark:'arc',showMeasure:true,radius:76};
+assert(G.setAngle(editableArc,1,60));
+assert(Math.abs(G.angleAt(editableArc,1).degrees-60)<1e-8);
+state.objects=[editableArc];assert(G.valid(state));
+assert(G.render(state,31,true).includes('A76 76'));
+assert(G.render(state,31,true).includes('data-angle-mark="1"'));
+assert(G.render(state,31,false).includes('>60°</text>'));
+editableArc.angles[1].showMeasure=false;editableArc.angles[1].label='x°';
+assert(G.render(state,31,false).includes('>x°</text>'));
+assert(!G.render(state,31,false).includes('>60°</text>'));
+editableArc.angles[1].radius=151;assert(!G.valid(state));
+editableArc.angles[1].radius=76;assert(G.valid(state));
+assert(!G.setAngle(editableArc,1,0));
+assert(!G.setAngle(editableArc,1,180));
+const editableTriangle=G.preset('triangle',32);
+assert(G.setAngle(editableTriangle,2,65));
+assert(Math.abs(G.angleAt(editableTriangle,2).degrees-65)<1e-8);
+const editableSector=G.preset('sector',33);
+assert(G.setAngle(editableSector,0,120));
+assert(Math.abs(G.angleAt(editableSector,0).degrees-120)<1e-8);
+const linkedFirst=G.preset('line',34),linkedSecond=G.preset('line',35);
+linkedSecond.points=[[500,200],[500,600]];
+const linkedArc=G.preset('angleArc',36);
+linkedArc.link={first:{id:34,edge:0},second:{id:35,edge:0}};
+linkedArc.points=G.constructAngle(linkedFirst,0,linkedSecond,0);
+for(const target of [45,120,70,95,160,15]){
+ assert(G.setLinkedAngle([linkedFirst,linkedSecond,linkedArc],linkedArc,target));
+ assert(Math.abs(G.angleAt(linkedArc,1).degrees-target)<1e-8);
+}
+assert.equal(G.setLinkedAngle([linkedFirst,editableTriangle,linkedArc],linkedArc,60),false);
+console.log('Exact-angle input: independent arcs, triangle corners, sector, arc radius and linked-line rotation passed.');
