@@ -52,6 +52,58 @@ function constructAngle(first,firstEdge,second,secondEdge){
  function ray(p,q){const end=dist(p,centre)>dist(q,centre)?p:q,d=dist(end,centre);if(d<1)return null;return [centre[0]+(end[0]-centre[0])*Math.min(120/d,1),centre[1]+(end[1]-centre[1])*Math.min(120/d,1)];}
  const x=ray(a,b),y=ray(c,d);return x&&y?[x,centre,y]:null;
 }
+
+/* Editable angle geometry. The first ray remains fixed and the second rotates
+   around the vertex, so a displayed angle always matches the actual arc. */
+function angleAt(o,i){
+ const p=o.points;
+ if(['angle','angleArc'].includes(o.type))return corner(p[0],p[1],p[2]);
+ if(o.type==='sector')return corner(p[1],p[0],p[2]);
+ return corner(p[(i-1+p.length)%p.length],p[i],p[(i+1)%p.length]);
+}
+function canSetAngle(o,i){
+ return !!o&&(['angle','angleArc'].includes(o.type)&&i===1||
+ o.type==='sector'&&i===0||
+ o.type==='triangle'&&i>=0&&i<3);
+}
+function setAngle(o,i,degrees){
+ if(!canSetAngle(o,i)||!Number.isFinite(degrees)||degrees<=0||degrees>=180)return false;
+ const pts=o.points, vIndex=o.type==='sector'?0:['angle','angleArc'].includes(o.type)?1:i;
+ const aIndex=o.type==='sector'?1:['angle','angleArc'].includes(o.type)?0:(i-1+pts.length)%pts.length;
+ const bIndex=o.type==='sector'?2:['angle','angleArc'].includes(o.type)?2:(i+1)%pts.length;
+ const v=pts[vIndex],a=pts[aIndex],b=pts[bIndex],ar=[a[0]-v[0],a[1]-v[1]],br=[b[0]-v[0],b[1]-v[1]];
+ const len=Math.hypot(...br),fixedLen=Math.hypot(...ar);
+ if(len<1||fixedLen<1)return false;
+ const signed=ar[0]*br[1]-ar[1]*br[0],orientation=signed>=0?1:-1;
+ const start=Math.atan2(ar[1],ar[0]),end=start+orientation*degrees*Math.PI/180;
+ const radius=o.type==='sector'?fixedLen:len;
+ const q=[v[0]+radius*Math.cos(end),v[1]+radius*Math.sin(end)];
+ if(q.some(v=>!Number.isFinite(v)||Math.abs(v)>=10000))return false;
+ pts[bIndex]=q;
+ return true;
+}
+/* An angle created from two independent line objects can drive the second
+   source line while maintaining its length and intersection with the first. */
+function setLinkedAngle(objects,arc,degrees){
+ if(arc.type!=='angleArc'||!arc.link||!Number.isFinite(degrees)||degrees<=0||degrees>=180)return false;
+ const first=objects.find(o=>o.id===arc.link.first.id),second=objects.find(o=>o.id===arc.link.second.id);
+ if(!first||!second||!['line','parallel'].includes(second.type))return false;
+ const initial=constructAngle(first,arc.link.first.edge,second,arc.link.second.edge);
+ if(!initial)return false;
+ const proposed={type:'angleArc',points:initial.map(p=>p.slice())};
+ if(!setAngle(proposed,1,degrees))return false;
+ const centre=initial[1],oldRay=Math.atan2(initial[2][1]-centre[1],initial[2][0]-centre[0]);
+ const newRay=Math.atan2(proposed.points[2][1]-centre[1],proposed.points[2][0]-centre[0]);
+ const delta=newRay-oldRay,c=Math.cos(delta),sin=Math.sin(delta);
+ const newPoints=second.points.map(p=>{const dx=p[0]-centre[0],dy=p[1]-centre[1];return [centre[0]+dx*c-dy*sin,centre[1]+dx*sin+dy*c]});
+ if(newPoints.some(p=>p.some(x=>!Number.isFinite(x)||Math.abs(x)>=10000)))return false;
+ const previous=second.points;second.points=newPoints;
+ const after=constructAngle(first,arc.link.first.edge,second,arc.link.second.edge);
+ if(!after||Math.abs(angleAt({type:'angleArc',points:after},1).degrees-degrees)>.15){second.points=previous;return false;}
+ arc.points=after;
+ return true;
+}
+
 function bounds(o){
  const ps=o.points;let minX=Math.min(...ps.map(p=>p[0])),minY=Math.min(...ps.map(p=>p[1])),maxX=Math.max(...ps.map(p=>p[0])),maxY=Math.max(...ps.map(p=>p[1]));
  if(o.type==='circle'){const r=dist(ps[0],ps[1]);minX=ps[0][0]-r;maxX=ps[0][0]+r;minY=ps[0][1]-r;maxY=ps[0][1]+r;}
@@ -62,7 +114,7 @@ function render(state,selected=null,editing=false){const [W,H]=state.page==='por
  if(editing&&state.grid){s+='<g data-editor="true" stroke="#e7e7e7" stroke-width="1">';for(let x=20;x<W;x+=20)s+=`<path d="M${x} 0V${H}"/>`;for(let y=20;y<H;y+=20)s+=`<path d="M0 ${y}H${W}"/>`;s+='</g>';}
  const text=(o,key,x,y,value)=>{if(!value)return '';const d=o.offsets[key]||[0,0];return `<text data-shape="${o.id}" data-label="${key}" x="${x+d[0]}" y="${y+d[1]}" font-family="Arial,Helvetica,sans-serif" font-size="${size}" text-anchor="middle" dominant-baseline="middle" fill="black" stroke="white" stroke-width="5" paint-order="stroke">${esc(value)}</text>`;};
  for(const o of state.objects){const pts=o.points,es=edges(o),dash=o.dashed?' stroke-dasharray="10 7"':'';s+=`<g data-shape="${o.id}">`;
- if(editing){s+='<g data-editor="true" fill="transparent" stroke="transparent" stroke-width="18">';if(o.type==='point')s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="10"/>`;else if(o.type==='circle')s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="${dist(...pts)}"/>`;else if(['triangle','right','rectangle','trapezium','parallelogram'].includes(o.type))s+=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}"/>`;else if(o.type==='angleArc'){const a=corner(pts[0],pts[1],pts[2]),r=38,v=pts[1],start=[v[0]+r*Math.cos(a.start),v[1]+r*Math.sin(a.start)],end=[v[0]+r*Math.cos(a.end),v[1]+r*Math.sin(a.end)];s+=`<path d="M${start}A${r} ${r} 0 0 ${a.end>a.start?1:0} ${end}" fill="none" stroke="transparent" stroke-width="25" pointer-events="stroke"/>`;}
+ if(editing){s+='<g data-editor="true" fill="transparent" stroke="transparent" stroke-width="18">';if(o.type==='point')s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="10"/>`;else if(o.type==='circle')s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="${dist(...pts)}"/>`;else if(['triangle','right','rectangle','trapezium','parallelogram'].includes(o.type))s+=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}"/>`;else if(o.type==='angleArc'){const a=corner(pts[0],pts[1],pts[2]),r=o.angles[1]?.radius??38,v=pts[1],start=[v[0]+r*Math.cos(a.start),v[1]+r*Math.sin(a.start)],end=[v[0]+r*Math.cos(a.end),v[1]+r*Math.sin(a.end)];s+=`<path d="M${start}A${r} ${r} 0 0 ${a.end>a.start?1:0} ${end}" fill="none" stroke="transparent" stroke-width="25" pointer-events="stroke"/>`;}
 else es.forEach(([i,j],k)=>s+=`<path data-edge="${k}" d="M${pts[i]}L${pts[j]}"/>`);s+='</g>';}
  if(o.type==='point')s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="4" fill="black"/>`;
  if(o.type==='circle'){const r=dist(...pts);s+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="${r}" fill="none" stroke="black" stroke-width="${width}"${dash}/>`;}
@@ -72,7 +124,7 @@ else es.forEach(([i,j],k)=>s+=`<path data-edge="${k}" d="M${pts[i]}L${pts[j]}"/>
  if(e.parallel){const u=[(b[0]-a[0])/len,(b[1]-a[1])/len];for(let t=0;t<e.parallel;t++){const x=mid[0]+u[0]*t*13,y=mid[1]+u[1]*t*13;s+=`<path d="M${x-u[0]*9+n[0]*6} ${y-u[1]*9+n[1]*6}L${x} ${y}L${x-u[0]*9-n[0]*6} ${y-u[1]*9-n[1]*6}" fill="none" stroke="black" stroke-width="${width}"/>`;}}
  s+=text(o,'e'+k,mid[0]+n[0]*30,mid[1]+n[1]*30,e.label||'');});
  const polygon=!['line','circle','text','point','parallel','sector','angleArc'].includes(o.type);const corners=['angle','angleArc'].includes(o.type)?[1]:o.type==='sector'?[0]:polygon?pts.map((_,i)=>i):[];
- corners.forEach(i=>{const v=pts[i],a=o.type==='sector'?pts[1]:pts[(i-1+pts.length)%pts.length],b=o.type==='sector'?pts[2]:pts[(i+1)%pts.length],mark=o.angles[i]||{},arc=corner(a,v,b);if(!mark.mark&&!mark.label&&!mark.showMeasure)return;const radius=mark.mark==='right'?23:38,m=(arc.start+arc.end)/2;
+ corners.forEach(i=>{const v=pts[i],a=o.type==='sector'?pts[1]:pts[(i-1+pts.length)%pts.length],b=o.type==='sector'?pts[2]:pts[(i+1)%pts.length],mark=o.angles[i]||{},arc=corner(a,v,b);if(!mark.mark&&!mark.label&&!mark.showMeasure)return;const radius=mark.radius??(mark.mark==='right'?23:38),m=(arc.start+arc.end)/2;
  if(mark.mark==='right'){const u=[Math.cos(arc.start),Math.sin(arc.start)],w=[Math.cos(arc.end),Math.sin(arc.end)];s+=`<path d="M${v[0]+radius*u[0]} ${v[1]+radius*u[1]}L${v[0]+radius*(u[0]+w[0])} ${v[1]+radius*(u[1]+w[1])}L${v[0]+radius*w[0]} ${v[1]+radius*w[1]}" fill="none" stroke="black" stroke-width="${width}"/>`;}
  else if(mark.mark==='arc')s+=`<path d="M${v[0]+radius*Math.cos(arc.start)} ${v[1]+radius*Math.sin(arc.start)}A${radius} ${radius} 0 0 ${arc.end>arc.start?1:0} ${v[0]+radius*Math.cos(arc.end)} ${v[1]+radius*Math.sin(arc.end)}" fill="none" stroke="black" stroke-width="${width}"/>`;
  s+=text(o,'a'+i,v[0]+(radius+30)*Math.cos(m),v[1]+(radius+30)*Math.sin(m),(mark.showMeasure?(Number(arc.degrees.toFixed(1))+'°'):(mark.label||'')));});
@@ -86,7 +138,7 @@ else es.forEach(([i,j],k)=>s+=`<path data-edge="${k}" d="M${pts[i]}L${pts[j]}"/>
 }
 function valid(s){
  const str=v=>typeof v==='string'&&v.length<=200,point=p=>Array.isArray(p)&&p.length===2&&p.every(v=>Number.isFinite(v)&&Math.abs(v)<10000),optional=(v,test)=>v===undefined||test(v);
- return !!(s&&['landscape','portrait','square'].includes(s.page)&&Number.isFinite(s.fontSize)&&s.fontSize>=12&&s.fontSize<=60&&Number.isFinite(s.lineWidth)&&s.lineWidth>=1&&s.lineWidth<=6&&Array.isArray(s.objects)&&s.objects.length<=60&&new Set(s.objects.map(o=>o?.id)).size===s.objects.length&&s.objects.every(o=>o&&['triangle','right','rectangle','trapezium','parallelogram','line','angle','angleArc','circle','sector','text','point','parallel'].includes(o.type)&&Number.isSafeInteger(o.id)&&Array.isArray(o.points)&&o.points.length===preset(o.type,0).points.length&&o.points.every(point)&&Array.isArray(o.labels)&&o.labels.length<=o.points.length&&o.labels.every(str)&&Array.isArray(o.edges)&&o.edges.length<=o.points.length&&o.edges.every(e=>e===null||(e&&optional(e.label,str)&&optional(e.ticks,v=>Number.isInteger(v)&&v>=0&&v<=3)&&optional(e.parallel,v=>Number.isInteger(v)&&v>=0&&v<=2)&&optional(e.dashed,v=>typeof v==='boolean')))&&Array.isArray(o.angles)&&o.angles.length<=o.points.length&&o.angles.every(a=>a===null||(a&&optional(a.label,str)&&optional(a.mark,v=>['none','arc','right'].includes(v))&&optional(a.showMeasure,v=>typeof v==='boolean') ))&&o.offsets&&typeof o.offsets==='object'&&Object.keys(o.offsets).length<=40&&Object.values(o.offsets).every(point)&&str(o.text)));
+ return !!(s&&['landscape','portrait','square'].includes(s.page)&&Number.isFinite(s.fontSize)&&s.fontSize>=12&&s.fontSize<=60&&Number.isFinite(s.lineWidth)&&s.lineWidth>=1&&s.lineWidth<=6&&Array.isArray(s.objects)&&s.objects.length<=60&&new Set(s.objects.map(o=>o?.id)).size===s.objects.length&&s.objects.every(o=>o&&['triangle','right','rectangle','trapezium','parallelogram','line','angle','angleArc','circle','sector','text','point','parallel'].includes(o.type)&&Number.isSafeInteger(o.id)&&Array.isArray(o.points)&&o.points.length===preset(o.type,0).points.length&&o.points.every(point)&&Array.isArray(o.labels)&&o.labels.length<=o.points.length&&o.labels.every(str)&&Array.isArray(o.edges)&&o.edges.length<=o.points.length&&o.edges.every(e=>e===null||(e&&optional(e.label,str)&&optional(e.ticks,v=>Number.isInteger(v)&&v>=0&&v<=3)&&optional(e.parallel,v=>Number.isInteger(v)&&v>=0&&v<=2)&&optional(e.dashed,v=>typeof v==='boolean')))&&Array.isArray(o.angles)&&o.angles.length<=o.points.length&&o.angles.every(a=>a===null||(a&&optional(a.label,str)&&optional(a.mark,v=>['none','arc','right'].includes(v))&&optional(a.showMeasure,v=>typeof v==='boolean')&&optional(a.radius,v=>Number.isFinite(v)&&v>=12&&v<=150) ))&&o.offsets&&typeof o.offsets==='object'&&Object.keys(o.offsets).length<=40&&Object.values(o.offsets).every(point)&&str(o.text)));
 }
-const api={snapPoint,snapAlignedPoint,snapTranslation,constructAngle,bounds,preset,edges,corner,dist,render,valid,esc};root.GeometryMaker=api;if(typeof module!=='undefined')module.exports=api;
+const api={snapPoint,snapAlignedPoint,snapTranslation,constructAngle,setLinkedAngle,angleAt,canSetAngle,setAngle,bounds,preset,edges,corner,dist,render,valid,esc};root.GeometryMaker=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window==='undefined'?globalThis:window);
