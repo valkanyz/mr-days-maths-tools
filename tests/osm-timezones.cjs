@@ -6,15 +6,15 @@ const zones=JSON.parse(fs.readFileSync('docs/labs/assets/timezones.geojson','utf
 const zonePoints=JSON.parse(fs.readFileSync('docs/labs/assets/zone-points.json','utf8'));
 const counts={maps:0,tiles:0,geo:0,bands:0,markers:0,lines:0,destroyed:0};
 const featuresSeen=[];
-let activeMap=null,tileUrl=null,tileOptions=null;
+let activeMap=null,styleUrl=null;
 const layer=(kind,options)=>({kind,options,bindTooltip(value){assert.equal(typeof value,'object','Labels must be safe DOM nodes');this.tooltip=value;return this},bindPopup(value){assert.equal(typeof value,'object');this.popup=value;return this},addTo(map){map.layers.push(this);return this}});
 const L={
  map(node,options){
   counts.maps++;
-  activeMap={layers:[],options,fitBounds(bounds,options){this.fit={bounds,options}},setView(point,zoom){this.view={point,zoom}},removeLayer(item){this.layers.splice(this.layers.indexOf(item),1)},off(){},remove(){counts.destroyed++},invalidateSize(){this.invalidated=true}};
+  activeMap={layers:[],options,attributionControl:{addAttribution(text){assert.match(text,/OpenMapTiles/);assert.match(text,/OpenStreetMap/);}},fitBounds(bounds,options){this.fit={bounds,options}},setView(point,zoom){this.view={point,zoom}},removeLayer(item){this.layers.splice(this.layers.indexOf(item),1)},off(){},remove(){counts.destroyed++},invalidateSize(){this.invalidated=true}};
   return activeMap;
  },
- tileLayer(url,options){counts.tiles++;tileUrl=url;tileOptions=options;return layer('tiles',options)},
+ maplibreGL(options){counts.tiles++;styleUrl=options.style;return layer('vector-basemap',options)},
  geoJSON(data,options){
   counts.geo++;
   const matches=data.features.filter(options.filter);
@@ -60,10 +60,9 @@ assert(O.render(settings));
 assert.deepEqual(featuresSeen[0].sort(),['Australia/Perth','Europe/Istanbul']);
 assert.equal(counts.tiles,1);
 assert.equal(counts.maps,1);
-assert.equal(tileUrl,'https://tile.openstreetmap.org/{z}/{x}/{y}.png');
-assert.match(tileOptions.attribution,/openstreetmap.org\/copyright/);
-assert.equal(tileOptions.updateWhenIdle,true);
-assert.equal(tileOptions.detectRetina,false);
+assert.equal(styleUrl,'https://tiles.openfreemap.org/styles/positron');
+assert(!source.includes('tile.openstreetmap.org/{z}/{x}/{y}.png'),'Old raster tiles should not be requested');
+assert(!source.includes('basemaps.cartocdn.com'),'Avoid CARTO tiles that require an API key');
 assert.equal(fromOffset.textContent,'UTC+8');
 assert.equal(toOffset.textContent,'UTC+3');
 assert.equal(counts.markers,2);
@@ -84,4 +83,4 @@ toolbar.listener({target:{closest(){return {dataset:{tzAction:'world'}}}}});
 assert(activeMap.fit,'World view button can fit global bounds');
 O.destroy();
 assert.equal(counts.destroyed,1,'Map and Leaflet handlers are removed when switching labs');
-console.log('PASS: OpenStreetMap tiles, real timezone polygons, both lab modes, map controls, markers, geodesic, lifecycle and attribution.');
+console.log('PASS: OpenFreeMap Positron vector style, geographic polygons, both map modes, controls, markers, great circle, lifecycle and attribution.');
