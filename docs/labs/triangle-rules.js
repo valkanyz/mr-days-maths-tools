@@ -32,14 +32,15 @@
  labs.angles.setup=()=>{
   let pts=[[125,335],[450,335],[255,100]],lastRule='sum';
   const palette=[C.purple,C.teal,C.gold,C.blue,C.red];
-  controls(select('angleMode','Diagram',[['triangle','Triangle'],['parallel','Parallel lines'],['polygon','Regular polygon']])
+  controls(select('angleMode','Diagram',[['triangle','Triangle'],['parallel','Parallel lines'],['polygon','Regular polygon'],['customPolygon','Draw a polygon · interior angle sum']])
    +select('triangleRule','Triangle theorem',[['sum','Interior angle sum'],['exterior','Exterior angle theorem'],['isosceles','Isosceles base angles'],['exteriorSum','Exterior angle sum (360°)']])
    +select('exteriorCorner','Exterior angle at',[['0','A'],['1','B'],['2','C']])
    +slider('theta','Transversal angle',60,25,155,1)+input('sides','Number of sides',5,3,12,1)
    +check('corresponding','Corresponding',true)+check('opposite','Vertically opposite')
    +check('cointerior','Co-interior')+check('alternate','Alternate')
    +check('exterior','Show exterior angles')+check('numbers','Show angle values',true)
-   +slider('turnStep','Walk around the shape: turns completed',0,0,12,1)+btn('nextTurn','Next exterior turn'));
+   +slider('turnStep','Walk around the shape: turns completed',0,0,12,1)+btn('nextTurn','Next exterior turn')+'<div class="actions wide" id="cornerTools" hidden>'+btn('cornerClose','Close polygon')+btn('cornerUndo','Undo vertex')+btn('cornerPlay','Cut and rearrange')+btn('cornerReturn','Show original')+btn('cornerNew','New polygon')+'</div>');
+  const custom=PolygonCorners.mount();
   $('nextTurn').onclick=()=>{const n=$('angleMode').value==='triangle'?3:value('sides');$('turnStep').value=(+value('turnStep')+1)%(n+1);$('turnStepval').textContent=$('turnStep').value;run();};
   update=()=>{
    const mode=$('angleMode').value,rule=$('triangleRule').value,show=revealed()&&$('numbers').checked,walk=mode==='polygon'||mode==='triangle'&&rule==='exteriorSum',isIso=mode==='triangle'&&rule==='isosceles';
@@ -47,6 +48,9 @@
    showControl('triangleRule',mode==='triangle');showControl('exteriorCorner',mode==='triangle'&&rule==='exterior');
    showControl('sides',mode==='polygon');showControl('exterior',mode==='triangle'&&rule==='sum');
    showControl('turnStep',walk);$('nextTurn').hidden=!walk;
+   $('cornerTools').hidden=mode!=='customPolygon';
+   if(mode==='customPolygon'){custom.update();return;}
+   custom.stop();
    if(isIso&&lastRule!==rule)pts=[[130,335],[450,335],[290,100]];
    lastRule=rule;
    let s='',rows=[],leg=[],summary=[],description='';
