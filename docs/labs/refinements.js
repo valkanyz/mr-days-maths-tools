@@ -11,7 +11,15 @@ const R = {
   const mul=()=>{let a=unary();while(i<tokens.length){let op=tokens[i];if(op==='*'||op==='/'){i++;a=[op,a,unary()]}else if(op==='('||op==='x'||op==='pi'||op==='e'||functions[op])a=['*',a,unary()];else break}return a};
   const add=()=>{let a=mul();while(tokens[i]==='+'||tokens[i]==='-'){const op=tokens[i++];a=[op,a,mul()]}return a};
   const ast=add();if(i!==tokens.length)throw Error('Check your function syntax.');
-  const evaluate=(n,x)=>{const[o,a,b]=n;if(o==='n')return a;if(o==='x')return x;if(o==='neg')return-evaluate(a,x);if(functions[o])return functions[o](evaluate(a,x));const A=evaluate(a,x),B=evaluate(b,x);return o==='+'?A+B:o==='-'?A-B:o==='*'?A*B:o==='/'?A/B:A**B};
+  const evaluate=(n,x)=>{const[o,a,b]=n;if(o==='n')return a;if(o==='x')return x;if(o==='neg')return-evaluate(a,x);if(functions[o])return functions[o](evaluate(a,x));const A=evaluate(a,x),B=evaluate(b,x);
+   if(o==='^' && A<0 && b[0]==='/' && !b.flat(Infinity).includes('x')){
+    const num=evaluate(b[1],x),den=evaluate(b[2],x);
+    if(Number.isSafeInteger(num)&&Number.isSafeInteger(den)&&den){
+     const gcd=(u,v)=>v?gcd(v,u%v):u, divisor=gcd(Math.abs(num),Math.abs(den));
+     if(Math.abs(den/divisor)%2)return (Math.abs(num/divisor)%2?-1:1)*Math.abs(A)**B;
+    }
+   }
+   return o==='+'?A+B:o==='-'?A-B:o==='*'?A*B:o==='/'?A/B:A**B};
   const combine=(a,b,op)=>{const c=Array(Math.max(a.length,b.length)).fill(0);for(let j=0;j<c.length;j++)c[j]=(a[j]||0)+op*(b[j]||0);return c};
   const product=(a,b)=>{if(a.length+b.length>14)throw Error('Polynomial degree is too large.');const c=Array(a.length+b.length-1).fill(0);a.forEach((v,j)=>b.forEach((w,k)=>c[j+k]+=v*w));return c};
   const polynomial=n=>{const[o,a,b]=n;if(o==='n')return[a];if(o==='x')return[0,1];if(o==='neg')return polynomial(a).map(x=>-x);if(!['+','-','*','/','^'].includes(o))return null;const A=polynomial(a),B=polynomial(b);if(!A||!B)return null;if(o==='+')return combine(A,B,1);if(o==='-')return combine(A,B,-1);if(o==='*')return product(A,B);if(o==='/')return B.length===1&&B[0]!==0?A.map(x=>x/B[0]):null;if(B.length!==1||!Number.isInteger(B[0])||B[0]<0||B[0]>10)return null;let c=[1];for(let j=0;j<B[0];j++)c=product(c,A);return c};
@@ -46,12 +54,84 @@ const equationBanner=text=>{const el=document.createElement('div');el.className=
 const originalLaunch=launch;launch=function(id){document.querySelectorAll('.equation-banner').forEach(el=>el.remove());originalLaunch(id)};
 const functionSetup=labs.functions.setup;labs.functions.setup=function(){functionSetup();const base=update;update=()=>{base();document.querySelectorAll('.equation-banner').forEach(el=>el.remove());const a=value('a'),b=value('b'),h=value('h'),k=value('k'),u=`(${b}(x ${h<0?'+':'−'} ${Math.abs(h)}))`,name=$('type').value;equationBanner(`f(x) = ${a} × ${{linear:u,quadratic:u+'²',cubic:u+'³',sine:'sin'+u,cosine:'cos'+u,tangentFn:'tan'+u,exponential:'e^'+u}[name]} ${k<0?'−':'+'} ${Math.abs(k)}`)}};
 const trigSetup=labs.trigonometry.setup;labs.trigonometry.setup=function(){trigSetup();$('circleAngle').parentElement.insertAdjacentHTML('afterend',select('circleSnap','Snap angle',[['1','Free (1°)'],['30','30°'],['45','45°'],['60','60°'],['90','90°']])+select('circleUnits','Angle display',[['degrees','Degrees'],['radians','Radians']]));const base=update;update=()=>{const circle=$('mode').value==='circle',snap=value('circleSnap');$('circleAngle').step=snap;$('circleAngle').value=Math.round(Number($('circleAngle').value)/snap)*snap;base();showControl('circleSnap',circle);showControl('circleUnits',circle);if(circle){const d=value('circleAngle'),rad=$('circleUnits').value==='radians',gcd=(a,b)=>b?gcd(b,a%b):a,div=gcd(Math.abs(d),180),num=d/div,den=180/div,label=rad?(d===0?'0':(num<0?'−':'')+(Math.abs(num)===1?'':Math.abs(num))+'π'+(den===1?'':'/'+den)):d+'°';$('circleAngleval').textContent=label;document.querySelector('label[for="circleAngle"]').firstChild.textContent='Circle angle '+(rad?'(radians) ':'(degrees) ');formula('θ = '+label);const S=$('viz').querySelector('svg');S.insertAdjacentHTML('beforeend',txt(420,35,'θ = '+label,22,C.purple));}}};
+const firstExamples = [
+ ['Constant','5','Very easy'], ['Linear','3x+2','Very easy'],
+ ['Quadratic','x²+3x−1','Easy'], ['Cubic','x³','Moderate'],
+ ['Higher-degree polynomial','x⁴','Moderate'],
+ ['Reciprocal','1/x','Moderate','[1/(x+h) − 1/x]/h','Combine the fractions','−h / [hx(x+h)]','−1/x² for x ≠ 0'],
+ ['Rational','1/(x+2)','Moderate','[1/(x+h+2) − 1/(x+2)]/h','Combine the fractions','−1 / [(x+2)(x+h+2)]','−1/(x+2)² for x ≠ −2'],
+ ['Square root','sqrt(x)','Moderate','[√(x+h) − √x]/h','Multiply by the conjugate','1 / [√(x+h) + √x]','1/(2√x) for x > 0. At 0 the right slope grows without bound.'],
+ ['Other fractional powers','x^(1/3)','Moderate','[∛(x+h) − ∛x]/h','Use the difference of cubes','1/(a² + ab + b²), where a = ∛(x+h) and b = ∛x','1/(3(∛x)²) for x ≠ 0. At 0 the tangent is vertical.'],
+ ['Trigonometric','sin(x)','Advanced','[sin(x+h) − sin(x)]/h','Expand sin(x+h) in radians','sin(x)(cos(h)−1)/h + cos(x)sin(h)/h','cos(x), since (cos(h)−1)/h → 0 and sin(h)/h → 1'],
+ ['Exponential','e^x','Advanced','[e^(x+h) − e^x]/h','Factor out e^x','e^x (e^h − 1)/h','e^x, since (e^h − 1)/h → 1'],
+ ['Logarithmic','ln(x)','Advanced','[ln(x+h) − ln(x)]/h','Use the quotient law','(1/x) ln(1+u)/u, where u = h/x','1/x for x > 0, since ln(1+u)/u → 1'],
+ ['Absolute value','|x|','Special case','[|x+h| − |x|]/h','Compare both sides of zero','At x = 0, |h|/h is −1 from the left and 1 from the right.','−1 for x < 0 and 1 for x > 0. The derivative is undefined at 0.'],
+ ['Piecewise','x² ; x < 1 ; 2x−1','Special case','At x = 1, f(1) = 1. Compare [f(1+h) − 1]/h from both sides.','Use the branch selected by 1+h','Left: [(1+h)²−1]/h = 2+h. Right: [2(1+h)−1−1]/h = 2.','2x for x < 1 and 2 for x ≥ 1. Both slopes approach 2 at the join.']
+];
+function firstFunction(source) {
+ const normal = source.trim().replace(/^f\s*\(x\)\s*=\s*/i,'').replace(/\|([^|]+)\|/g,'abs($1)').replace(/\bsin\s+x\b/g,'sin(x)').replace(/√\s*x/g,'sqrt(x)');
+ if (!normal.includes(';')) return R.parse(normal);
+ const parts = normal.split(';');
+ const match = /^\s*x\s*(<=|≤|<)\s*([+−-]?(?:\d+\.?\d*|\.\d+))\s*$/.exec(parts[1]);
+ if (parts.length!==3 || !match) throw Error('Enter left rule ; x < boundary ; right rule.');
+ const join = Number(match[2].replace('−','-')), left=R.parse(parts[0]), right=R.parse(parts[2]);
+ return {label:parts[0].trim()+' for x '+match[1]+' '+join+', '+parts[2].trim()+' for x '+(match[1]==='<'?'≥':'>')+' '+join,f:x=>(x<join || (x===join && match[1]!=='<') ? left : right).f(x),join};
+}
+function firstDiagram(f,x,h,join) {
+ const ys=Array.from({length:81},(_,i)=>f(x-2+i/20)).filter(Number.isFinite);
+ if(!ys.length)return '';
+ const g=chart(x-2,x+2,...padded(ys)), y=f(x), end=f(x+h);
+ let paths=g.s,previous=null;
+ for(let i=0;i<=400;i++){
+  const t=x-2+i/100,v=f(t);
+  if(previous && Number.isFinite(v) && Math.abs(g.Y(v)-g.Y(previous[1]))<180 && !(previous[0]<join && t>=join))
+   paths+=line(g,previous,[t,v],C.purple);
+  previous=Number.isFinite(v)?[t,v]:null;
+ }
+ if(Number.isFinite(y)&&Number.isFinite(end)){
+  paths+=curve(g,t=>y+(end-y)/h*(t-x),C.teal)+point(g,x,y)+point(g,x+h,end,C.teal);
+ }
+ const main=$('viz').innerHTML;
+ svg(paths,'Function and secant at x and x+h');
+ $('viz').innerHTML=main+'<div style="height:300px">'+$('viz').innerHTML+'</div>';
+}
+
 labs.calculus.setup=function(){
- let step=0,key='';controls(field('ownFunction','Function f(x)','x²')+`<div class="muted wide">Enter a polynomial, including fractions and brackets: (x + 1)³, x²/2 − 3x. Exact expansion supports degree 10.</div>`+`<div class="actions">${btn('proofPrev','Previous step')}${btn('proofNext','Next step')}</div>`+check('secantGraph','Show secant diagram')+slider('at','Point x',1,-5,5,.1)+slider('hstep','Step h',1,.01,2,.01));
+ let step=0,key='';controls(select('firstExample','Function example',[['custom','Custom function'],...firstExamples.map(([type,expr,level],i)=>[String(i),esc(type+' · '+level)])])+field('ownFunction','Function f(x)','x²')+`<div class="muted wide">Edit any example. Use brackets for powers such as x^(2/3). For two branches enter left rule ; x &lt; boundary ; right rule.</div>`+`<div class="actions">${btn('proofPrev','Previous step')}${btn('proofNext','Next step')}</div>`+check('secantGraph','Show secant diagram')+slider('at','Point x',1,-5,5,.1)+slider('hstep','Step h',1,.01,2,.01));
+ $('firstExample').oninput=$('firstExample').onchange=()=>{const item=firstExamples[$('firstExample').value];if(item){
+  $('ownFunction').value=item[1];
+  if(item[0]==='Absolute value'||item[0]==='Piecewise'){
+   $('at').value=item[0]==='Absolute value'?0:1;$('atval').textContent=$('at').value;
+  }
+ }run()};
+ $('ownFunction').oninput=()=>{$('firstExample').value='custom'};
  $('proofPrev').onclick=()=>{step=Math.max(0,step-1);run()};$('proofNext').onclick=()=>{step=Math.min(5,step+1);run()};
  const power=(s,n)=>n===0?'':n===1?s:s+String(n).split('').map(d=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(d)]).join('');
  const poly=terms=>{let out='';for(const[c,s]of terms)if(Math.abs(c)>1e-12)out+=(c<0?' − ':out?' + ':'')+(Math.abs(c)===1&&s?'':fmt(Math.abs(c),6))+s;return out||'0'};
- update=()=>{const expr=$('ownFunction').value;if(expr!==key){key=expr;step=0}const parsed=R.parse(expr),p=parsed.coefficients;if(!p||p.length>11)throw Error('For exact first-principles expansion, enter a polynomial of degree 0–10. Use the integration tool for sin, cos, exp and other functions.');const f=parsed.f,fx=poly(p.map((v,i)=>[v,power('x',i)]).reverse()),sub=poly(p.map((v,i)=>[v,power('(x+h)',i)]).reverse());let terms=[],cancel=[],quotient=[];for(let i=p.length-1;i>=0;i--)for(let j=0;j<=i;j++){const c=p[i]*E.pascal(i)[i][j];terms.push([c,power('x',i-j)+power('h',j)]);if(j){cancel.push([c,power('x',i-j)+power('h',j)]);quotient.push([c,power('x',i-j)+power('h',j-1)])}}const der=poly(p.slice(1).map((v,i)=>[v*(i+1),power('x',i)]).reverse()),q=poly(quotient),c=poly(cancel),rows=[['1 · Definition',mathText('f′(x) = ')+limitH+fraction('f(x+h) − f(x)','h')],['2 · Substitute',limitH+fraction('['+sub+'] − ['+fx+']','h')],['3 · Expand',limitH+fraction('['+poly(terms)+'] − ['+fx+']','h')],['4 · Cancel like terms',limitH+fraction(c,'h')],['5 · Divide by h, where h ≠ 0',fraction(c,'h')+mathText(' = '+q)],['6 · Take the limit',mathText('f′(x) = ')+limitH+mathText('('+q+') = '+der)]];
+ update=()=>{const expr=$('ownFunction').value;if(expr!==key){key=expr;step=0;const item=firstExamples[$('firstExample').value];if(item && expr!==item[1])$('firstExample').value='custom'}const parsed=firstFunction(expr),p=parsed.coefficients;
+ if(!p || p.length>11){
+  const x=value('at'),h=value('hstep'),f=parsed.f,y=f(x),show=v=>Number.isFinite(v)?fmt(v,7):'Undefined';
+  const gradient=d=>(f(x+d)-y)/d, clean=s=>s.replace(/\s/g,'').replaceAll('−','-');
+  const example=firstExamples.find(item=>clean(item[1])===clean(expr));
+  const rows=[['Definition','f′(x) = lim as h → 0 of [f(x+h) − f(x)]/h']];
+  if(example && example.length>3){
+   rows.push(['Substitute',example[3]],[example[4],example[5]],['Take the limit','f′(x) = '+example[6]]);
+  }else{
+   rows.push(['Substitute at x = '+x,'[f('+x+' + h) − ('+show(y)+')]/h'],
+    ['Approach from both sides','Compare the gradients for negative and positive h in the table.'],
+    ['Interpret the limit','A finite two-sided derivative requires both sides to approach the same finite value. The samples illustrate the limit.']);
+  }
+  step=Math.min(step,rows.length-1);
+  $('viz').style.height='auto';$('viz').innerHTML=rows.slice(0,revealed()?step+1:1).map(([t,m],i)=>workPanel((i+1)+' · '+t,esc(m))).join('');
+  showControl('hstep',$('secantGraph').checked);
+  if($('secantGraph').checked)firstDiagram(f,x,h,parsed.join);
+  formula('f(x) = '+(parsed.label||expr));
+  results([['Step',(step+1)+' / '+rows.length],['f('+x+')',show(y)],['Secant gradient (h = '+h+')',show(gradient(h))]]);
+  table(['Distance |h|','Gradient from left','Gradient from right'],[1,.1,.01,.001,.0001].map(d=>[d,show(gradient(-d)),show(gradient(d))]));
+  $('proofPrev').disabled=step===0;$('proofNext').disabled=step===rows.length-1;
+  note('Move the point x to compare one-sided difference quotients. Trigonometric inputs use radians.');return;
+ }
+ const f=parsed.f,fx=poly(p.map((v,i)=>[v,power('x',i)]).reverse()),sub=poly(p.map((v,i)=>[v,power('(x+h)',i)]).reverse());let terms=[],cancel=[],quotient=[];for(let i=p.length-1;i>=0;i--)for(let j=0;j<=i;j++){const c=p[i]*E.pascal(i)[i][j];terms.push([c,power('x',i-j)+power('h',j)]);if(j){cancel.push([c,power('x',i-j)+power('h',j)]);quotient.push([c,power('x',i-j)+power('h',j-1)])}}const der=poly(p.slice(1).map((v,i)=>[v*(i+1),power('x',i)]).reverse()),q=poly(quotient),c=poly(cancel),rows=[['1 · Definition',mathText('f′(x) = ')+limitH+fraction('f(x+h) − f(x)','h')],['2 · Substitute',limitH+fraction('['+sub+'] − ['+fx+']','h')],['3 · Expand',limitH+fraction('['+poly(terms)+'] − ['+fx+']','h')],['4 · Cancel like terms',limitH+fraction(c,'h')],['5 · Divide by h, where h ≠ 0',fraction(c,'h')+mathText(' = '+q)],['6 · Take the limit',mathText('f′(x) = ')+limitH+mathText('('+q+') = '+der)]];
  $('viz').style.height='auto';$('viz').innerHTML=rows.slice(0,revealed()?step+1:1).map(([t,m])=>workPanel(t,mathDisplay(m))).join('');const x=value('at'),h=value('hstep'),slope=(f(x+h)-f(x))/h;showControl('at',$('secantGraph').checked);showControl('hstep',$('secantGraph').checked);if($('secantGraph').checked){const main=$('viz').innerHTML,g=chart(x-2,x+2,...padded(Array.from({length:40},(_,i)=>f(x-2+i*4/39))));svg(g.s+curve(g,f)+curve(g,t=>f(x)+slope*(t-x),C.teal)+point(g,x,f(x))+point(g,x+h,f(x+h),C.teal),'Secant diagram');$('viz').innerHTML=main+'<div style="height:300px">'+$('viz').innerHTML+'</div>'}
  formula('f(x) = '+fx);results([['Step',step+1+' / 6'],['Derivative',step===5?der:'Use Next step'],['Secant gradient',fmt(slope,6)]]);table(['Step','Working'],rows.slice(0,step+1).map(([t,m])=>[t,m.replace(/<[^>]+>/g,' ')]));$('proofPrev').disabled=step===0;$('proofNext').disabled=step===5;note('The same function is substituted, expanded and simplified exactly. Fractional coefficients are allowed. Changes to the function restart the working.');
  };
