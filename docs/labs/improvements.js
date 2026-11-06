@@ -51,10 +51,36 @@ labs.trigonometry.setup=function(){trigBefore();const base=update,el=$('viz'),ol
 };
 
 const vectorBefore=labs.vectors3.setup;
-labs.vectors3.setup=function(){vectorBefore();const base=update,el=$('viz');const old={down:el.onpointerdown,move:el.onpointermove,up:el.onpointerup};let drag=null;
- update=()=>{base();const p=project3(value('yaw')*Math.PI/180,value('pitch')*Math.PI/180,28);let grid='';for(let i=-8;i<=8;i++)grid+=path([p([i,-8,0]),p([i,8,0])],i===0?'#8f7ba3':'#d9cfe3')+path([p([-8,i,0]),p([8,i,0])],i===0?'#8f7ba3':'#d9cfe3');for(let z=1;z<=6;z++)grid+=path([p([-8,8,z]),p([8,8,z])],'#ebe4f0');el.querySelector('svg').insertAdjacentHTML('afterbegin',`<g opacity=".75" stroke-width="1">${grid}</g>`);if($('dragMode').value==='vectors')formula('Drag a vector tip in the plane of the screen; edit x, y, z for exact coordinates.');};
- const position=e=>new DOMPoint(e.clientX,e.clientY).matrixTransform(el.querySelector('svg').getScreenCTM().inverse());el.onpointerdown=e=>{const hit=e.target.closest('[data-drag]');if($('dragMode').value==='vectors'&&hit){const id=hit.dataset.drag;if(!['a','b'].includes(id))return;const p=position(e);drag={id,x:p.x,y:p.y,v:['x','y','z'].map(k=>value(id+k))};el.setPointerCapture(e.pointerId);e.preventDefault()}else old.down(e)};
- el.onpointermove=e=>{if(!drag){old.move(e);return}const p=position(e),dx=(p.x-drag.x)/28,dy=(p.y-drag.y)/28,yaw=value('yaw')*Math.PI/180,pitch=value('pitch')*Math.PI/180,d=[Math.cos(yaw)*dx+Math.sin(pitch)*Math.sin(yaw)*dy,-Math.sin(yaw)*dx+Math.sin(pitch)*Math.cos(yaw)*dy,-Math.cos(pitch)*dy];['x','y','z'].forEach((k,i)=>set(drag.id+k,Math.max(-8,Math.min(8,drag.v[i]+d[i])).toFixed(2)));run()};el.onpointerup=el.onpointercancel=e=>{drag=null;old.up(e)};
+labs.vectors3.setup=function(){vectorBefore();const base=update,el=$('viz');let drag=null;
+ update=()=>{base();const p=project3(value('yaw')*Math.PI/180,value('pitch')*Math.PI/180,28);let grid='';for(let i=-8;i<=8;i++)grid+=path([p([i,-8,0]),p([i,8,0])],i===0?'#8f7ba3':'#d9cfe3')+path([p([-8,i,0]),p([8,i,0])],i===0?'#8f7ba3':'#d9cfe3');for(let z=1;z<=6;z++)grid+=path([p([-8,8,z]),p([8,8,z])],'#ebe4f0');el.querySelector('svg').insertAdjacentHTML('afterbegin',`<g opacity=".75" stroke-width="1">${grid}</g>`);};
+ const position=e=>new DOMPoint(e.clientX,e.clientY).matrixTransform(el.querySelector('svg').getScreenCTM().inverse());
+ el.style.touchAction='none';
+ el.onpointerdown=e=>{
+  if(drag||e.button!==0)return;
+  const tip=e.target.closest('[data-drag]')?.dataset.drag;
+  const yaw=value('yaw'),pitch=value('pitch');
+  if(tip==='a'||tip==='b'){
+   const point=position(e);
+   drag={pointer:e.pointerId,tip,point,yaw,pitch,vector:['x','y','z'].map(k=>value(tip+k))};
+  }else drag={pointer:e.pointerId,x:e.clientX,y:e.clientY,yaw,pitch};
+  el.setPointerCapture(e.pointerId);e.preventDefault();
+ };
+ el.onpointermove=e=>{
+  if(!drag||e.pointerId!==drag.pointer)return;
+  if(drag.tip){
+   const point=position(e),dx=(point.x-drag.point.x)/28,dy=(point.y-drag.point.y)/28;
+   const yaw=drag.yaw*Math.PI/180,pitch=drag.pitch*Math.PI/180;
+   const delta=[Math.cos(yaw)*dx+Math.sin(pitch)*Math.sin(yaw)*dy,-Math.sin(yaw)*dx+Math.sin(pitch)*Math.cos(yaw)*dy,-Math.cos(pitch)*dy];
+   ['x','y','z'].forEach((axis,i)=>set(drag.tip+axis,Math.max(-8,Math.min(8,drag.vector[i]+delta[i])).toFixed(2)));
+  }else{
+   const angle=drag.yaw+(e.clientX-drag.x)*.5;
+   set('yaw',((angle+180)%360+360)%360-180);
+   set('pitch',Math.max(-80,Math.min(80,drag.pitch-(e.clientY-drag.y)*.4)));
+   for(const id of ['yaw','pitch'])$(id+'val').textContent=$(id).value;
+  }
+  run();
+ };
+ el.onpointerup=el.onpointercancel=e=>{if(drag?.pointer===e.pointerId)drag=null};
 };
 
 // Exponent controls keep visible expressions in mathematical notation.
