@@ -31,18 +31,185 @@ labs.circles={title:'Circle Theorems Lab',tag:'YEARS 9–10 · GEOMETRY',subtitl
  const el=$('viz');el.style.touchAction='none';el.onpointerdown=e=>{const hit=e.target.closest('[data-circle]');if(!hit)return;dragging=+hit.dataset.circle;el.setPointerCapture(e.pointerId);};el.onpointermove=e=>{if(dragging===null)return;const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(el.querySelector('svg').getScreenCTM().inverse());let a=Math.atan2(215-p.y,p.x-420)*180/Math.PI;if(a<0)a+=360;$('ct'+'ABCD'[dragging]).value=Math.round(a)%360;run();};el.onpointerup=el.onpointercancel=()=>dragging=null;
 }};
 
-labs.capacity={title:'Volume & Capacity Lab',tag:'YEARS 7–10 · ESSENTIAL',subtitle:'Fill, compare and pour.',setup(){
- const shape=id=>select(id,'Container '+(id==='vcShape'?'A':'B'),[['box','Rectangular prism'],['cylinder','Cylinder'],['cone','Cone (point down)'],['sphere','Sphere']]);
- controls(shape('vcShape')+pair(input('vcL','A length / radius (cm)',10,.1,100),input('vcW','A width (cm)',8,.1,100))+input('vcH','A height (cm)',15,.1,100)+shape('vcOther')+pair(input('vcBL','B length / radius (cm)',8,.1,100),input('vcBW','B width (cm)',8,.1,100))+input('vcBH','B height (cm)',15,.1,100)+slider('vcFill','A filled (%)',60,0,100,1)+check('vcCubes','Show unit layers (prisms)',true)+'<input type="hidden" id="vcPourState" value="0"><div class="actions"><button id="vcPlay">Fill / pause</button><button id="vcPour">Pour A into B</button></div>'+input('vcSpeed','Fill speed (% / second)',15,1,100));
- let play=false,stamp=0,poured=false,progress=0;
- $('vcPour').onclick=()=>{poured=$('vcPourState').value!=='1';$('vcPourState').value=poured?'1':'0';play=false;run();};$('vcPlay').onclick=()=>{play=!play;poured=false;$('vcPourState').value='0';stamp=0;progress=+$('vcFill').value;if(play)requestAnimationFrame(tick);};
- function tick(t){if(!play||current!=='capacity'){play=false;return;}if(stamp){const v=progress=Math.min(100,progress+(t-stamp)/1000*value('vcSpeed'));$('vcFill').value=Math.round(v);if(v>=100)play=false;run();}stamp=t;if(play)requestAnimationFrame(tick);}
- update=()=>{poured=$('vcPourState').value==='1';const a=$('vcShape').value,b=$('vcOther').value,L=value('vcL'),W=value('vcW'),H=value('vcH'),l=value('vcBL'),w=value('vcBW'),h=value('vcBH'),A=K.capacity(a,L,W,H),B=K.capacity(b,l,w,h),water=A*value('vcFill')/100,overflow=poured?Math.max(0,water-B):0;
- for(const [id,on]of [['vcW',a==='box'],['vcH',a!=='sphere'],['vcBW',b==='box'],['vcBH',b!=='sphere']])showControl(id,on);
- const draw=(kind,x,r,wide,height,volume,cap,name)=>{const ww=190,hh=260,left=x-ww/2,top=70,shape=kind==='cone'?`M${left} ${top}H${left+ww}L${x} ${top+hh}Z`:kind==='sphere'?`M${x-95} 200a95 130 0 1 0 190 0a95 130 0 1 0 -190 0`:kind==='cylinder'?`M${left} 85a95 15 0 0 1 190 0v230a95 15 0 0 1 -190 0Z`:`M${left} ${top}h190v260h-190Z`,fraction=K.heightFraction(kind,Math.min(1,volume/cap)),level=top+hh*(1-fraction);let s=`<defs><clipPath id="fill${name}"><path d="${shape}"/></clipPath></defs><path d="${shape}" fill="#f4eff9"/><rect x="${left}" y="${level}" width="190" height="${hh*fraction}" fill="#21a6bd" opacity=".6" clip-path="url(#fill${name})"/><path d="${shape}" fill="none" stroke="#604675" stroke-width="3"/>`;
- if(kind==='box'&&$('vcCubes').checked){const count=Math.min(20,Math.ceil(r));for(let i=1;i<count;i++)s+=`<path d="M${left+190*i/count} 70V330" stroke="#a7c7cf"/>`;const levels=Math.min(30,Math.ceil(height));for(let i=1;i<levels;i++)s+=`<path d="M${left} ${70+260*i/levels}h190" stroke="#a7c7cf"/>`;}
- s+=txt(x,40,'Container '+name,23)+txt(x,360,kind==='box'?`${r} × ${wide} × ${height} cm`:kind==='sphere'?`radius ${r} cm`:`radius ${r} cm · height ${height} cm`,17);if(shown())s+=txt(x,390,fmt(volume/1000,3)+' L / '+fmt(cap/1000,3)+' L',20);return s;};
- svg(draw(a,225,L,W,H,poured?0:water,A,'A')+draw(b,615,l,w,h,poured?Math.min(water,B):0,B,'B')+(poured?txt(420,205,'→',42,C.teal):''),'Water in two containers');formula('1 cm³ = 1 mL     ·     1000 cm³ = 1 L');legend([['Water',C.blue]]);results([['Capacity A',fmt(A,2)+' cm³'],['Capacity B',fmt(B,2)+' cm³'],['Water',fmt(water/1000,3)+' L'],['Spilled',fmt(overflow/1000,3)+' L']]);table(['Container','Capacity (cm³)','Capacity (L)','Water (mL)'],[['A',A,A/1000,poured?0:water],['B',B,B/1000,poured?Math.min(water,B):0],['Spill','','',overflow]]);note('Containers are schematic, not drawn to a shared scale. Water volume is conserved when poured, including any spill. Cone and sphere water heights follow their volume, not a linear percentage. Prism grids show layers (grouped when dimensions are large); depth is given by the width.');};}};
+// Project every vessel with the same centimetre-to-pixel scale.
+const capacityShapes=[['box','Rectangular prism'],['cylinder','Cylinder'],['cone','Cone (point down)'],['sphere','Sphere']];
+function vessel(kind,l,w,h,amount){
+ let cap=K.capacity(kind,l,w,h);
+ if(amount!==null){
+  const factor=Math.cbrt(amount/cap);
+  l*=factor;w*=factor;h*=factor;cap=amount;
+ }
+ const width=kind==='box'?l+.46*w:2*l;
+ const height=kind==='box'?h+.27*w:kind==='sphere'?2*l:kind==='cone'?h+.2*l:h+.4*l;
+ return {kind,l,w,h,cap,width,height};
+}
+function drawVessel(v,x,base,s,water,layers){
+ const f=Math.max(0,Math.min(1,water/v.cap)),level=K.heightFraction(v.kind,f);
+ const l=v.l*s,w=v.w*s,h=v.h*s;
+ const stroke='#535273', glass='#e8edf7',waterFront='#45a9c7',waterSide='#258ba9',surface='#9be3ed';
+ const poly=(points,fill,edge=stroke)=>`<polygon points="${points.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${edge}" stroke-linejoin="round"/>`;
+ const ellipse=(cx,cy,rx,ry,fill,edge=stroke)=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${edge}"/>`;
+ const path=(d,fill='none',edge=stroke)=>`<path d="${d}" fill="${fill}" stroke="${edge}" stroke-linejoin="round"/>`;
+ let out='';
+ if(v.kind==='box'){
+  const dx=.46*w,dy=.27*w,left=x-(l+dx)/2,right=left+l;
+  const top=z=>[[left,base-z],[right,base-z],[right+dx,base-z-dy],[left+dx,base-z-dy]];
+  const walls=(z,front,side)=>poly([[left,base],[right,base],[right,base-z],[left,base-z]],front)+poly([[right,base],[right+dx,base-dy],[right+dx,base-z-dy],[right,base-z]],side);
+  out+=walls(h,glass,'#d3dfed')+poly(top(h),'#f6f8fc');
+  if(f>0)out+=walls(h*f,waterFront,waterSide)+poly(top(h*f),surface);
+  if(layers){
+   const spacing=Math.max(1,Math.ceil(v.h/12));
+   for(let z=spacing;z<v.h-1e-9;z+=spacing)out+=path(`M${left} ${base-z*s}h${l}l${dx} ${-dy}`,'none','#91a5b2');
+  }
+  out+=walls(h,'none','none')+poly(top(h),'none');
+ }else if(v.kind==='sphere'){
+  const cy=base-l,cos=Math.sqrt(1-.2**2),dz=(2*level-1)*l;
+  const radius=Math.sqrt(Math.max(0,l*l-dz*dz)),wy=cy-dz*cos;
+  const id='vcBall'+String(x).replace('.','p');
+  out+=`<defs><clipPath id="${id}"><circle cx="${x}" cy="${cy}" r="${l}"/></clipPath></defs>`;
+  out+=ellipse(x,cy,l,l,glass)+ellipse(x,cy,l*.48,l,'none','#c2cddd')+ellipse(x,cy,l,l*.2,'none','#c2cddd');
+  if(f>0){
+   // Below the water plane, the silhouette follows the spherical shell.
+   const shell=f>=1?ellipse(x,cy,l,l,waterFront):path(`M${x-radius} ${wy}A${radius} ${radius*.2} 0 0 0 ${x+radius} ${wy}L${x+l} ${wy+Math.abs(dz)*.2}V${base}H${x-l}V${wy+Math.abs(dz)*.2}Z`,waterFront,waterFront);
+   out+=`<g clip-path="url(#${id})">${shell}${f<1?ellipse(x,wy,radius,radius*.2,surface,waterSide):''}</g>`;
+  }
+  out+=ellipse(x,cy,l,l,'none');
+ }else{
+  const cone=v.kind==='cone',ry=.2*l,bottom=cone?base:base-ry,top=bottom-h;
+  const wall=(r,y)=>cone?`M${x-r} ${y}L${x} ${bottom}L${x+r} ${y}Z`:`M${x-r} ${y}V${bottom}a${r} ${ry} 0 0 0 ${2*r} 0V${y}Z`;
+  out+=path(wall(l,top),glass)+ellipse(x,top,l,ry,'#f5f8fb');
+  if(f>0){
+   const r=cone?l*level:l,y=bottom-h*level;
+   out+=path(wall(r,y),waterFront,waterSide)+ellipse(x,y,r,.2*r,surface,waterSide);
+  }
+  out+=path(cone?`M${x-l} ${top}L${x} ${bottom}L${x+l} ${top}`:`M${x-l} ${top}V${bottom}a${l} ${ry} 0 0 0 ${2*l} 0V${top}`)+ellipse(x,top,l,ry,'none');
+ }
+ return `<g stroke-width="1.5">${out}</g>`;
+}
+function splitVolume(amount,capacity){
+ const ratio=amount/capacity,nearest=Math.round(ratio);
+ const exact=amount===0 || (nearest>0 && Math.abs(ratio-nearest)<=4*Number.EPSILON*ratio);
+ const full=exact?nearest:Math.floor(ratio),last=exact?0:amount-full*capacity;
+ return {full,last,count:full+(last>0?1:0)};
+}
+labs.capacity={title:'Volume & Capacity Lab',tag:'YEARS 7–10 · ESSENTIAL',subtitle:'Compare containers and pour between them.',setup(){
+ const shape=(id,label)=>select(id,label,capacityShapes);
+ const units=id=>select(id,'Unit',[['mL','mL'],['L','L']]);
+ controls(select('vcMode','Specify containers by',[['volume','Capacity'],['dimensions','Dimensions']])+
+  shape('vcShape','Source A')+pair(input('vcAmount','Capacity A',1,.001,100000),units('vcUnit'))+
+  pair(input('vcL','A length (cm)',10,.1,100),input('vcW','A width (cm)',10,.1,100))+input('vcH','A height (cm)',10,.1,100)+
+  shape('vcOther','Receiving container B')+pair(input('vcBAmount','Capacity B',200,.001,100000),units('vcBUnit'))+
+  pair(input('vcBL','B length (cm)',5,.1,100),input('vcBW','B width (cm)',5,.1,100))+input('vcBH','B height (cm)',8,.1,100)+
+  slider('vcFill','Water in A before pouring (%)',100,0,100,1)+
+  '<div class="actions"><button id="vcPlay">Animate fill</button><button id="vcPour">Pour A into B</button><button id="vcReturn">Return water to A</button></div>'+
+  input('vcSpeed','Animation speed (% per second)',20,1,100)+check('vcCubes','Show centimetre layers on prisms')+
+  '<div hidden><input type="hidden" id="vcPourState" value="0"></div>');
+ $('vcUnit').value='L';
+ // Shared links created before capacity entry existed specify dimensions.
+ $('controls').restoreState=items=>{
+  if(items && !items.some(([id])=>id==='vcMode') && items.some(([id])=>id==='vcL'))$('vcMode').value='dimensions';
+ };
+ const owner=$('vcPour'),state=$('vcPourState');
+ let motion='',frame=0,stamp=null,fill=100,signature='',model=null;
+ const stop=()=>{cancelAnimationFrame(frame);frame=0;stamp=null;motion=''};
+ const progress=()=>Math.max(0,Math.min(1,Number(state.value)||0));
+ const label=ml=>Math.abs(ml)>=1000?fmt(ml/1000,3)+' L':Number(ml.toPrecision(5))+' mL';
+ function readVessel(source,byVolume){
+  const kind=$(source?'vcShape':'vcOther').value,prefix=source?'vc':'vcB';
+  for(const suffix of ['Amount','Unit'])showControl(prefix+suffix,byVolume);
+  for(const [suffix,visible] of [['L',true],['W',kind==='box'],['H',kind!=='sphere']])showControl(prefix+suffix,!byVolume&&visible);
+  document.querySelector('label[for="'+prefix+'L"]').textContent=(source?'A ':'B ')+(kind==='box'?'length':'radius')+' (cm)';
+  if(byVolume){
+   const amount=value(prefix+'Amount')*($(prefix+'Unit').value==='L'?1000:1);
+   return vessel(kind,1,1,kind==='box'?1:2,amount);
+  }
+  return vessel(kind,value(prefix+'L'),kind==='box'?value(prefix+'W'):1,kind==='sphere'?1:value(prefix+'H'),null);
+ }
+ function buttons(){
+  $('vcPlay').textContent=motion==='fill'?'Pause fill':'Animate fill';
+  owner.textContent=motion==='pour'?'Pause pour':progress()>=1?'Replay pour':progress()>0?'Resume pour':'Pour A into B';
+  owner.disabled=!model||!model.water;
+  $('vcReturn').disabled=progress()===0&&motion!=='pour';
+ }
+ function start(which){
+  if(!model || $('error').textContent)return;
+  if(motion===which){stop();run();return}
+  stop();
+  if(which==='fill'){
+   fill=Number($('vcFill').value);if(fill>=100)fill=0;
+   $('vcFill').value=Math.round(fill);$('vcFillval').textContent=$('vcFill').value;state.value='0';
+  }else if(progress()>=1)state.value='0';
+  motion=which;run();frame=requestAnimationFrame(tick);
+ }
+ function tick(t){
+  if(!motion||current!=='capacity'||$('vcPour')!==owner){stop();return}
+  if(stamp===null)stamp=t;
+  const dt=t-stamp;
+  if(dt>=32){
+   stamp=t;const move=Math.min(dt,150)*model.speed/1000;
+   if(motion==='fill'){
+    fill=Math.min(100,fill+move);$('vcFill').value=Math.round(fill);$('vcFillval').textContent=$('vcFill').value;
+    const exact=$('vcFill').parentElement.querySelector('.ux-range-value');if(exact)exact.value=$('vcFill').value;
+    model.water=model.a.cap*fill/100;if(fill===100)stop();
+   }else{
+    state.value=Math.min(1,progress()+move/100);if(progress()>=1)stop();
+   }
+   if(!motion){run();return}render();
+  }
+  frame=requestAnimationFrame(tick);
+ }
+ $('vcPlay').onclick=()=>start('fill');owner.onclick=()=>start('pour');
+ $('vcReturn').onclick=()=>{stop();state.value='0';run()};
+ $('vcFill').oninput=()=>{stop();state.value='0'};
+ function render(){
+  const {a,b,water}=model,p=progress(),sent=water*p,remaining=water-sent;
+  const plan=splitVolume(water,b.cap),done=splitVolume(sent,b.cap),needed=Math.max(1,plan.count);
+  const active=Math.min(needed-1,done.full),perPage=Math.min(6,needed),first=Math.floor(active/perPage)*perPage;
+  const slot=552/perPage,scale=Math.min(184/a.width,152/a.height,(slot-14)/b.width,148/b.height);
+  const startX=258,base=340,sourceX=121,sourceBase=211;
+  const xFor=i=>startX+(i-first+.5)*slot,activeX=xFor(active),top=base-b.height*scale;
+  const textAt=(x,y,s,size=16)=>`<text x="${x}" y="${y}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${size}" fill="#44324e">${esc(s)}</text>`;
+  let pic=textAt(sourceX,32,'Source A',19)+textAt(530,32,'Receiving containers · '+label(b.cap)+' each',19);
+  pic+=textAt(sourceX,55,label(a.cap)+' capacity',15);
+  const tapX=sourceX+(a.kind==='cone'||a.kind==='sphere'?0:a.width*scale*.24);
+  pic+=`<path d="M${tapX} ${sourceBase-3}v18 Q${tapX} ${sourceBase+23} ${tapX+10} ${sourceBase+23} C${tapX+85} ${sourceBase+23} ${activeX} ${top-50} ${activeX} ${top-13}" fill="none" stroke="#97abb9" stroke-width="5" stroke-linecap="round"/>`;
+  pic+=drawVessel(a,sourceX,sourceBase,scale,remaining,$('vcCubes').checked);
+  pic+=textAt(sourceX,270,shown()?label(remaining)+' in A':'A',17);
+  for(let i=first;i<Math.min(first+perPage,needed);i++){
+   const x=xFor(i),held=i<done.full?b.cap:i===done.full?done.last:0;
+   pic+=drawVessel(b,x,base,scale,held,$('vcCubes').checked)+textAt(x,base+24,'B'+(i+1),16);
+   if(shown())pic+=textAt(x,base+46,label(held),14);
+  }
+  if(motion==='pour'&&p<1){
+   const fraction=done.last/b.cap,depth=K.heightFraction(b.kind,fraction);
+   const offset=b.kind==='box'?.135*b.w:b.kind==='cylinder'?.2*b.l:0;
+   const end=base-scale*(offset+(b.kind==='sphere'?2*b.l:b.h)*depth);
+   pic+=`<path d="M${activeX} ${top-12}V${Math.max(top,end-2)}" stroke="#39aec9" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  if(needed>perPage)pic+=textAt(535,422,'Showing B'+(first+1)+'–B'+Math.min(first+perPage,needed)+' of '+needed.toLocaleString(),15);
+  svg(pic,'Source and receiving containers drawn to a common scale, with water levels');
+  const ml=v=>Number(v.toPrecision(8)).toLocaleString('en-AU',{maximumSignificantDigits:8});
+  if(p>=1 && shown())formula(ml(water)+' mL = '+done.full.toLocaleString()+' × '+ml(b.cap)+' mL'+(done.last?' + '+ml(done.last)+' mL':''));
+  else formula('1 cm³ = 1 mL     ·     1,000 mL = 1 L');
+  buttons();results([ ['Source capacity',label(a.cap)],['Total water',label(water)],['Transferred',label(sent)],['Receivers needed',String(plan.count)],['Full receivers',String(done.full)],['Partly filled receiver',label(done.last)]]);
+  const rows=[['A',1,label(a.cap),label(remaining)]];
+  if(done.full)rows.push(['B · full',done.full,label(b.cap),label(b.cap)]);
+  if(done.last>0)rows.push(['B · part full',1,label(b.cap),label(done.last)]);
+  const empty=needed-done.count;if(empty)rows.push(['B · empty',empty,label(b.cap),'0 mL']);
+  table(['Container','Count','Capacity each','Water in each'],rows);
+ }
+ update=()=>{
+  let a,b,water,speed;
+  try{
+   const byVolume=$('vcMode').value==='volume';a=readVessel(true,byVolume);b=readVessel(false,byVolume);
+   water=a.cap*value('vcFill')/100;speed=value('vcSpeed');
+  }catch(e){stop();model=null;buttons();throw e}
+  const next=[a.kind,a.l,a.w,a.h,b.kind,b.l,b.w,b.h].join('|');
+  if(signature&&next!==signature){stop();state.value='0'}signature=next;
+  model={a,b,water,speed};render();
+  note('All containers use the same scale. Water moves into the next receiver when the current one is full.');
+ };
+}};
 
 const timetable='Bus 1,Lakelands,Station,08:05,08:17\nBus 2,Lakelands,Station,08:20,08:32\nTrain 1,Station,City,08:22,09:12\nTrain 2,Station,City,08:37,09:27\nShuttle 1,City,Museum,09:20,09:35\nShuttle 2,City,Museum,09:35,09:50\nExpress,Lakelands,Museum,08:15,09:45';
 labs.journeys={title:'Timetable & Journey Planner',tag:'YEARS 7–10 · ESSENTIAL',subtitle:'Plan the connections, not just the travel.',setup(){
