@@ -270,8 +270,7 @@ const PointAngles = {
  },
  expression(q){return q.algebra?`${q.a}x${q.b>0?' + '+q.b:q.b<0?' − '+Math.abs(q.b):''}`:'x';}
 };
-const originalAnglesSetup=labs.angles.setup;
-labs.angles.setup=function(){
+function withPointAngles(originalAnglesSetup){return function(){
  originalAnglesSetup();const originalUpdate=update;
  if(!document.getElementById('pointAngleStyles')){const style=document.createElement('style');style.id='pointAngleStyles';style.textContent='#controls .ux-range-wrap[hidden]{display:none!important}';document.head.append(style);}
  const oldDrag=Object.fromEntries(['onpointerdown','onpointermove','onpointerup','onpointercancel'].map(k=>[k,$('viz')[k]]));
@@ -289,7 +288,9 @@ labs.angles.setup=function(){
   Object.assign($('viz'),point?pointDrag:oldDrag);
   for(const id of ['pointMode','pointAngle','pointAlgebra'])showControl(id,point&&(id==='pointMode'||(id==='pointAngle'?!quiz:quiz)));
   $('pointActions').hidden=!point||!quiz;
-  if(!point){originalUpdate();return;}
+  if(!point){showControl('numbers',true);showControl('reveal',true);originalUpdate();return;}
+  for(const id of ['triangleRule','exteriorCorner','turnStep'])if($(id))showControl(id,false);
+  for(const id of ['nextTurn','cornerTools'])if($(id))$(id).hidden=true;
   for(const id of ['theta','sides','corresponding','opposite','cointerior','alternate','exterior','numbers','reveal'])showControl(id,false);
   if(quiz&&(previousMode!=='question'||previousAlgebra!==$('pointAlgebra').checked)){q=PointAngles.question($('pointAlgebra').checked);answer=false;$('reveal').checked=false;}
   if(!quiz&&previousMode==='question')$('reveal').checked=true;
@@ -313,7 +314,8 @@ labs.angles.setup=function(){
    $('pointAnswer').textContent=answer?'Hide answer':'Show answer';note(answer&&q.algebra?`${expr} = ${q.angles[q.missing]}; ${q.a}x = ${q.angles[q.missing]-q.b}; x = ${q.x}°. Missing angle = ${q.angles[q.missing]}°.`:'New problem randomly chooses 90°, 180° or 360°. Add the known angles, then subtract from the total. '+(q.algebra?'Solve the resulting equation for x.':'Record your answer before revealing it.'));
   }
  };
-};
+};}
+labs.angles.setup=withPointAngles(labs.angles.setup);
 
 // Link related investigations without replacing established activities.
 for(const [base,id,label] of [['networks','projects','Project scheduling →'],['vectors','transitions','Transition models →'],['vectors','vectors3','3D vectors →'],['statistics','inference','Confidence intervals →'],['measurement','nets','Nets →']]){const setup=labs[base].setup;labs[base].setup=function(){setup();$('controls').insertAdjacentHTML('beforeend',`<a href="#${id}" style="color:#68418a;font-weight:700;margin-top:12px;display:block">${label}</a>`)}}
