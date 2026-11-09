@@ -141,5 +141,6 @@
    if(area>4000)pts=next;
   });
  };
+ labs.angles.setup=withPointAngles(labs.angles.setup);
  if(current==='angles')launch('angles');
 })();
