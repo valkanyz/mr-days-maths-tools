@@ -12,6 +12,8 @@
   h1, form, #phase, #display-label, #status { text-align: center; }
   #phase { margin: 0; }
   #display-label { margin: 0; color: #e4c9fa; }
+  #elapsed-display { margin: .25rem 0; text-align: center; font-size: clamp(1rem, 4vw, 2rem); }
+  #elapsed-clock { font-variant-numeric: tabular-nums; }
   [hidden] { display: none !important; }
   #clock { text-align: center; font-size: clamp(3rem, 17vw, 11rem); font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.2; }
   #status { min-height: 1.5em; margin: .75rem 0 1.5rem; }
@@ -25,6 +27,7 @@
   input[type="number"] { width: 6rem; }
   .display-toggle { display: inline-flex; align-items: center; margin-top: .75rem; }
   button { background: #faf5ff; color: #26143e; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: default; }
   :focus-visible { outline: 3px solid #ffd78d; outline-offset: 3px; }
 </style>
 </head>
@@ -35,6 +38,7 @@
   <h2 id="phase">Countdown</h2>
   <p id="display-label">Time remaining</p>
   <div id="clock" role="timer" aria-labelledby="phase display-label">05:00</div>
+  <p id="elapsed-display" hidden><span id="elapsed-label">Time elapsed</span> <strong id="elapsed-clock" role="timer" aria-labelledby="phase elapsed-label">00:00</strong></p>
   <p id="status" role="status"></p>
   <form id="controls">
     <div class="controls">
@@ -60,6 +64,7 @@
         <label>Seconds <input type="number" min="0" max="59" value="0" required></label>
       </fieldset>
       <button id="toggle" type="submit">Start</button>
+      <button id="start-assumed" type="button" hidden>Start Calculator Assumed</button>
       <button id="reset" type="button">Reset</button>
     </div>
     <label class="display-toggle"><input id="elapsed" type="checkbox"> Show time elapsed</label>
@@ -68,11 +73,13 @@
 <script>
   const clock = document.getElementById('clock');
   const phase = document.getElementById('phase');
-  const displayLabel = document.getElementById('display-label');
+  const elapsedDisplay = document.getElementById('elapsed-display');
+  const elapsedClock = document.getElementById('elapsed-clock');
   const statusMessage = document.getElementById('status');
   const elapsed = document.getElementById('elapsed');
   const mode = document.getElementById('mode');
   const toggle = document.getElementById('toggle');
+  const startAssumed = document.getElementById('start-assumed');
   const controls = document.getElementById('controls');
   const countdown = document.getElementById('countdown');
   const examSections = [document.getElementById('free'), document.getElementById('assumed')];
@@ -91,13 +98,15 @@
     return (minutes.valueAsNumber * 60 + seconds.valueAsNumber) * 1000;
   };
 
-  function showTime() {
-    const wholeSeconds = elapsed.checked
-      ? Math.floor((sectionDuration - remaining) / 1000)
-      : Math.ceil(remaining / 1000);
+  function formatTime(wholeSeconds) {
     const pad = value => String(value).padStart(2, '0');
-    clock.textContent = pad(Math.floor(wholeSeconds / 60)) + ':' + pad(wholeSeconds % 60);
-    displayLabel.textContent = elapsed.checked ? 'Time elapsed' : 'Time remaining';
+    return pad(Math.floor(wholeSeconds / 60)) + ':' + pad(wholeSeconds % 60);
+  }
+
+  function showTime() {
+    clock.textContent = formatTime(Math.ceil(remaining / 1000));
+    elapsedDisplay.hidden = !elapsed.checked;
+    elapsedClock.textContent = formatTime(Math.floor((sectionDuration - remaining) / 1000));
   }
 
   function updateSettings(locked) {
@@ -129,7 +138,10 @@
     updateSettings(false);
     section = 0;
     loadSection();
-    toggle.textContent = 'Start';
+    toggle.disabled = false;
+    toggle.textContent = mode.value === 'exam' ? 'Start Calculator Free' : 'Start';
+    startAssumed.hidden = mode.value !== 'exam';
+    startAssumed.disabled = false;
   }
 
   function tick() {
@@ -143,13 +155,24 @@
     const next = sections()[section + 1];
     if (next) {
       statusMessage.textContent = sectionName(sections()[section]) + ' time is up.';
-      toggle.textContent = 'Start ' + sectionName(next);
+      toggle.textContent = 'Calculator Free complete';
+      toggle.disabled = true;
       return;
     }
 
     statusMessage.textContent = mode.value === 'exam' ? 'Exam time is up!' : 'Time’s up!';
-    toggle.textContent = 'Start';
+    toggle.textContent = mode.value === 'exam' ? 'Start Calculator Free' : 'Start';
     updateSettings(false);
+  }
+
+  function startSection() {
+    updateSettings(true);
+    toggle.disabled = false;
+    startAssumed.disabled = section === 1;
+    deadline = performance.now() + remaining;
+    toggle.textContent = 'Pause';
+    statusMessage.textContent = '';
+    interval = setInterval(tick, 100);
   }
 
   controls.addEventListener('submit', event => {
@@ -164,22 +187,39 @@
       return;
     }
 
-    const emptySection = sections().find(fieldset => duration(fieldset) === 0);
-    if (emptySection) {
-      statusMessage.textContent = 'Enter a time greater than zero for ' + sectionName(emptySection) + '.';
-      return;
+    if (toggle.disabled) return;
+
+    if (!mode.disabled) {
+      const emptySection = sections().find(fieldset => duration(fieldset) === 0);
+      if (emptySection) {
+        statusMessage.textContent = 'Enter a time greater than zero for ' + sectionName(emptySection) + '.';
+        return;
+      }
     }
 
     if (complete) {
-      section = sections()[section + 1] ? section + 1 : 0;
+      section = 0;
       loadSection();
     }
 
-    updateSettings(true);
-    deadline = performance.now() + remaining;
-    toggle.textContent = 'Pause';
-    statusMessage.textContent = '';
-    interval = setInterval(tick, 100);
+    startSection();
+  });
+
+  startAssumed.addEventListener('click', () => {
+    const assumed = examSections[1];
+    for (const field of assumed.querySelectorAll('input')) {
+      if (!field.reportValidity()) return;
+    }
+    if (duration(assumed) === 0) {
+      statusMessage.textContent = 'Enter a time greater than zero for Calculator Assumed.';
+      return;
+    }
+
+    stop();
+    section = 1;
+    loadSection();
+    startSection();
+    toggle.focus();
   });
 
   document.getElementById('reset').addEventListener('click', reset);
