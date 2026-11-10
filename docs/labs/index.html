@@ -152,7 +152,7 @@ labs.statistics.setup=function(){
 };
 const oldTrig=labs.trigonometry.setup;
 labs.trigonometry.setup=function(){
- const factorMin=.5,factorMax=2.5,comparisonFit=210,comparisonLimit=275;
+ const factorMin=.1,factorMax=10,comparisonFit=210,comparisonLimit=275;
  controls(select('mode','Model',[['circle','Unit circle'],['right','Right triangle'],['cosine','Cosine rule / general triangle'],['sine','Sine rule']])+slider('circleAngle','Circle angle (degrees)',35,-360,360,1)+slider('trigAngle','Angle A (degrees)',35,.01,89.99,.01)+select('sineCase','Given information',[['aas','Two angles A, B and side a'],['ssa','Sides a, b and angle A (SSA)']])+['a','b','c','A'].map((k,i)=>pair(input('tri'+k,k==='A'?'Angle A (degrees)':'Side '+k,[5,7,9,35][i],.001,k==='A'?179.999:10000),check('lock'+k,'Fix '+k))).join('')+input('triB','Angle B (degrees)',55,.001,179.999)+select('solution','SSA solution',[['0','First triangle'],['1','Second triangle (if possible)']])
   +check('trigSin','Show sin A (SOH)',true)+check('trigCos','Show cos A (CAH)',true)+check('trigTan','Show tan A (TOA)',true)
   +check('trigCompare','Compare similar triangles')+slider('trigScale','Triangle 2 scale factor',1.5,factorMin,factorMax,'any'));
@@ -173,7 +173,7 @@ labs.trigonometry.setup=function(){
    e.preventDefault();
    if(comparison){
      const factor=value('trigScale');
-     compareDrag={index:Number(comparison.dataset.trigResize),start:svgPoint(e),triangle:lastGood,other:lastGood.c*factor};
+     compareDrag={index:Number(comparison.dataset.trigResize),start:svgPoint(e),triangle:lastGood,other:lastGood.c*factor,scale:compareScale};
    }else{
      dragIndex=Number(vertex.dataset.vertex);
      dragPoints=drawPoints.map(p=>[...p]);
@@ -183,33 +183,30 @@ labs.trigonometry.setup=function(){
  };
  $('viz').onpointermove=e=>{
    if(compareDrag){
-     const {index,start,triangle:T,other}=compareDrag,p=svgPoint(e);
-     const delta=((p.x-start.x)*T.b-(p.y-start.y)*T.a)/T.c/compareScale;
-     const limit=comparisonLimit/compareScale;
+     const {index,start,triangle:T,other,scale}=compareDrag,p=svgPoint(e);
+     const delta=((p.x-start.x)*T.b-(p.y-start.y)*T.a)/T.c/scale;
      if(index===0){
-       const next=clamp(T.c+delta,other/factorMax,Math.min(other/factorMin,limit,9999));
+       const next=clamp(T.c+delta,other/factorMax,Math.min(other/factorMin,9999));
        lastGood=scaleTriangle(T,next/T.c);
        $('trigScale').value=String(other/next);
      }else{
-       $('trigScale').value=String(clamp((other+delta)/T.c,factorMin,Math.min(factorMax,limit/T.c)));
+       $('trigScale').value=String(clamp((other+delta)/T.c,factorMin,factorMax));
      }
      changedControl='vertexDrag';
      run();
      return;
    }
    if(dragIndex===null||!dragGraph||!lastGood)return;
-   const p=svgPoint(e),g=dragGraph;
-   const Q=[g.xmin+(clamp(p.x,65,805)-60)/750*(g.xmax-g.xmin),g.ymax-(clamp(p.y,30,385)-25)/365*(g.ymax-g.ymin)];
-   const mode=$('mode').value,old=lastGood,P=dragPoints.map(p=>[...p]);
+   const p=svgPoint(e),g=dragGraph,mode=$('mode').value;
+   const px=mode==='right'?p.x:clamp(p.x,65,805),py=mode==='right'?p.y:clamp(p.y,30,385);
+   const Q=[g.xmin+(px-60)/750*(g.xmax-g.xmin),g.ymax-(py-25)/365*(g.ymax-g.ymin)];
+   const old=lastGood,P=dragPoints.map(p=>[...p]);
    if(mode==='right'){
      if(dragIndex!==1||lengthLocked())return;
      const anchor=P[0],axis=P[1].map((coord,i)=>(coord-anchor[i])/old.c);
      const newLength=M.dot(Q.map((coord,i)=>coord-anchor[i]),axis);
      const minFactor=Math.min(1,.001/Math.min(old.a,old.b));
-     const xLimit=g.xmin+(805-60)/750*(g.xmax-g.xmin);
-     const yLimit=g.ymax-(30-25)/365*(g.ymax-g.ymin);
-     const maxLength=Math.min((xLimit-anchor[0])/axis[0],(yLimit-anchor[1])/axis[1],9999);
-     const factor=clamp(newLength/old.c,minFactor,maxLength/old.c);
+     const factor=clamp(newLength/old.c,minFactor,9999/old.c);
      dragPoints=P.map(point=>point.map((coord,i)=>anchor[i]+(coord-anchor[i])*factor));
      lastGood=scaleTriangle(old,factor);
      changedControl='vertexDrag';
@@ -223,7 +220,12 @@ labs.trigonometry.setup=function(){
  if(mode==='cosine'&&locks.length){const keys=[...new Set([...locks,'a','b','c','A'])].slice(0,3),given=Object.fromEntries(keys.map(k=>[k,locks.includes(k)?old[k]:T[k]]));solutions=M.solveTriangle(given);if(!solutions.length)return;T=solutions.sort((a,b)=>Math.abs(a.A-old.A)-Math.abs(b.A-old.A))[0];const v=P[1].map((x,i)=>(x-P[0][i])/c),side=((P[1][0]-P[0][0])*(P[2][1]-P[0][1])-(P[1][1]-P[0][1])*(P[2][0]-P[0][0]))>=0?1:-1,r=T.A*Math.PI/180;P[1]=P[0].map((x,i)=>x+v[i]*T.c);P[2]=[P[0][0]+T.b*(v[0]*Math.cos(r)-side*v[1]*Math.sin(r)),P[0][1]+T.b*(v[1]*Math.cos(r)+side*v[0]*Math.sin(r))]}
  if(['a','b','c'].some(k=>T[k]>.9999e4)||T.A<.001||T.A>179.999)return;lastGood=T;dragPoints=P;changedControl='vertexDrag';run();
  };
- $('viz').onpointerup=$('viz').onpointercancel=()=>{compareDrag=null;dragIndex=null;if($('mode').value!=='right')dragGraph=null;if(dragPoints){changedControl='vertexDrag';run()}};
+ $('viz').onpointerup=$('viz').onpointercancel=()=>{
+   compareDrag=null;
+   if(dragIndex!==null)dragGraph=$('mode').value==='right'?drawGraph:null;
+   dragIndex=null;
+   if(dragPoints){changedControl='vertexDrag';run();}
+ };
 
  $('mode').onchange=()=>{lastGood=null;dragPoints=null;dragGraph=null;compareScale=0;compareDrag=null;for(const k of ['a','b','c','A'])$('lock'+k).checked=false;run()};
  update=()=>{const mode=$('mode').value,keys=['a','b','c','A'],right=mode==='right',compare=right&&$('trigCompare').checked;
@@ -259,7 +261,11 @@ labs.trigonometry.setup=function(){
    $('trigAngle').value=display(T.A);
    $('trigAngleval').textContent=display(T.A)+'°';
  }
- lastMode=mode;if(changedControl!=='vertexDrag'&&dragIndex===null){dragPoints=null;dragGraph=null}const r=T.A*Math.PI/180,pts=dragPoints||(right?[[0,0],[T.b,T.a],[T.b,0]]:[[0,0],[T.c,0],[T.b*Math.cos(r),T.b*Math.sin(r)]]);const fit=right?[[0,0],[T.b*1.5,T.a*1.5]]:pts;let g=dragGraph||chart(...padded(fit.map(p=>p[0])),...padded(fit.map(p=>p[1])),'x','y',true);const raw=Math.max((g.xmax-g.xmin)/10,(g.ymax-g.ymin)/6),mag=10**Math.floor(Math.log10(raw)),tickStep=([1,2,5,10].find(n=>n*mag>=raw)||10)*mag,tickFormat=n=>Number(n.toPrecision(8)).toString(),ticks=(lo,hi)=>Array.from({length:Math.max(0,Math.floor(hi/tickStep)-Math.ceil(lo/tickStep)+1)},(_,i)=>Number(((Math.ceil(lo/tickStep)+i)*tickStep).toPrecision(12)));g=chart(g.xmin,g.xmax,g.ymin,g.ymax,'x (equal scale)','y',false,{x:ticks(g.xmin,g.xmax),y:ticks(g.ymin,g.ymax),formatX:tickFormat,formatY:tickFormat});drawPoints=pts;drawGraph=g;let s=g.s;if(mode==='right'){const c=pts[2],u=pts[0].map((v,i)=>(v-c[i])/T.b),v=pts[1].map((x,i)=>(x-c[i])/T.a),d=Math.min(T.a,T.b)*.12,P=[c.map((x,i)=>x+u[i]*d),c.map((x,i)=>x+(u[i]+v[i])*d),c.map((x,i)=>x+v[i]*d)];s+=`<path d="M${P.map(p=>g.X(p[0])+','+g.Y(p[1])).join('L')}" fill="none" stroke="#6e537e" stroke-width="2"/>`}if(right)s+=RightTriangleTeaching.angleMark(pts.map(p=>[g.X(p[0]),g.Y(p[1])]),T.A,display);
+ lastMode=mode;if(changedControl!=='vertexDrag'&&dragIndex===null){dragPoints=null;dragGraph=null}const r=T.A*Math.PI/180,pts=dragPoints||(right?[[0,0],[T.b,T.a],[T.b,0]]:[[0,0],[T.c,0],[T.b*Math.cos(r),T.b*Math.sin(r)]]);const fit=right?[[0,0],[T.b*1.5,T.a*1.5]]:pts;
+ // Keep the drag's coordinate map stable while fitting the rendered view as needed.
+ let g=right&&dragGraph?drawGraph:dragGraph;
+ if(right&&g&&(g.X(T.b)>805||g.Y(T.a)<30||Math.hypot(g.X(T.b)-g.X(0),g.Y(T.a)-g.Y(0))<55))g=null;
+ g=g||chart(...padded(fit.map(p=>p[0])),...padded(fit.map(p=>p[1])),'x','y',true);const raw=Math.max((g.xmax-g.xmin)/10,(g.ymax-g.ymin)/6),mag=10**Math.floor(Math.log10(raw)),tickStep=([1,2,5,10].find(n=>n*mag>=raw)||10)*mag,tickFormat=n=>Number(n.toPrecision(8)).toString(),ticks=(lo,hi)=>Array.from({length:Math.max(0,Math.floor(hi/tickStep)-Math.ceil(lo/tickStep)+1)},(_,i)=>Number(((Math.ceil(lo/tickStep)+i)*tickStep).toPrecision(12)));g=chart(g.xmin,g.xmax,g.ymin,g.ymax,'x (equal scale)','y',false,{x:ticks(g.xmin,g.xmax),y:ticks(g.ymin,g.ymax),formatX:tickFormat,formatY:tickFormat});drawPoints=pts;drawGraph=g;let s=g.s;if(mode==='right'){const c=pts[2],u=pts[0].map((v,i)=>(v-c[i])/T.b),v=pts[1].map((x,i)=>(x-c[i])/T.a),d=Math.min(T.a,T.b)*.12,P=[c.map((x,i)=>x+u[i]*d),c.map((x,i)=>x+(u[i]+v[i])*d),c.map((x,i)=>x+v[i]*d)];s+=`<path d="M${P.map(p=>g.X(p[0])+','+g.Y(p[1])).join('L')}" fill="none" stroke="#6e537e" stroke-width="2"/>`}if(right)s+=RightTriangleTeaching.angleMark(pts.map(p=>[g.X(p[0]),g.Y(p[1])]),T.A,display);
  [[0,1,'c',C.purple],[0,2,'b',C.teal],[1,2,'a',C.red]].forEach(([i,j,k,ordinaryColour])=>{
  const col=right?RightTriangleTeaching.sides[k].colour:ordinaryColour;
  s+=line(g,pts[i],pts[j],col);
@@ -280,7 +286,8 @@ labs.trigonometry.setup=function(){
    const reveal=$('reveal').checked;
    if(compare){
      const maxLength=T.c*Math.max(1,factor);
-     if(!compareScale||!compareDrag&&maxLength*compareScale>comparisonLimit)compareScale=comparisonFit/maxLength;
+     const extent=maxLength*compareScale;
+     if(extent<125||extent>comparisonLimit)compareScale=comparisonFit/maxLength;
      $('trigScaleval').textContent=display(factor);
      s=RightTriangleTeaching.comparison(T,factor,compareScale,display,reveal,lengthLocked());
    }

@@ -84,6 +84,24 @@ assert.deepEqual(vertexPoint(0),updatedFirst);
 assert.ok(vertexPoint(1)[0]<updatedSecond[0]);
 assert.equal((sineCard().match(/<mn>0\.669<\/mn>/g)||[]).length,2);
 console.log('PASS: B scales the right triangle and each comparison handle independently, preserving angle and ratios.');
+const sizeBeforeWideDrag=readValues().c;
+dragHandle('[data-trig-resize]',{trigResize:'1'},vertexPoint(1),500,-330);
+assert.ok(Number(els.trigScale.value)>2.5);
+assert.equal(readValues().c,sizeBeforeWideDrag);
+assert.ok(vertexPoint(1)[0]<840&&vertexPoint(1)[1]>0);
+dragHandle('[data-trig-resize]',{trigResize:'1'},vertexPoint(1),-500,330);
+assert.ok(Number(els.trigScale.value)<.5);
+assert.equal((sineCard().match(/<mn>0\.669<\/mn>/g)||[]).length,2);
+els.trigCompare.checked=false;c.changedControl='trigCompare';c.update();
+const beforeWideDrag=readValues();
+const wideB=markup.match(/data-vertex="1"[^>]*cx="([^"]+)" cy="([^"]+)"/).slice(1,3).map(Number);
+dragHandle('[data-vertex]',{vertex:'1'},wideB,750,-500);
+assert.ok(readValues().c>beforeWideDrag.c*2);
+assert.equal(readValues().A,beforeWideDrag.A);
+const fittedB=markup.match(/data-vertex="1"[^>]*cx="([^"]+)" cy="([^"]+)"/).slice(1,3).map(Number);
+assert.ok(fittedB[0]<805&&fittedB[1]>30);
+console.log('PASS: dragging beyond the old limits expands the visible range without changing the ratios.');
+
 
 for(const kind of ['aas','ssa']){
  els.mode.value='sine';els.sineCase.value=kind;els.tria.value=5;els.trib.value=7;els.triA.value=35;els.triB.value=55;c.changedControl='mode';els.mode.onchange();
