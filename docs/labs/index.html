@@ -28,7 +28,7 @@
 @media(max-width:580px){.timezone-osm-map{height:390px;min-height:330px}.tz-osm-heading strong{font-size:15px}.tz-osm-actions button{padding:5px 7px}.tz-osm-key{gap:9px}}
 .viz:has(.sequence-tooltip){position:relative}.sequence-tooltip{position:absolute;pointer-events:none;white-space:pre-line;overflow-wrap:anywhere;max-width:85%;background:#352342;color:white;padding:8px 12px;border-radius:8px;font-size:15px;font-weight:650;line-height:1.45}
 .tablewrap .sequence-values{width:max-content;border-collapse:separate;border-spacing:0}.sequence-values caption{text-align:left;font-size:17px;font-weight:700;padding:8px 0}.tablewrap .sequence-values :is(td,th){min-width:64px;border:1px solid #514556;background:white;text-align:center;font-size:19px;padding:10px 14px}.sequence-values th{position:sticky;left:0;z-index:1}.tablewrap .sequence-values .active-term{background:#fce9ed;border-color:#d24452}
-</style></head><body><header><div id="brand" class="brand">Maths Labs</div><a href="../">← All maths tools</a></header><main><div class="eyebrow" id="tag"></div><h1 id="subtitle"></h1><div class="layout"><aside><div class="panel" style="padding:12px 18px;margin-bottom:12px"><label for="activity" style="margin-top:0">Activity</label><select id="activity"></select></div><div class="panel controls" id="controls"></div></aside><section class="panel stage"><div class="bar"><h2 id="title"></h2></div><div id="formula" class="formula"></div><div id="legend" class="legend"></div><div id="viz" class="viz"></div><div id="right-trig-ratios" hidden></div><div id="results" class="results" aria-live="polite"></div><div id="note" class="note"></div><details style="margin-top:14px"><summary style="font-size:12px;color:#765f87;cursor:pointer">Data table</summary><div id="table" class="tablewrap"></div></details></section></div><div class="footer">Mr Day’s maths tools · Silent, browser-based exploration</div></main><script src="sequence-inspector.js"></script><script src="network-graph.js?v=network-layout-prim"></script><script src="right-triangle-teaching.js?v=soh-cah-toa"></script><script src="maths.js?v=multigraph"></script><script>const $=id=>document.getElementById(id),M=Maths,C={purple:'#8050b4',teal:'#078477',red:'#d24452',blue:'#287caf',gold:'#b57618'},fmt=(x,d=3)=>x===null||!Number.isFinite(x)?'—':Number(x.toFixed(d)).toLocaleString('en-AU',{maximumFractionDigits:d}),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+</style></head><body><header><div id="brand" class="brand">Maths Labs</div><a href="../">← All maths tools</a></header><main><div class="eyebrow" id="tag"></div><h1 id="subtitle"></h1><div class="layout"><aside><div class="panel" style="padding:12px 18px;margin-bottom:12px"><label for="activity" style="margin-top:0">Activity</label><select id="activity"></select></div><div class="panel controls" id="controls"></div></aside><section class="panel stage"><div class="bar"><h2 id="title"></h2></div><div id="formula" class="formula"></div><div id="legend" class="legend"></div><div id="viz" class="viz"></div><div id="right-trig-ratios" hidden></div><div id="results" class="results" aria-live="polite"></div><div id="note" class="note"></div><details style="margin-top:14px"><summary style="font-size:12px;color:#765f87;cursor:pointer">Data table</summary><div id="table" class="tablewrap"></div></details></section></div><div class="footer">Mr Day’s maths tools · Silent, browser-based exploration</div></main><script src="sequence-inspector.js"></script><script src="network-graph.js?v=network-layout-prim"></script><script src="right-triangle-teaching.js?v=right-triangle-drag"></script><script src="maths.js?v=multigraph"></script><script>const $=id=>document.getElementById(id),M=Maths,C={purple:'#8050b4',teal:'#078477',red:'#d24452',blue:'#287caf',gold:'#b57618'},fmt=(x,d=3)=>x===null||!Number.isFinite(x)?'—':Number(x.toFixed(d)).toLocaleString('en-AU',{maximumFractionDigits:d}),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let current='',update=()=>{},exportRows=[];
 function input(id,label,value,min=-100,max=100,step='any'){return `<div><label for="${id}">${label}</label><input id="${id}" type="number" value="${value}" min="${min}" max="${max}" step="${step}"></div>`}
 function slider(id,label,value,min,max,step=.1){return `<div><label for="${id}">${label} <output id="${id}val">${value}</output></label><input id="${id}" type="range" value="${value}" min="${min}" max="${max}" step="${step}"></div>`}
@@ -152,36 +152,90 @@ labs.statistics.setup=function(){
 };
 const oldTrig=labs.trigonometry.setup;
 labs.trigonometry.setup=function(){
- controls(select('mode','Model',[['circle','Unit circle'],['right','Right triangle'],['cosine','Cosine rule / general triangle'],['sine','Sine rule']])+slider('circleAngle','Circle angle (degrees)',35,-360,360,1)+select('sineCase','Given information',[['aas','Two angles A, B and side a'],['ssa','Sides a, b and angle A (SSA)']])+['a','b','c','A'].map((k,i)=>pair(input('tri'+k,k==='A'?'Angle A (degrees)':'Side '+k,[5,7,9,35][i],.001,k==='A'?179.999:10000),check('lock'+k,'Fix '+k))).join('')+input('triB','Angle B (degrees)',55,.001,179.999)+select('solution','SSA solution',[['0','First triangle'],['1','Second triangle (if possible)']])
+ const factorMin=.5,factorMax=2.5,comparisonFit=210,comparisonLimit=275;
+ controls(select('mode','Model',[['circle','Unit circle'],['right','Right triangle'],['cosine','Cosine rule / general triangle'],['sine','Sine rule']])+slider('circleAngle','Circle angle (degrees)',35,-360,360,1)+slider('trigAngle','Angle A (degrees)',35,.01,89.99,.01)+select('sineCase','Given information',[['aas','Two angles A, B and side a'],['ssa','Sides a, b and angle A (SSA)']])+['a','b','c','A'].map((k,i)=>pair(input('tri'+k,k==='A'?'Angle A (degrees)':'Side '+k,[5,7,9,35][i],.001,k==='A'?179.999:10000),check('lock'+k,'Fix '+k))).join('')+input('triB','Angle B (degrees)',55,.001,179.999)+select('solution','SSA solution',[['0','First triangle'],['1','Second triangle (if possible)']])
   +check('trigSin','Show sin A (SOH)',true)+check('trigCos','Show cos A (CAH)',true)+check('trigTan','Show tan A (TOA)',true)
-  +check('trigCompare','Compare similar triangles')+slider('trigScale','Triangle 2 scale factor',1.5,.5,2.5,.1));
+  +check('trigCompare','Compare similar triangles')+slider('trigScale','Triangle 2 scale factor',1.5,factorMin,factorMax,'any'));
+ $('trigAngle').dataset.keepVisible='true';
+ let compareScale=0,compareDrag=null;
  let lastMode='',state={a:5,b:7,c:9,A:35},lastGood=null,dragPoints=null,dragGraph=null,dragIndex=null,drawPoints=null,drawGraph=null;
  const display=n=>Math.abs(n)>0&&Math.abs(n)<.01?Number(n.toPrecision(2)).toString():Number(n.toFixed(2)).toString();
  const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
  $('viz').style.touchAction='none';
- $('viz').onpointerdown=e=>{const h=e.target.closest('[data-vertex]');if(!h)return;e.preventDefault();dragIndex=Number(h.dataset.vertex);dragPoints=drawPoints.map(p=>[...p]);dragGraph=drawGraph;$('viz').setPointerCapture(e.pointerId)};
- $('viz').onpointermove=e=>{if(dragIndex===null||!dragGraph||!lastGood)return;const el=$('viz').querySelector('svg'),p=new DOMPoint(e.clientX,e.clientY).matrixTransform(el.getScreenCTM().inverse()),g=dragGraph,Q=[g.xmin+(Math.max(65,Math.min(805,p.x))-60)/750*(g.xmax-g.xmin),g.ymax-(Math.max(30,Math.min(385,p.y))-25)/365*(g.ymax-g.ymin)],P=dragPoints.map(p=>[...p]),mode=$('mode').value,old=lastGood,locks=mode==='sine'?[]:['a','b','c','A'].filter(k=>$('lock'+k).checked);P[dragIndex]=Q;
- if(locks.length>=(mode==='right'?2:3)){const delta=Q.map((x,i)=>x-dragPoints[dragIndex][i]);dragPoints=dragPoints.map(p=>p.map((x,i)=>x+delta[i]));changedControl='vertexDrag';run();return;}
- if(mode==='right'){
-   if(dragIndex===2){const mid=P[0].map((x,i)=>(x+P[1][i])/2),r=distance(P[0],P[1])/2,d=distance(Q,mid);if(d<1e-8)return;P[2]=mid.map((x,i)=>x+(Q[i]-x)*r/d)}
-   else {const other=1-dragIndex,Cp=P[2],v=P[dragIndex].map((x,i)=>x-Cp[i]),len=Math.hypot(...v);if(len<.01)return;const u=[-v[1]/len,v[0]/len],prev=dragPoints[other].map((x,i)=>x-Cp[i]),sign=M.dot(u,prev)>=0?1:-1,length=distance(dragPoints[other],Cp);P[other]=Cp.map((x,i)=>x+u[i]*length*sign)}
-   let a=distance(P[1],P[2]),b=distance(P[0],P[2]);if(Math.min(a,b)<.01)return;const A=Math.atan2(a,b),lock=locks[0];let aa=a,bb=b;if(lock==='a')aa=old.a;if(lock==='b')bb=old.b;if(lock==='c'){const f=old.c/Math.hypot(a,b);aa*=f;bb*=f}if(lock==='A'){const h=Math.hypot(a,b);aa=h*Math.sin(old.A*Math.PI/180);bb=h*Math.cos(old.A*Math.PI/180)}P[0]=P[2].map((x,i)=>x+(P[0][i]-x)*bb/b);P[1]=P[2].map((x,i)=>x+(P[1][i]-x)*aa/a);
- }
+ const svgPoint=e=>new DOMPoint(e.clientX,e.clientY).matrixTransform($('viz').querySelector('svg').getScreenCTM().inverse());
+ const lengthLocked=()=>['a','b','c'].some(key=>$('lock'+key).checked);
+ const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+ const scaleTriangle=(T,factor)=>({...T,a:T.a*factor,b:T.b*factor,c:T.c*factor});
+ $('viz').onpointerdown=e=>{
+   const comparison=e.target.closest('[data-trig-resize]');
+   const vertex=e.target.closest('[data-vertex]');
+   if(!comparison&&!vertex)return;
+   e.preventDefault();
+   if(comparison){
+     const factor=value('trigScale');
+     compareDrag={index:Number(comparison.dataset.trigResize),start:svgPoint(e),triangle:lastGood,other:lastGood.c*factor};
+   }else{
+     dragIndex=Number(vertex.dataset.vertex);
+     dragPoints=drawPoints.map(p=>[...p]);
+     dragGraph=drawGraph;
+   }
+   $('viz').setPointerCapture(e.pointerId);
+ };
+ $('viz').onpointermove=e=>{
+   if(compareDrag){
+     const {index,start,triangle:T,other}=compareDrag,p=svgPoint(e);
+     const delta=((p.x-start.x)*T.b-(p.y-start.y)*T.a)/T.c/compareScale;
+     const limit=comparisonLimit/compareScale;
+     if(index===0){
+       const next=clamp(T.c+delta,other/factorMax,Math.min(other/factorMin,limit,9999));
+       lastGood=scaleTriangle(T,next/T.c);
+       $('trigScale').value=String(other/next);
+     }else{
+       $('trigScale').value=String(clamp((other+delta)/T.c,factorMin,Math.min(factorMax,limit/T.c)));
+     }
+     changedControl='vertexDrag';
+     run();
+     return;
+   }
+   if(dragIndex===null||!dragGraph||!lastGood)return;
+   const p=svgPoint(e),g=dragGraph;
+   const Q=[g.xmin+(clamp(p.x,65,805)-60)/750*(g.xmax-g.xmin),g.ymax-(clamp(p.y,30,385)-25)/365*(g.ymax-g.ymin)];
+   const mode=$('mode').value,old=lastGood,P=dragPoints.map(p=>[...p]);
+   if(mode==='right'){
+     if(dragIndex!==1||lengthLocked())return;
+     const anchor=P[0],axis=P[1].map((coord,i)=>(coord-anchor[i])/old.c);
+     const newLength=M.dot(Q.map((coord,i)=>coord-anchor[i]),axis);
+     const minFactor=Math.min(1,.001/Math.min(old.a,old.b));
+     const xLimit=g.xmin+(805-60)/750*(g.xmax-g.xmin);
+     const yLimit=g.ymax-(30-25)/365*(g.ymax-g.ymin);
+     const maxLength=Math.min((xLimit-anchor[0])/axis[0],(yLimit-anchor[1])/axis[1],9999);
+     const factor=clamp(newLength/old.c,minFactor,maxLength/old.c);
+     dragPoints=P.map(point=>point.map((coord,i)=>anchor[i]+(coord-anchor[i])*factor));
+     lastGood=scaleTriangle(old,factor);
+     changedControl='vertexDrag';
+     run();
+     return;
+   }
+   const locks=mode==='sine'?[]:['a','b','c','A'].filter(k=>$('lock'+k).checked);
+   P[dragIndex]=Q;
+   if(locks.length>=3){const delta=Q.map((x,i)=>x-dragPoints[dragIndex][i]);dragPoints=dragPoints.map(p=>p.map((x,i)=>x+delta[i]));changedControl='vertexDrag';run();return;}
  let a=distance(P[1],P[2]),b=distance(P[0],P[2]),c=distance(P[0],P[1]),solutions=M.solveTriangle({a,b,c});if(!solutions.length)return;let T=solutions[0];
  if(mode==='cosine'&&locks.length){const keys=[...new Set([...locks,'a','b','c','A'])].slice(0,3),given=Object.fromEntries(keys.map(k=>[k,locks.includes(k)?old[k]:T[k]]));solutions=M.solveTriangle(given);if(!solutions.length)return;T=solutions.sort((a,b)=>Math.abs(a.A-old.A)-Math.abs(b.A-old.A))[0];const v=P[1].map((x,i)=>(x-P[0][i])/c),side=((P[1][0]-P[0][0])*(P[2][1]-P[0][1])-(P[1][1]-P[0][1])*(P[2][0]-P[0][0]))>=0?1:-1,r=T.A*Math.PI/180;P[1]=P[0].map((x,i)=>x+v[i]*T.c);P[2]=[P[0][0]+T.b*(v[0]*Math.cos(r)-side*v[1]*Math.sin(r)),P[0][1]+T.b*(v[1]*Math.cos(r)+side*v[0]*Math.sin(r))]}
  if(['a','b','c'].some(k=>T[k]>.9999e4)||T.A<.001||T.A>179.999)return;lastGood=T;dragPoints=P;changedControl='vertexDrag';run();
  };
- $('viz').onpointerup=$('viz').onpointercancel=()=>{dragIndex=null;dragGraph=null;if(dragPoints){changedControl='vertexDrag';run()}};
+ $('viz').onpointerup=$('viz').onpointercancel=()=>{compareDrag=null;dragIndex=null;if($('mode').value!=='right')dragGraph=null;if(dragPoints){changedControl='vertexDrag';run()}};
 
- $('mode').onchange=()=>{lastGood=null;dragPoints=null;dragGraph=null;for(const k of ['a','b','c','A'])$('lock'+k).checked=false;run()};
+ $('mode').onchange=()=>{lastGood=null;dragPoints=null;dragGraph=null;compareScale=0;compareDrag=null;for(const k of ['a','b','c','A'])$('lock'+k).checked=false;run()};
  update=()=>{const mode=$('mode').value,keys=['a','b','c','A'],right=mode==='right',compare=right&&$('trigCompare').checked;
  const ratioPanel=$('right-trig-ratios');
  ratioPanel.hidden=true;
  for(const id of ['trigSin','trigCos','trigTan','trigCompare'])showControl(id,right);
  showControl('trigScale',compare);
- showControl('circleAngle',mode==='circle');showControl('sineCase',mode==='sine');showControl('triB',mode==='sine'&&$('sineCase').value==='aas');showControl('solution',mode==='sine'&&$('sineCase').value==='ssa');for(const k of keys){showControl('tri'+k,mode!=='circle'&&(mode!=='sine'||(k!=='c'&&(k!=='b'||$('sineCase').value==='ssa'))));showControl('lock'+k,['right','cosine'].includes(mode));$('tri'+k).disabled=false;$('tri'+k).readOnly=mode!=='sine'&&$('lock'+k).checked;}
+ showControl('trigAngle',right);
+ if(!compare)compareScale=0;
+ showControl('circleAngle',mode==='circle');showControl('sineCase',mode==='sine');showControl('triB',mode==='sine'&&$('sineCase').value==='aas');showControl('solution',mode==='sine'&&$('sineCase').value==='ssa');for(const k of keys){showControl('tri'+k,mode!=='circle'&&!(right&&k==='A')&&(mode!=='sine'||(k!=='c'&&(k!=='b'||$('sineCase').value==='ssa'))));showControl('lock'+k,['right','cosine'].includes(mode));$('tri'+k).disabled=false;$('tri'+k).readOnly=mode!=='sine'&&$('lock'+k).checked;}
  if(mode==='circle'){const t=value('circleAngle'),r=t*Math.PI/180,x=420+160*Math.cos(r),y=220-160*Math.sin(r);svg(`<path d="M210 220H630 M420 20V420" stroke="#bca5ce"/><circle cx="420" cy="220" r="160" fill="none" stroke="#bca5ce"/><path d="M420 220L${x} 220L${x} ${y}Z" fill="#d6ede8" stroke="${C.teal}"/><path d="M420 220L${x} ${y}" stroke="${C.purple}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="7" fill="${C.red}"/><text x="600" y="240">1</text><text x="435" y="55">1</text><text x="230" y="240">−1</text><text x="435" y="405">−1</text>`,'Unit circle');formula(`θ = ${t}° = ${fmt(r/Math.PI)}π radians`);results([['sin θ',fmt(Math.sin(r))],['cos θ',fmt(Math.cos(r))],['tan θ',Math.abs(Math.cos(r))<1e-10?'Undefined':fmt(Math.tan(r))]]);table(['Degrees','Radians','sin','cos'],[[t,r,Math.sin(r),Math.cos(r)]]);note('Only the angle applies in unit circle mode. The radius remains 1.');legend([]);lastMode=mode;return}
- let T,options=[];const editing=changedControl.startsWith('tri')?changedControl.slice(3):null;
+ let T,options=[];const editing=right&&changedControl==='trigAngle'?'A':changedControl.startsWith('tri')?changedControl.slice(3):null;
  if(mode==='sine'){
  const fromDrag=changedControl==='vertexDrag'&&lastGood,read=k=>lastMode==='sine'&&lastGood&&editing!==k?lastGood[k]:value('tri'+k),g=fromDrag?{a:lastGood.a,A:lastGood.A}:{a:read('a'),A:read('A')};
  if($('sineCase').value==='aas')g.B=fromDrag?lastGood.B:read('B');else g.b=fromDrag?lastGood.b:read('b');
@@ -193,30 +247,50 @@ labs.trigonometry.setup=function(){
  }
  else{if(mode!==lastMode||!lastGood){state=mode==='right'?{a:10*Math.sin(35*Math.PI/180),b:10*Math.cos(35*Math.PI/180),c:10,A:35}:M.solveTriangle({b:7,c:9,A:35})[0];keys.forEach(k=>$('tri'+k).value=state[k]);lastGood={...state};}
  const locks=keys.filter(k=>$('lock'+k).checked),fullyFixed=locks.length>=(mode==='right'?2:3);keys.forEach(k=>$('tri'+k).readOnly=fullyFixed||locks.includes(k));
- const fresh=Object.fromEntries(keys.map(k=>[k,value('tri'+k)])),changed=editing&&keys.includes(editing)&&!locks.includes(editing)?editing:null;
- if(!changed)T={...lastGood};else{const given=[...new Set([changed,...locks,...(changed==='A'?['c','b','a']:changed==='c'?['A','b','a']:['A','c','b','a'])])].slice(0,mode==='right'?2:3);const g=Object.fromEntries(given.map(k=>[k,k===changed?fresh[k]:lastGood[k]]));
+ const changed=editing&&keys.includes(editing)&&!locks.includes(editing)?editing:null;
+ if(right)$('trigAngle').disabled=fullyFixed||locks.includes('A');
+ if(!changed)T={...lastGood};else{const given=[...new Set([changed,...locks,...(changed==='A'?['c','b','a']:changed==='c'?['A','b','a']:['A','c','b','a'])])].slice(0,mode==='right'?2:3);const g=Object.fromEntries(given.map(k=>[k,k===changed?value(changedControl==='trigAngle'?'trigAngle':'tri'+k):lastGood[k]]));
  if(mode==='right'){if(g.A!=null){const R=g.A*Math.PI/180;if(g.A>=90)options=[];else{const c=g.c??(g.a!=null?g.a/Math.sin(R):g.b/Math.cos(R));options=[{a:c*Math.sin(R),b:c*Math.cos(R),c,A:g.A,B:90-g.A,C:90}]}}else{const c=g.c??Math.hypot(g.a,g.b),a=g.a??Math.sqrt(c*c-g.b*g.b),b=g.b??Math.sqrt(c*c-g.a*g.a);if(a>0&&b>0&&Number.isFinite(a+b))options=[{a,b,c,A:Math.atan2(a,b)*180/Math.PI,B:Math.atan2(b,a)*180/Math.PI,C:90}]}}
  else options=M.solveTriangle(g);
  options=options.filter(candidate=>locks.every(k=>Math.abs(candidate[k]-lastGood[k])<=1e-8*Math.max(1,Math.abs(lastGood[k]))));
  if(!options.length){keys.forEach(k=>$('tri'+k).value=lastGood[k]);softWarning='That change conflicts with the fixed values. The previous triangle has been restored.';options=[{...lastGood}]}T=options.sort((a,b)=>keys.reduce((s,k)=>s+Math.abs(a[k]-lastGood[k]),0)-keys.reduce((s,k)=>s+Math.abs(b[k]-lastGood[k]),0))[0];}
  lastGood={...T};keys.forEach(k=>$('tri'+k).value=display(T[k]));}
- lastMode=mode;if(changedControl!=='vertexDrag'&&dragIndex===null){dragPoints=null;dragGraph=null}const r=T.A*Math.PI/180,pts=dragPoints||[[0,0],[T.c,0],[T.b*Math.cos(r),T.b*Math.sin(r)]];let g=dragGraph||chart(...padded(pts.map(p=>p[0])),...padded(pts.map(p=>p[1])),'x','y',true);const raw=Math.max((g.xmax-g.xmin)/10,(g.ymax-g.ymin)/6),mag=10**Math.floor(Math.log10(raw)),tickStep=([1,2,5,10].find(n=>n*mag>=raw)||10)*mag,tickFormat=n=>Number(n.toPrecision(8)).toString(),ticks=(lo,hi)=>Array.from({length:Math.max(0,Math.floor(hi/tickStep)-Math.ceil(lo/tickStep)+1)},(_,i)=>Number(((Math.ceil(lo/tickStep)+i)*tickStep).toPrecision(12)));g=chart(g.xmin,g.xmax,g.ymin,g.ymax,'x (equal scale)','y',false,{x:ticks(g.xmin,g.xmax),y:ticks(g.ymin,g.ymax),formatX:tickFormat,formatY:tickFormat});drawPoints=pts;drawGraph=g;let s=g.s;if(mode==='right'){const c=pts[2],u=pts[0].map((v,i)=>(v-c[i])/T.b),v=pts[1].map((x,i)=>(x-c[i])/T.a),d=Math.min(T.a,T.b)*.12,P=[c.map((x,i)=>x+u[i]*d),c.map((x,i)=>x+(u[i]+v[i])*d),c.map((x,i)=>x+v[i]*d)];s+=`<path d="M${P.map(p=>g.X(p[0])+','+g.Y(p[1])).join('L')}" fill="none" stroke="#6e537e" stroke-width="2"/>`}if(right)s+=RightTriangleTeaching.angleMark(pts.map(p=>[g.X(p[0]),g.Y(p[1])]),T.A,display);
+ if(right){
+   $('trigAngle').value=display(T.A);
+   $('trigAngleval').textContent=display(T.A)+'°';
+ }
+ lastMode=mode;if(changedControl!=='vertexDrag'&&dragIndex===null){dragPoints=null;dragGraph=null}const r=T.A*Math.PI/180,pts=dragPoints||(right?[[0,0],[T.b,T.a],[T.b,0]]:[[0,0],[T.c,0],[T.b*Math.cos(r),T.b*Math.sin(r)]]);const fit=right?[[0,0],[T.b*1.5,T.a*1.5]]:pts;let g=dragGraph||chart(...padded(fit.map(p=>p[0])),...padded(fit.map(p=>p[1])),'x','y',true);const raw=Math.max((g.xmax-g.xmin)/10,(g.ymax-g.ymin)/6),mag=10**Math.floor(Math.log10(raw)),tickStep=([1,2,5,10].find(n=>n*mag>=raw)||10)*mag,tickFormat=n=>Number(n.toPrecision(8)).toString(),ticks=(lo,hi)=>Array.from({length:Math.max(0,Math.floor(hi/tickStep)-Math.ceil(lo/tickStep)+1)},(_,i)=>Number(((Math.ceil(lo/tickStep)+i)*tickStep).toPrecision(12)));g=chart(g.xmin,g.xmax,g.ymin,g.ymax,'x (equal scale)','y',false,{x:ticks(g.xmin,g.xmax),y:ticks(g.ymin,g.ymax),formatX:tickFormat,formatY:tickFormat});drawPoints=pts;drawGraph=g;let s=g.s;if(mode==='right'){const c=pts[2],u=pts[0].map((v,i)=>(v-c[i])/T.b),v=pts[1].map((x,i)=>(x-c[i])/T.a),d=Math.min(T.a,T.b)*.12,P=[c.map((x,i)=>x+u[i]*d),c.map((x,i)=>x+(u[i]+v[i])*d),c.map((x,i)=>x+v[i]*d)];s+=`<path d="M${P.map(p=>g.X(p[0])+','+g.Y(p[1])).join('L')}" fill="none" stroke="#6e537e" stroke-width="2"/>`}if(right)s+=RightTriangleTeaching.angleMark(pts.map(p=>[g.X(p[0]),g.Y(p[1])]),T.A,display);
  [[0,1,'c',C.purple],[0,2,'b',C.teal],[1,2,'a',C.red]].forEach(([i,j,k,ordinaryColour])=>{
  const col=right?RightTriangleTeaching.sides[k].colour:ordinaryColour;
  s+=line(g,pts[i],pts[j],col);
  const mid=[(pts[i][0]+pts[j][0])/2,(pts[i][1]+pts[j][1])/2];
  const label=right?RightTriangleTeaching.sideLabel(k,T[k],display,$('reveal').checked):k+($('reveal').checked?' = '+display(T[k]):'');
- s+=`<text x="${g.X(mid[0])+10}" y="${g.Y(mid[1])-10}" fill="${col}" font-size="14">${label}</text>`});pts.forEach((p,i)=>s+=`${`<circle data-vertex="${i}" cx="${g.X(p[0])}" cy="${g.Y(p[1])}" r="9" fill="${C.purple}" stroke="white" stroke-width="2" style="cursor:grab"><title>Drag vertex ${['A','B','C'][i]}</title></circle>`}<text x="${g.X(p[0])+9}" y="${g.Y(p[1])+21}" font-size="14">${['A','B','C'][i]}</text>`);const factor=compare?value('trigScale'):null;
+ const x=g.X(mid[0])+(right&&k!=='a'?0:10), y=g.Y(mid[1])+(right&&k==='b'?21:-10);
+ const anchor=right&&k!=='a'?'middle':'start';
+ s+=`<text x="${x}" y="${y}" text-anchor="${anchor}" fill="${col}" font-size="14" stroke="white" stroke-width="3" paint-order="stroke">${label}</text>`;
+ });
+ pts.forEach((p,i)=>{
+   const name=['A','B','C'][i],handle=!right||i===1&&!lengthLocked();
+   const grip=handle?' data-vertex="'+i+'" style="cursor:grab"':'';
+   const hint=handle?'<title>Drag vertex '+name+(right?' to resize':'')+'</title>':'';
+   s+=`<circle${grip} cx="${g.X(p[0])}" cy="${g.Y(p[1])}" r="${handle?9:5}" fill="${C.purple}" stroke="white" stroke-width="2">${hint}</circle><text x="${g.X(p[0])+9}" y="${g.Y(p[1])+(right&&i===1?-12:21)}" font-size="14">${name}</text>`;
+ });
+ const factor=compare?value('trigScale'):null;
  if(right){
    const reveal=$('reveal').checked;
-   if(compare)s=RightTriangleTeaching.comparison(T,factor,display,reveal);
+   if(compare){
+     const maxLength=T.c*Math.max(1,factor);
+     if(!compareScale||!compareDrag&&maxLength*compareScale>comparisonLimit)compareScale=comparisonFit/maxLength;
+     $('trigScaleval').textContent=display(factor);
+     s=RightTriangleTeaching.comparison(T,factor,compareScale,display,reveal,lengthLocked());
+   }
    const enabled=fn=>$('trig'+fn[0].toUpperCase()+fn.slice(1)).checked;
    ratioPanel.innerHTML=RightTriangleTeaching.working(T,factor,display,enabled,reveal);
    ratioPanel.hidden=!ratioPanel.innerHTML;
  }
  svg(s,compare?'Two similar right triangles at the same drawing scale':right?'Right triangle with opposite, adjacent and hypotenuse labelled relative to angle A':'Triangle drawn to scale, with sides opposite their matching angles');
  formula(compare?'Same angle, same trig ratios':mode==='sine'?'a / sin A = b / sin B = c / sin C':right?'SOH · CAH · TOA':'a² = b² + c² − 2bc cos A');results([['a / b / c',[T.a,T.b,T.c].map(x=>display(x)).join(' / ')],['A / B / C',[T.A,T.B??90-T.A,T.C??90].map(x=>display(x)+'°').join(' / ')],['Area',display(T.b*T.c*Math.sin(r)/2)],...(mode==='sine'?[['Possible triangles',options.length]]:[])]);table(['Quantity','Value'],Object.entries(T).map(([k,v])=>[k,display(v)]));legend(right?Object.entries(RightTriangleTeaching.sides).map(([key,side])=>[side.full+' ('+key+')',side.colour]):[['Side a',C.red],['Side b',C.teal],['Side c',C.purple]]);
- note(compare?'Change Angle A to change both triangles’ trig ratios. Change the scale factor to change the second triangle’s side lengths while keeping its ratios the same. Both triangles use the same drawing scale.':mode==='sine'?'Drag any vertex to reshape the triangle; side and angle inputs update together. SSA can produce two triangles: use the solution selector to switch between them. A side is opposite the angle with the same letter.':(['a','b','c','A'].filter(k=>$('lock'+k).checked).length>=(mode==='right'?2:3)?'The fixed values determine the triangle. Drag to move it without changing its dimensions, or unfix a value to change its shape. ':'Fix any values you want to preserve, then edit an unfixed value or drag a vertex. ')+ 'Both axes use equal unit lengths and the same grid spacing. Values are displayed to 2 decimal places; calculations retain full precision.');
+ note(compare?'Drag either triangle’s B handle to resize it. Use the Angle A slider to change both triangles’ ratios. Both triangles use the same drawing scale.':right?'Drag B to scale the triangle along the hypotenuse. Use the Angle A slider to change the ratios. Unfix any fixed side lengths to resize by dragging.':mode==='sine'?'Drag any vertex to reshape the triangle; side and angle inputs update together. SSA can produce two triangles: use the solution selector to switch between them. A side is opposite the angle with the same letter.':(['a','b','c','A'].filter(k=>$('lock'+k).checked).length>=(mode==='right'?2:3)?'The fixed values determine the triangle. Drag to move it without changing its dimensions, or unfix a value to change its shape. ':'Fix any values you want to preserve, then edit an unfixed value or drag a vertex. ')+ 'Both axes use equal unit lengths and the same grid spacing. Values are displayed to 2 decimal places; calculations retain full precision.');
  };
 };
 const oldFinance=labs.finance.setup;

@@ -27,8 +27,7 @@ const RightTriangleTeaching = (() => {
       + '<text x="'+(x+labelRadius*Math.cos(mid))+'" y="'+(y+labelRadius*Math.sin(mid))+'" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#493455" stroke="white" stroke-width="4" paint-order="stroke">'+(display(angle))+'°</text>';
   }
 
-  function comparison(T, factor, display, reveal) {
-    const scale = 258 / Math.max(T.c, T.c*factor);
+  function comparison(T, factor, scale, display, reveal, baseLocked) {
     return [1,factor].map((multiple,i) => {
       const x = 36+420*i, y = 358, w = T.b*multiple*scale, h = T.a*multiple*scale;
       const pts = [[x,y],[x+w,y-h],[x+w,y]];
@@ -39,7 +38,11 @@ const RightTriangleTeaching = (() => {
         + edges.map(([a,b,key])=>'<path d="M'+pts[a].join(',')+'L'+pts[b].join(',')+'" stroke="'+sides[key].colour+'" stroke-width="3" fill="none"/>').join('')
         + '<path d="M'+(x+w-square)+','+y+'v'+(-square)+'h'+square+'" fill="none" stroke="#5e476e" stroke-width="2"/>'
         + label('a',x+w+10,y-h*.5+5,'start') + label('b',x+w*.5,y+30,'middle') + label('c',x+w*.5,y-h*.5-17,'middle')
-        + angleMark(pts,T.A,display);
+        + angleMark(pts,T.A,display)
+        + '<circle cx="'+(x+w)+'" cy="'+(y-h)+'" r="8" fill="#8050b4" stroke="white" stroke-width="2"'
+        + (i || !baseLocked ? ' data-trig-resize="'+i+'" style="cursor:grab"' : '')
+        + '><title>'+(i || !baseLocked ? 'Drag B to resize Triangle '+(i+1) : 'Unfix the side lengths to resize Triangle 1')+'</title></circle>'
+        + '<text x="'+(x+w+10)+'" y="'+(y-h-10)+'" font-size="14" fill="#493455">B</text>';
     }).join('');
   }
 
