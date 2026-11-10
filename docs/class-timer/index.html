@@ -108,7 +108,7 @@
   const showMarkRates = document.getElementById('show-mark-rates');
   const markRates = document.getElementById('mark-rates');
   const markRows = [...markRates.querySelectorAll('.mark-rate')];
-  const rateFormat = new Intl.NumberFormat('en-AU', {minimumFractionDigits: 1, maximumFractionDigits: 1});
+  const rateFormat = new Intl.NumberFormat('en-AU', {maximumFractionDigits: 1});
 
   let section = 0;
   let sectionDuration = 0;
