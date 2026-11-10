@@ -9,14 +9,21 @@
   body { margin: 0; background: #26143e; color: #faf5ff; font: 1rem/1.5 system-ui, sans-serif; }
   main { width: min(100%, 60rem); margin: auto; padding: 1.5rem; }
   a { color: #e4c9fa; }
-  h1, form, #status { text-align: center; }
+  h1, form, #phase, #display-label, #status { text-align: center; }
+  #phase { margin: 0; }
+  #display-label { margin: 0; color: #e4c9fa; }
+  [hidden] { display: none !important; }
   #clock { text-align: center; font-size: clamp(3rem, 17vw, 11rem); font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.2; }
   #status { min-height: 1.5em; margin: .75rem 0 1.5rem; }
   #clock.finished { color: #ffd78d; }
   .controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: end; gap: .75rem; }
+  fieldset { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; min-width: 0; margin: 0; border: 1px solid #a583bd; border-radius: .5rem; }
+  legend { padding: 0 .3rem; }
   label { display: grid; gap: .25rem; text-align: left; }
-  input, button { border: 1px solid #a583bd; border-radius: .5rem; padding: .6rem .8rem; font: inherit; }
-  input { width: 6rem; background: #36204e; color: inherit; }
+  input, select, button { border: 1px solid #a583bd; border-radius: .5rem; padding: .6rem .8rem; font: inherit; }
+  input, select { background: #36204e; color: inherit; }
+  input[type="number"] { width: 6rem; }
+  .display-toggle { display: inline-flex; align-items: center; margin-top: .75rem; }
   button { background: #faf5ff; color: #26143e; font-weight: 700; cursor: pointer; }
   :focus-visible { outline: 3px solid #ffd78d; outline-offset: 3px; }
 </style>
@@ -25,65 +32,131 @@
 <main>
   <a href="../">← Maths tools</a>
   <h1>Class Timer</h1>
-  <div id="clock" role="timer" aria-label="Time remaining">05:00</div>
+  <h2 id="phase">Countdown</h2>
+  <p id="display-label">Time remaining</p>
+  <div id="clock" role="timer" aria-labelledby="phase display-label">05:00</div>
   <p id="status" role="status"></p>
-  <form class="controls" id="controls">
-    <label>Minutes <input id="minutes" type="number" min="0" max="99" value="5" required></label>
-    <label>Seconds <input id="seconds" type="number" min="0" max="59" value="0" required></label>
-    <button id="toggle" type="submit">Start</button>
-    <button id="reset" type="button">Reset</button>
+  <form id="controls">
+    <div class="controls">
+      <label>Timer mode
+        <select id="mode">
+          <option value="countdown">Countdown</option>
+          <option value="exam">Exam timer</option>
+        </select>
+      </label>
+      <fieldset id="countdown">
+        <legend>Countdown</legend>
+        <label>Minutes <input type="number" min="0" max="99" value="5" required></label>
+        <label>Seconds <input type="number" min="0" max="59" value="0" required></label>
+      </fieldset>
+      <fieldset id="free" hidden disabled>
+        <legend>Calculator Free</legend>
+        <label>Minutes <input type="number" min="0" max="99" value="15" required></label>
+        <label>Seconds <input type="number" min="0" max="59" value="0" required></label>
+      </fieldset>
+      <fieldset id="assumed" hidden disabled>
+        <legend>Calculator Assumed</legend>
+        <label>Minutes <input type="number" min="0" max="99" value="45" required></label>
+        <label>Seconds <input type="number" min="0" max="59" value="0" required></label>
+      </fieldset>
+      <button id="toggle" type="submit">Start</button>
+      <button id="reset" type="button">Reset</button>
+    </div>
+    <label class="display-toggle"><input id="elapsed" type="checkbox"> Show time elapsed</label>
   </form>
 </main>
 <script>
   const clock = document.getElementById('clock');
+  const phase = document.getElementById('phase');
+  const displayLabel = document.getElementById('display-label');
   const statusMessage = document.getElementById('status');
-  const minutes = document.getElementById('minutes');
-  const seconds = document.getElementById('seconds');
+  const elapsed = document.getElementById('elapsed');
+  const mode = document.getElementById('mode');
   const toggle = document.getElementById('toggle');
   const controls = document.getElementById('controls');
+  const countdown = document.getElementById('countdown');
+  const examSections = [document.getElementById('free'), document.getElementById('assumed')];
 
-  const duration = () => (minutes.valueAsNumber * 60 + seconds.valueAsNumber) * 1000;
-  let remaining = duration();
+  let section = 0;
+  let sectionDuration = 0;
+  let remaining = 0;
+  let complete = false;
   let deadline = 0;
   let interval;
 
+  const sections = () => mode.value === 'exam' ? examSections : [countdown];
+  const sectionName = fieldset => fieldset.querySelector('legend').textContent;
+  const duration = fieldset => {
+    const [minutes, seconds] = fieldset.querySelectorAll('input');
+    return (minutes.valueAsNumber * 60 + seconds.valueAsNumber) * 1000;
+  };
+
   function showTime() {
-    const wholeSeconds = Math.ceil(remaining / 1000);
+    const wholeSeconds = elapsed.checked
+      ? Math.floor((sectionDuration - remaining) / 1000)
+      : Math.ceil(remaining / 1000);
     const pad = value => String(value).padStart(2, '0');
     clock.textContent = pad(Math.floor(wholeSeconds / 60)) + ':' + pad(wholeSeconds % 60);
+    displayLabel.textContent = elapsed.checked ? 'Time elapsed' : 'Time remaining';
+  }
+
+  function updateSettings(locked) {
+    mode.disabled = locked;
+    for (const fieldset of [countdown, ...examSections]) {
+      fieldset.hidden = !sections().includes(fieldset);
+      fieldset.disabled = locked || fieldset.hidden;
+    }
   }
 
   function stop() {
     clearInterval(interval);
     deadline = 0;
-    minutes.disabled = seconds.disabled = false;
   }
 
-  function reset() {
-    stop();
-    remaining = controls.checkValidity() ? duration() : 0;
-    toggle.textContent = 'Start';
+  function loadSection() {
+    const fieldset = sections()[section];
+    phase.textContent = sectionName(fieldset);
+    sectionDuration = duration(fieldset) || 0;
+    remaining = sectionDuration;
+    complete = false;
     statusMessage.textContent = '';
     clock.classList.remove('finished');
     showTime();
   }
 
+  function reset() {
+    stop();
+    updateSettings(false);
+    section = 0;
+    loadSection();
+    toggle.textContent = 'Start';
+  }
+
   function tick() {
     remaining = Math.max(0, deadline - performance.now());
     showTime();
-    if (remaining === 0) {
-      stop();
-      toggle.textContent = 'Start';
-      statusMessage.textContent = 'Time’s up!';
-      clock.classList.add('finished');
+    if (remaining > 0) return;
+
+    stop();
+    complete = true;
+    clock.classList.add('finished');
+    const next = sections()[section + 1];
+    if (next) {
+      statusMessage.textContent = sectionName(sections()[section]) + ' time is up.';
+      toggle.textContent = 'Start ' + sectionName(next);
+      return;
     }
+
+    statusMessage.textContent = mode.value === 'exam' ? 'Exam time is up!' : 'Time’s up!';
+    toggle.textContent = 'Start';
+    updateSettings(false);
   }
 
   controls.addEventListener('submit', event => {
     event.preventDefault();
     if (deadline) {
       tick();
-      if (remaining > 0) {
+      if (!complete) {
         stop();
         toggle.textContent = 'Resume';
         statusMessage.textContent = 'Paused';
@@ -91,23 +164,31 @@
       return;
     }
 
-    if (remaining === 0) remaining = duration();
-    if (remaining === 0) {
-      statusMessage.textContent = 'Enter a time greater than zero.';
+    const emptySection = sections().find(fieldset => duration(fieldset) === 0);
+    if (emptySection) {
+      statusMessage.textContent = 'Enter a time greater than zero for ' + sectionName(emptySection) + '.';
       return;
     }
 
+    if (complete) {
+      section = sections()[section + 1] ? section + 1 : 0;
+      loadSection();
+    }
+
+    updateSettings(true);
     deadline = performance.now() + remaining;
-    minutes.disabled = seconds.disabled = true;
     toggle.textContent = 'Pause';
     statusMessage.textContent = '';
-    clock.classList.remove('finished');
     interval = setInterval(tick, 100);
   });
 
   document.getElementById('reset').addEventListener('click', reset);
-  minutes.addEventListener('input', reset);
-  seconds.addEventListener('input', reset);
+  mode.addEventListener('change', reset);
+  elapsed.addEventListener('change', showTime);
+  for (const field of controls.querySelectorAll('input[type="number"]')) {
+    field.addEventListener('input', reset);
+  }
+  reset();
 </script>
 </body>
 </html>
