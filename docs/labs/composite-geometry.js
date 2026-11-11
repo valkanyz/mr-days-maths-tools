@@ -133,7 +133,7 @@ function measure(pieces) {
    const key=edge.type+ends.join('|')+'|'+round(point);
    if(seen.has(key))continue;
    seen.add(key);
-   boundaries.push(segment);perimeter+=segmentLength;area+=left?integral:-integral;
+   boundaries.push({...segment,interiorLeft:left});perimeter+=segmentLength;area+=left?integral:-integral;
   }
  }
  return {area:Math.max(0,area),perimeter,boundaries,

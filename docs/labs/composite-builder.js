@@ -13,12 +13,20 @@ labs.area.setup=function() {
  const step=28,ox=28,oy=28;
  $('fShape').insertAdjacentHTML('beforeend','<option value="builder">Drag & drop composite builder</option>');
  $('fShape').value='builder';
+ $('fGrid').checked=false;
  $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',`
  <div id="compositeControls">
   <p>Click to add a shape, or drag it onto the grid. Drag placed shapes to move them.</p>
   <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
   <div><label for="newPieceOperation">New shapes</label>
   <select id="newPieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
+  <details><summary>Diagram dimensions</summary>
+   <div><label for="compositeUnit">Units</label><select id="compositeUnit"><option value="m">m</option><option value="cm">cm</option><option value="units">units</option></select></div>
+   <label class="check"><input id="compositeDimensions" type="checkbox" checked> Show dimensions</label>
+   <label class="check"><input id="compositeOverall" type="checkbox" checked> Overall width and height</label>
+   <label class="check"><input id="compositeSides" type="checkbox" checked> Exposed side lengths</label>
+   <label class="check"><input id="compositeConstruction" type="checkbox"> Show individual shape outlines</label>
+  </details>
   <div><label for="pieceSelect">Selected shape</label><select id="pieceSelect"></select></div>
   <div><label for="pieceOperation">Selected shape operation</label>
   <select id="pieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
@@ -142,7 +150,7 @@ labs.area.setup=function() {
   $('compositeState').value=JSON.stringify({pieces,selected});
   const active=$('fShape').value==='builder';
   $('compositeControls').hidden=!active;
-  if(!active){$('viz').style.touchAction='auto';return base();}
+  if(!active){$('viz').style.touchAction='auto';$('viz').style.height='';return base();}
   for(const id of ['fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
   $('clearArea').hidden=true;
   const p=pieces[selected],round=p&&(p.kind==='circle'||p.kind==='sector');
@@ -156,8 +164,11 @@ labs.area.setup=function() {
   }
   $('pieceUndo').disabled=!history.length;
   $('viz').style.touchAction='none';
+  $('viz').style.height='clamp(380px,58dvh,650px)';
+  const construction=$('compositeConstruction').checked;
+  const unit=$('compositeUnit').value;
   const measurement=Geometry.measure(pieces);
-  let drawing='<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>';
+  let drawing=$('fGrid').checked?'<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>':'';
   if($('fGrid').checked){
    for(let x=0;x<=28;x++)drawing+='<path d="M'+(ox+x*step)+' 28V420" stroke="#e3d9eb"/>';
    for(let y=0;y<=14;y++)drawing+='<path d="M28 '+(oy+y*step)+'H812" stroke="#e3d9eb"/>';
@@ -165,27 +176,41 @@ labs.area.setup=function() {
   const path=p=>Geometry.path(p);
   drawing+='<defs><mask id="composite-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="28" height="14"><rect width="28" height="14" fill="white"/>'
    +pieces.filter(p=>p.operation==='subtract').map(p=>'<path d="'+path(p)+'" fill="black"/>').join('')+'</mask></defs>';
-  drawing+='<g transform="translate(28 28) scale(28)" opacity=".32" mask="url(#composite-cutouts)">'
-   +pieces.filter(p=>p.operation!=='subtract').map(p=>'<path d="'+path(p)+'" fill="#8050b4"/>').join('')+'</g>';
+  drawing+='<g transform="translate(28 28) scale(28)" opacity=".5" mask="url(#composite-cutouts)">'
+   +pieces.filter(p=>p.operation!=='subtract').map(p=>'<path d="'+path(p)+'" fill="#14a98d"/>').join('')+'</g>';
   pieces.forEach((p,i)=>{
    const subtract=p.operation==='subtract',colour=subtract?'#ba3448':colours[i%colours.length];
    const title=names[p.kind||'rectangle']+' '+(i+1)+' · '+(subtract?'Subtract':'Add')+' · '+description(p);
-   drawing+='<g data-part="'+i+'" style="cursor:grab"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+colour+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+'. Drag to move.</title></g>';
-   if(i===selected){
-    const turned=p.rotation===90||p.rotation===270;
-    const width=turned?p.h:p.w,height=turned?p.w:p.h;
-    drawing+='<text pointer-events="none" x="'+(ox+(p.x+width/2)*step)+'" y="'+(oy+(p.y+height/2)*step)+'" text-anchor="middle" font-size="12" stroke="white" stroke-width="3" paint-order="stroke" fill="'+colour+'">'+esc(description(p))+'</text>';
-   }
+   drawing+='<g data-part="'+i+'" style="cursor:grab"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract&&construction?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+(construction?colour:'none')+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+'. Drag to move.</title></g>';
+
   });
-  if($('fBoundary').checked)drawing+='<g transform="translate(28 28) scale(28)" pointer-events="none" fill="none" stroke="#d24452" stroke-width=".12">'
+  if($('fBoundary').checked)drawing+='<g transform="translate(28 28) scale(28)" pointer-events="none" fill="none" stroke="#1c2530" stroke-width=".09">'
    +measurement.boundaries.map(edge=>'<path d="'+Geometry.pathSegment(edge)+'"/>').join('')+'</g>';
-  svg(drawing,'Composite shapes with addition and subtraction');
-  $('viz').querySelector('svg').setAttribute('tabindex','0');
+  if($('compositeDimensions').checked){
+   drawing+=root.CompositeDimensions.render(measurement,pieces,{
+    unit,overall:$('compositeOverall').checked,sides:$('compositeSides').checked
+   });
+  }
+  svg(drawing,'Composite shape with textbook dimension arrows');
+  const diagram=$('viz').querySelector('svg');
+  diagram.setAttribute('tabindex','0');
+  let box=root.CompositeDimensions.extent(measurement.boundaries);
+  const included=pieces.filter((piece,i)=>construction||i===selected||!box);
+  for(const piece of included){
+   const turned=piece.rotation===90||piece.rotation===270;
+   const right=piece.x+(turned?piece.h:piece.w),bottom=piece.y+(turned?piece.w:piece.h);
+   box=box?{left:Math.min(box.left,piece.x),right:Math.max(box.right,right),
+    top:Math.min(box.top,piece.y),bottom:Math.max(box.bottom,bottom)}
+    :{left:piece.x,right,top:piece.y,bottom};
+  }
+  if($('fGrid').checked||!box)box={left:0,right:28,top:0,bottom:14};
+  diagram.setAttribute('viewBox',[(28+box.left*step)-150,(28+box.top*step)-75,
+   (box.right-box.left)*step+300,(box.bottom-box.top)*step+200].join(' '));
   formula('Area of added shapes − removed regions');
-  results([['Area',fmt(measurement.area,3)+' square units'],['Perimeter',fmt(measurement.perimeter,3)+' units']]);
-  legend([['Final boundary',C.red],['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]);
-  note('Each grid square is 1 × 1 unit. Overlapping added shapes count once. Subtraction removes only the region covered by an added shape. Perimeter includes curved edges and hole boundaries. Values are rounded to 3 decimal places.');
-  table(['Measurement','Value'],[['Area (square units)',measurement.area],['Perimeter (units)',measurement.perimeter]]);
+  results([['Area',fmt(measurement.area,3)+(unit==='units'?' square units':' '+unit+'²')],['Perimeter',fmt(measurement.perimeter,3)+' '+unit]]);
+  legend([['Composite shape','#14a98d'],...(construction?[['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]:[])]);
+  note('Dimension arrows measure the finished outline and cut-outs. Overall dimensions sit outside the shape; curved boundaries show their radius. Use Diagram dimensions to choose which labels are shown. Overlapping added shapes count once. Values are rounded to 3 decimal places.');
+  table(['Measurement','Value'],[['Area ('+(unit==='units'?'square units':unit+'²')+')',measurement.area],['Perimeter ('+unit+')',measurement.perimeter]]);
  };
  pieces.forEach(clamp);sync();
 };
