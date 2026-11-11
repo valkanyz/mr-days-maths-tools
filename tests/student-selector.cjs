@@ -29,3 +29,25 @@ assert.equal(model.decode(JSON.stringify(malformed)).classes.length,1);
 assert.equal(model.decode(JSON.stringify({...data,activeClassId:'missing'})).activeClassId,group.id);
 assert.equal(model.decode(JSON.stringify({version:1,classes:[]})),null);
 console.log('PASS: saved classes, stable duplicate names, attendance, reordering, reload, hidden list and per-class eligibility.');
+
+for(const [input,expected] of [
+ ['Smith, Alexander (Alex) <R, R1, 9>','Alexander'],
+ ['O’Neill, Sarah-Jane (SJ) <B, B4, 10>','Sarah-Jane'],
+ ['de Silva, Mary Anne <G, G2, 8>','Mary Anne'],
+ ['  Jones, Zoë (Z) <H, H3, 7>  ','Zoë'],
+ ['Alexander','Alexander'],
+ ['Alexander (Alex, Al) <R, R1, 9>','Alexander'],
+ ['Smith, Alexander','Alexander'],
+ ['Smith, (Alex) <R, R1, 9>','']
+]) assert.equal(model.firstName(input),expected);
+const imported=model.createClass('Import','Smith, Alexander (Alex) <R, R1, 9>\nJones, Sam (Sammy) <B, B2, 9>\nBrown, Sam <G, G1, 9>');
+assert.deepEqual(imported.students.map(student=>student.name),['Alexander','Sam','Sam']);
+assert.equal(new Set(imported.students.map(student=>student.id)).size,3);
+const previous=[{id:'existing',name:'Smith, Alexander (Alex) <R, R1, 9>',absent:true,colour:2}];
+const clean=model.reconcile(previous,'Smith, Alexander (Alex) <R, R1, 9>');
+assert.deepEqual(clean,[{id:'existing',name:'Alexander',absent:true,colour:2}]);
+const migrated=model.decode(JSON.stringify({version:1,classes:[{id:'old-class',name:'Saved',students:previous}],activeClassId:'old-class'}));
+assert.equal(migrated.classes[0].students[0].name,'Alexander');
+assert.equal(migrated.classes[0].students[0].absent,true);
+assert.equal(migrated.classes[0].students[0].id,'existing');
+console.log('PASS: school export imports use formal first names and preserve attendance, IDs and duplicate entries.');

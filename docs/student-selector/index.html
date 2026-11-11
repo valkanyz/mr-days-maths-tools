@@ -73,7 +73,7 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <p id="delete-warning" class="hint" role="status" hidden></p>
 <details id="edit-list">
 <summary>Paste or edit class list</summary>
-<p class="hint" id="hint">Enter one student per line. Changes save automatically.</p>
+<p class="hint" id="hint">Enter one student per line. School lists in “Surname, Firstname (Preferred Name) &lt;House, Code, Year&gt;” format are automatically reduced to first names. Changes save automatically.</p>
 <label for="names">Student names</label>
 <textarea id="names" rows="8" aria-describedby="hint" placeholder="One name per line" spellcheck="false"></textarea>
 </details>
@@ -87,6 +87,6 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <button id="reset" disabled>Reset round</button>
 <p id="saved-status" role="status">Classes are saved in this browser on this device.</p>
 </aside></div></main>
-<script src="class-lists.js?v=saved-classes"></script>
-<script src="wheel.js?v=saved-classes-confirm"></script>
+<script src="class-lists.js?v=first-name-import"></script>
+<script src="wheel.js?v=first-name-import"></script>
 </body></html>

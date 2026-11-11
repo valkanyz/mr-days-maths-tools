@@ -9,9 +9,11 @@ const model = window.SelectorClasses;
 const roundSelections = new Map();
 let state;
 let storageFailed = false;
+let namesMigrated = false;
 try {
   const saved = localStorage.getItem(storageKey);
   state = saved ? model.decode(saved) : null;
+  namesMigrated = !!state && saved !== JSON.stringify(state);
 } catch {
   storageFailed = true;
 }
@@ -208,15 +210,17 @@ function applyIncoming(incoming) {
   renderClass();
 }
 
-el('names').oninput = () => {
+el('names').oninput = event => {
   roster = model.reconcile(roster, el('names').value);
   activeClass().students = roster;
+  if (event?.inputType === 'insertFromPaste') el('names').value = roster.map(student => student.name).join('\n');
   const ids = new Set(roster.map(student => student.id));
   for (const id of usedStudents()) if (!ids.has(id)) usedStudents().delete(id);
   save();
   renderRoster();
   refreshPool();
 };
+el('names').onchange = () => { el('names').value = roster.map(student => student.name).join('\n'); };
 el('class-name').oninput = () => {
   activeClass().name = el('class-name').value.trim() || 'Untitled class';
   save();
@@ -338,4 +342,5 @@ window.addEventListener('storage', event => {
   } catch {}
 });
 renderClass();
+if (namesMigrated) save();
 if (storageFailed) el('saved-status').textContent = 'Saved classes are unavailable in this browser. Changes may not persist.';

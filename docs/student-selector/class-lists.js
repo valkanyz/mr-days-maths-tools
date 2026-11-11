@@ -2,12 +2,18 @@
 (function(root) {
 'use strict';
 const id=()=>crypto.randomUUID();
+function firstName(value) {
+ const name=value.split(/[<(]/,1)[0].trim();
+ const comma=name.indexOf(',');
+ return (comma<0?name:name.slice(comma+1)).trim();
+}
 function reconcile(students,text) {
- const names=text.split(/\r?\n/).map(name=>name.trim()).filter(Boolean);
+ const names=text.split(/\r?\n/).map(firstName).filter(Boolean);
  const previous=new Map();
  for(const student of students){
-  if(!previous.has(student.name))previous.set(student.name,[]);
-  previous.get(student.name).push(student);
+  const name=firstName(student.name);
+  if(!previous.has(name))previous.set(name,[]);
+  previous.get(name).push({...student,name});
  }
  return names.map((name,index)=>previous.get(name)?.shift()
   ||{id:id(),name,absent:false,colour:index%7});
@@ -25,10 +31,10 @@ function decode(raw) {
   classIds.add(group.id);
   const studentIds=new Set();
   const students=group.students.filter(student=>{
-   if(typeof student?.id!=='string'||!student.id||studentIds.has(student.id)||typeof student.name!=='string'||!student.name.trim())return false;
+   if(typeof student?.id!=='string'||!student.id||studentIds.has(student.id)||typeof student.name!=='string'||!firstName(student.name))return false;
    studentIds.add(student.id);return true;
   }).map((student,index)=>({
-   id:student.id,name:student.name.trim(),absent:student.absent===true,
+   id:student.id,name:firstName(student.name),absent:student.absent===true,
    colour:Number.isInteger(student.colour)&&student.colour>=0&&student.colour<7?student.colour:index%7
   }));
   classes.push({id:group.id,name:group.name.trim()||'Untitled class',students});
@@ -38,7 +44,7 @@ function decode(raw) {
   instant:value.instant===true,remove:value.remove===true,hideList:value.hideList===true};
 }
 const available=(students,used)=>students.filter(student=>!student.absent&&!used.has(student.id));
-const api={createClass,reconcile,decode,available};
+const api={createClass,reconcile,decode,available,firstName};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 else root.SelectorClasses=api;
 })(typeof window!=='undefined'?window:globalThis);
