@@ -19,7 +19,11 @@ labs.area.setup=function() {
   <div class="actions"><button id="compositeExpand" type="button">Expand build area</button><button id="compositeFit" type="button">Fit workspace</button></div>
   <div><label for="compositeZoom">Workspace zoom <output id="compositeZoomValue">100%</output></label><input id="compositeZoom" type="range" min="40" max="150" step="1" value="100"></div>
   <label class="check"><input id="compositeGrid" type="checkbox" checked> Show placement grid</label>
-  <div><label for="compositeTask">Dimensions for</label><select id="compositeTask"><option value="area">Area — bases and heights</option><option value="perimeter">Perimeter — boundary lengths</option></select></div>
+  <div class="actions composite-task-toggle" role="group" aria-label="Calculate">
+   <button id="compositeArea" type="button" aria-pressed="true" aria-controls="viz results">Area</button>
+   <button id="compositePerimeter" type="button" aria-pressed="false" aria-controls="viz results">Perimeter</button>
+   <input id="compositeTask" type="hidden" value="area">
+  </div>
   <label class="check"><input id="pieceDeleteMode" type="checkbox"> Click shapes to delete</label>
   <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
   <details><summary>Diagram dimensions</summary>
@@ -42,6 +46,9 @@ labs.area.setup=function() {
   <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete selected</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
   <p>Subtracted shapes cut through all added shapes. Arrow keys move the selected shape half a unit. Overlaps count once.</p>
  </div>`);
+ for(const [id,task]of [['compositeArea','area'],['compositePerimeter','perimeter']]){
+  $(id).onclick=()=>{$('compositeTask').value=task;run();};
+ }
  const layout=$('viz').closest('.layout');
  $('compositeExpand').onclick=async()=>{
   try{
@@ -197,7 +204,10 @@ labs.area.setup=function() {
   $('viz').style.height='clamp(540px,76dvh,900px)';
   $('viz').style.overflow='auto';
   const construction=$('compositeConstruction').checked,deleteMode=$('pieceDeleteMode').checked;
-  const unit=$('compositeUnit').value,task=$('compositeTask').value;
+  const unit=$('compositeUnit').value,task=$('compositeTask').value==='perimeter'?'perimeter':'area';
+  $('compositeTask').value=task;
+  $('compositeArea').setAttribute('aria-pressed',String(task==='area'));
+  $('compositePerimeter').setAttribute('aria-pressed',String(task==='perimeter'));
   const guides=$('compositeCutoutGuides').checked;
   const measurement=Geometry.measure(pieces);
   const gridWidth=columns*step,gridHeight=rows*step;
