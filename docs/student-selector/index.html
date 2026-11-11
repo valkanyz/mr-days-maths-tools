@@ -16,7 +16,7 @@ h1 { font-size: clamp(2rem,5vw,3.4rem); line-height: 1.1; letter-spacing: -.045e
 figure { position: relative; margin: 8px auto 16px; max-width: 440px }
 canvas { width: 100%; display: block; border-radius: 50%; border: 5px solid #fff2e5; background: #4b385b; box-shadow: 0 6px 18px #130e2380 }
 figure::after { content: ""; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 27px solid #fff; filter: drop-shadow(0 2px 2px #21132d) }
-button, textarea { font: inherit }
+button, textarea, input { font: inherit }
 button { cursor: pointer; padding: 10px 22px; border: 0; border-radius: 10px; font-weight: 700 }
 #spin { background: #ffc962; color: #2b192c; min-width: 160px }
 button:disabled { opacity: .5; cursor: default }
@@ -26,8 +26,27 @@ textarea::placeholder { color: #bbaac7 }
 label { display: block; font-weight: 600 }
 .hint, #count { color: #dfcfe9; margin: 3px 0 10px }
 .options label { display: flex; align-items: center; gap: 9px; padding: 7px 0; cursor: pointer }
-input { width: 20px; height: 20px; accent-color: #b390ff }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: #b390ff }
+input[type="text"] { width:100%; border:1px solid #90789d; background:#241931; color:white; border-radius:9px; padding:9px }
 #reset { background: #504064; color: white; margin-top: 10px }
+[hidden] { display:none !important }
+.privacy-toggle { display:flex; align-items:center; gap:9px; margin-bottom:16px; cursor:pointer }
+.class-bar { display:flex; align-items:center; gap:10px; margin-bottom:18px }
+.class-tabs { display:flex; gap:8px; flex-wrap:wrap; flex:1; min-width:0 }
+.class-tabs button { background:#493358; color:#eee1fa; overflow-wrap:anywhere; max-width:100%; padding:10px 15px }
+.class-tabs button[aria-selected="true"] { background:#bfa0f1; color:#251639 }
+#add-class { background:#77dfb8; color:#251639; flex:none; padding:10px 14px }
+.class-actions { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 }
+.class-actions button { padding:8px 12px; background:#504064; color:white; font-size:.9rem }
+.roster { margin:12px 0 16px; max-height:360px; overflow:auto; border-top:1px solid #6d527b }
+.student-row { display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid #6d527b }
+.student-name { flex:1; min-width:0; overflow-wrap:anywhere }
+.student-row label { display:flex; align-items:center; gap:6px; flex:none; font-size:.9rem; font-weight:500; cursor:pointer }
+.student-row.absent .student-name { opacity:.55; text-decoration:line-through }
+.student-row small { display:block; font-size:.75rem; color:#d0bedc }
+details { margin:12px 0 }
+summary { cursor:pointer; font-weight:600; margin-bottom:8px }
+#saved-status { font-size:.85rem; color:#dfcfe9; margin-top:18px }
 :focus-visible { outline: 3px solid #62e2ff; outline-offset: 3px }
 @media(max-width:680px) { .layout { grid-template-columns: 1fr } }
 </style>
@@ -35,22 +54,38 @@ input { width: 20px; height: 20px; accent-color: #b390ff }
 <body><main>
 <a href="../">← Maths Tools</a>
 <h1>Student Selector Wheel</h1>
-<div class="layout">
+<div class="class-bar">
+<div id="class-tabs" class="class-tabs" role="tablist" aria-label="Saved classes"></div>
+<button id="add-class" type="button">+ Add class</button>
+</div>
+<div class="layout" id="class-panel" role="tabpanel">
 <section class="stage" aria-label="Student selection">
 <figure><canvas id="wheel" width="900" height="900" aria-label="Student selector wheel"></canvas></figure>
 <div id="result" role="status" aria-live="polite">Add your class list</div>
 <button id="spin" disabled>Spin wheel</button>
 </section>
 <aside>
-<label for="names">Class list</label>
-<p class="hint" id="hint">Enter or paste one student per line.</p>
+<label class="privacy-toggle"><input id="hide-list" type="checkbox" aria-controls="class-list-panel"> Hide class list</label>
+<div id="class-list-panel">
+<label for="class-name">Class name</label>
+<input id="class-name" type="text" maxlength="60" autocomplete="off">
+<div class="class-actions"><button id="all-present" type="button">Mark all present</button><button id="delete-class" type="button">Delete class</button></div>
+<details id="edit-list">
+<summary>Paste or edit class list</summary>
+<p class="hint" id="hint">Enter one student per line. Changes save automatically.</p>
+<label for="names">Student names</label>
 <textarea id="names" rows="8" aria-describedby="hint" placeholder="One name per line" spellcheck="false"></textarea>
+</details>
 <p id="count"></p>
+<div id="roster" class="roster" aria-label="Students and attendance"></div>
+</div>
 <div class="options">
 <label><input type="checkbox" id="instant">Instant select</label>
 <label><input type="checkbox" id="remove">Remove selected student</label>
 </div>
 <button id="reset" disabled>Reset round</button>
+<p id="saved-status" role="status">Classes are saved in this browser on this device.</p>
 </aside></div></main>
-<script src="wheel.js"></script>
+<script src="class-lists.js?v=saved-classes"></script>
+<script src="wheel.js?v=saved-classes"></script>
 </body></html>
