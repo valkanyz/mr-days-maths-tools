@@ -1,53 +1,191 @@
-/* Grid-snapped composite rectangles; measure the union, including hole boundaries. */
-(function(root){
+/* Drag shapes on a shared grid and measure their combined outline. */
+(function(root) {
 'use strict';
-function measure(pieces){
- const cells=new Set();for(const p of pieces)for(let y=p.y;y<p.y+p.h;y++)for(let x=p.x;x<p.x+p.w;x++)cells.add(x+','+y);
- const edges=[];for(const cell of cells){const[x,y]=cell.split(',').map(Number);for(const[dx,dy,a,b]of [[0,-1,[x,y],[x+1,y]],[1,0,[x+1,y],[x+1,y+1]],[0,1,[x+1,y+1],[x,y+1]],[-1,0,[x,y+1],[x,y]]])if(!cells.has((x+dx)+','+(y+dy)))edges.push([a,b])}
- return{area:cells.size,perimeter:edges.length,edges};
-}
-if(typeof module!=='undefined'&&module.exports){module.exports={measure};return}
+const Geometry=typeof module!=='undefined'&&module.exports?require('./composite-geometry.js'):root.CompositeGeometry;
+if(typeof module!=='undefined'&&module.exports){module.exports=Geometry;return;}
 const old=labs.area.setup;
-labs.area.setup=function(){
- old();const base=update;let pieces=[{x:4,y:3,w:8,h:3},{x:4,y:6,w:3,h:4}],selected=0,drag=null,history=[];
- const colours=['#8050b4','#078477','#287caf','#b57618','#bf5268'],step=28,ox=28,oy=28;
- $('fShape').insertAdjacentHTML('beforeend','<option value="builder">Drag & drop composite builder</option>');$('fShape').value='builder';
- $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',`<div id="compositeControls"><p>Drag a piece onto the grid, or click to add it. Drag placed pieces to move them.</p><div class="actions"><button type="button" data-piece="rectangle">▰ Rectangle</button><button type="button" data-piece="square">■ Square</button></div><label for="pieceSelect">Selected piece</label><select id="pieceSelect"></select><label for="pieceWidth">Width (units)</label><input id="pieceWidth" type="number" min="1" max="28" step="1" value="8"><label for="pieceHeight">Height (units)</label><input id="pieceHeight" type="number" min="1" max="14" step="1" value="3"><div class="actions"><button id="pieceRotate">Rotate</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div><p>Arrow keys move the selected piece one unit. Shared edges do not count towards perimeter. Overlaps count once.</p></div>`);
- const save=()=>history.push(JSON.stringify({pieces,selected}));
- const clamp=p=>{p.w=Math.max(1,Math.min(28,Math.round(p.w)));p.h=Math.max(1,Math.min(14,Math.round(p.h)));p.x=Math.max(0,Math.min(28-p.w,Math.round(p.x)));p.y=Math.max(0,Math.min(14-p.h,Math.round(p.y)))};
- const sync=()=>{$('pieceSelect').innerHTML=pieces.map((p,i)=>`<option value="${i}">Piece ${i+1} · ${p.w} × ${p.h}</option>`).join('');$('pieceSelect').value=selected;const p=pieces[selected];if(p){$('pieceWidth').value=p.w;$('pieceHeight').value=p.h}};
- const add=(kind,x=10,y=4)=>{save();pieces.push({x,y,w:kind==='square'?3:5,h:3});selected=pieces.length-1;clamp(pieces[selected]);sync();run()};
- const point=e=>{const svg=$('viz').querySelector('svg'),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return{x:(q.x-ox)/step,y:(q.y-oy)/step}};
- for(const b of $('compositeControls').querySelectorAll('[data-piece]')){b.style.touchAction='none';b.onclick=()=>{if(b.dataset.dragged){delete b.dataset.dragged;return}add(b.dataset.piece)};b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);b.dataset.start=e.clientX+','+e.clientY};b.onpointerup=e=>{const[a,c]=b.dataset.start.split(',').map(Number);if(Math.hypot(e.clientX-a,e.clientY-c)<8)return;b.dataset.dragged='true';const p=point(e);if(p.x>=0&&p.x<28&&p.y>=0&&p.y<14)add(b.dataset.piece,p.x,p.y)};}
- $('pieceSelect').onchange=()=>{selected=Number($('pieceSelect').value);sync();run()};
- for(const[id,key]of [['pieceWidth','w'],['pieceHeight','h']])$(id).oninput=()=>{const v=Number($(id).value);if(!Number.isFinite(v)||v<1||!pieces[selected])return;save();pieces[selected][key]=v;clamp(pieces[selected]);sync();run()};
- const action=(id,fn)=>$(id).onclick=()=>{save();fn();selected=Math.min(selected,pieces.length-1);sync();run()};
- action('pieceRotate',()=>{const p=pieces[selected];if(p){[p.w,p.h]=[p.h,p.w];clamp(p)}});
- action('pieceDuplicate',()=>{const p=pieces[selected];if(p){pieces.push({...p,x:p.x+1,y:p.y+1});selected=pieces.length-1;clamp(pieces[selected])}});
- action('pieceDelete',()=>{if(selected>=0)pieces.splice(selected,1)});action('pieceClear',()=>{pieces=[]});
- $('pieceUndo').onclick=()=>{if(history.length){({pieces,selected}=JSON.parse(history.pop()));sync();run()}};
- for(const id of ['pieceWidth','pieceHeight'])$(id).dataset.keepVisible='true';
+labs.area.setup=function() {
+ old();
+ const base=update;
+ let pieces=[{x:4,y:3,w:8,h:3},{x:4,y:6,w:3,h:4}],selected=0,drag=null,history=[];
+ const colours=['#8050b4','#078477','#287caf','#b57618','#bf5268'];
+ const names={rectangle:'Rectangle',square:'Square',circle:'Circle',sector:'Sector',triangle:'Triangle',trapezium:'Trapezium'};
+ const step=28,ox=28,oy=28;
+ $('fShape').insertAdjacentHTML('beforeend','<option value="builder">Drag & drop composite builder</option>');
+ $('fShape').value='builder';
+ $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',`
+ <div id="compositeControls">
+  <p>Click to add a shape, or drag it onto the grid. Drag placed shapes to move them.</p>
+  <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
+  <div><label for="newPieceOperation">New shapes</label>
+  <select id="newPieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
+  <div><label for="pieceSelect">Selected shape</label><select id="pieceSelect"></select></div>
+  <div><label for="pieceOperation">Selected shape operation</label>
+  <select id="pieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
+  <div><label for="pieceWidth">Base / width (units)</label><input id="pieceWidth" type="number" min="0.5" max="28" step="0.5"></div>
+  <div><label for="pieceHeight">Height (units)</label><input id="pieceHeight" type="number" min="0.5" max="14" step="0.5"></div>
+  <div><label for="pieceRadius">Radius (units)</label><input id="pieceRadius" type="number" min="0.5" max="7" step="0.5"></div>
+  <div><label for="pieceAngle">Sector angle (degrees)</label><input id="pieceAngle" type="number" min="1" max="360" step="1"></div>
+  <div><label for="pieceTop">Top width (units)</label><input id="pieceTop" type="number" min="0.5" max="28" step="0.5"></div>
+  <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
+  <p>Subtracted shapes cut through all added shapes. Arrow keys move the selected shape half a unit. Overlaps count once.</p>
+ </div>`);
+ const save=()=>{history.push(JSON.stringify({pieces,selected}));if(history.length>100)history.shift();};
+ const snap=n=>Math.round(n*2)/2;
+ function clamp(piece) {
+  piece.kind=names[piece.kind]?piece.kind:'rectangle';
+  piece.operation=piece.operation==='subtract'?'subtract':'add';
+  piece.rotation=(((Math.round((piece.rotation||0)/90)*90)%360)+360)%360;
+  const turned=piece.rotation===90||piece.rotation===270;
+  if(piece.kind==='circle'||piece.kind==='sector'){
+   piece.r=Math.max(.5,Math.min(7,Number(piece.r)||Number(piece.w)/2||2));
+   piece.w=piece.h=2*piece.r;
+  }else{
+   piece.w=Math.max(.5,Math.min(turned?14:28,Number(piece.w)||3));
+   piece.h=Math.max(.5,Math.min(turned?28:14,Number(piece.h)||3));
+   if(piece.kind==='square')piece.w=piece.h=Math.min(14,piece.w);
+  }
+  piece.top=Math.max(.5,Math.min(piece.w,Number(piece.top)||piece.w/2));
+  piece.angle=Math.max(1,Math.min(360,Number(piece.angle)||90));
+  const width=turned?piece.h:piece.w,height=turned?piece.w:piece.h;
+  piece.x=Math.max(0,Math.min(28-width,snap(piece.x)));
+  piece.y=Math.max(0,Math.min(14-height,snap(piece.y)));
+ }
+ function description(piece) {
+  if(piece.kind==='circle'||piece.kind==='sector')return 'r = '+fmt(piece.r)+(piece.kind==='sector'?', '+fmt(piece.angle)+'°':'');
+  if(piece.kind==='trapezium')return 'bases '+fmt(piece.w)+' and '+fmt(piece.top)+', height '+fmt(piece.h);
+  return fmt(piece.w)+' × '+fmt(piece.h);
+ }
+ function sync() {
+  $('pieceSelect').innerHTML=pieces.map((p,i)=>'<option value="'+i+'">'+(i+1)+'. '+names[p.kind||'rectangle']+' · '+(p.operation==='subtract'?'Subtract':'Add')+'</option>').join('');
+  $('pieceSelect').value=String(selected);
+  const p=pieces[selected];
+  if(!p)return;
+  for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top']])$(id).value=p[key]??'';
+  $('pieceOperation').value=p.operation||'add';
+ }
+ function add(kind,x=10,y=4) {
+  if(pieces.length>=200){note('Use up to 200 shapes. Delete a shape to add another.');return;}
+  save();
+  const piece={kind,operation:$('newPieceOperation').value,x,y,w:kind==='square'?3:5,h:3,r:2,angle:90,top:3};
+  clamp(piece);pieces.push(piece);selected=pieces.length-1;sync();run();
+ }
+ function point(event) {
+  const svg=$('viz').querySelector('svg'),p=svg.createSVGPoint();
+  p.x=event.clientX;p.y=event.clientY;
+  const q=p.matrixTransform(svg.getScreenCTM().inverse());
+  return {x:(q.x-ox)/step,y:(q.y-oy)/step};
+ }
+ for(const button of $('compositeControls').querySelectorAll('[data-piece]')){
+  button.style.touchAction='none';
+  button.onclick=()=>{if(button.dataset.dragged){delete button.dataset.dragged;return;}add(button.dataset.piece);};
+  button.onpointerdown=event=>{button.setPointerCapture(event.pointerId);button.dataset.start=event.clientX+','+event.clientY;};
+  button.onpointerup=event=>{
+   const [x,y]=button.dataset.start.split(',').map(Number);
+   if(Math.hypot(event.clientX-x,event.clientY-y)<8)return;
+   button.dataset.dragged='true';
+   const p=point(event);
+   if(p.x>=0&&p.x<28&&p.y>=0&&p.y<14)add(button.dataset.piece,p.x,p.y);
+  };
+ }
+ $('pieceSelect').onchange=()=>{selected=Number($('pieceSelect').value);sync();run();};
+ for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top']]){
+  $(id).oninput=()=>{
+   const value=Number($(id).value),piece=pieces[selected];
+   if(!piece||!Number.isFinite(value)||value<Number($(id).min))return;
+   save();piece[key]=value;clamp(piece);sync();run();
+  };
+  $(id).dataset.keepVisible='true';
+ }
+ $('pieceOperation').onchange=()=>{if(!pieces[selected])return;save();pieces[selected].operation=$('pieceOperation').value;sync();run();};
+ const action=(id,fn)=>$(id).onclick=()=>{save();fn();selected=Math.min(selected,pieces.length-1);sync();run();};
+ action('pieceRotate',()=>{const p=pieces[selected];if(p){p.rotation=(p.rotation||0)+90;clamp(p);}});
+ action('pieceDuplicate',()=>{const p=pieces[selected];if(p&&pieces.length<200){pieces.push({...p,x:p.x+.5,y:p.y+.5});selected=pieces.length-1;clamp(pieces[selected]);}});
+ action('pieceDelete',()=>{if(selected>=0)pieces.splice(selected,1);});
+ action('pieceClear',()=>{pieces=[];});
+ $('pieceUndo').onclick=()=>{if(history.length){({pieces,selected}=JSON.parse(history.pop()));sync();run();}};
  $('controls').insertAdjacentHTML('beforeend','<input type="hidden" id="compositeState">');
- $('compositeState').oninput=()=>{try{const state=JSON.parse($('compositeState').value);if(!Array.isArray(state.pieces)||state.pieces.length>200||!state.pieces.every(p=>['x','y','w','h'].every(k=>Number.isFinite(p[k]))))return;pieces=state.pieces;pieces.forEach(clamp);selected=Math.max(-1,Math.min(pieces.length-1,Number(state.selected)||0));sync()}catch{}};
- const oldClick=$('viz').onclick;
- $('viz').onclick=e=>{if($('fShape').value!=='builder')oldClick?.(e)};
- $('viz').onpointerdown=e=>{if($('fShape').value!=='builder')return;const el=e.target.closest('[data-part]');if(!el)return;e.preventDefault();selected=Number(el.dataset.part);save();const p=point(e);drag={dx:p.x-pieces[selected].x,dy:p.y-pieces[selected].y};$('viz').setPointerCapture(e.pointerId);sync();run();$('viz').querySelector('svg').focus()};
- $('viz').onpointermove=e=>{if(!drag)return;const p=point(e);pieces[selected].x=p.x-drag.dx;pieces[selected].y=p.y-drag.dy;clamp(pieces[selected]);run()};
- $('viz').onpointerup=$('viz').onpointercancel=()=>{drag=null};
- $('viz').onkeydown=e=>{if($('fShape').value!=='builder'||selected<0)return;const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(delta){e.preventDefault();save();pieces[selected].x+=delta[0];pieces[selected].y+=delta[1];clamp(pieces[selected]);run();$('viz').querySelector('svg').focus()}};
- update=()=>{
- $('compositeState').value=JSON.stringify({pieces,selected});
- const active=$('fShape').value==='builder';$('compositeControls').hidden=!active;if(!active){$('viz').style.touchAction='auto';return base()}
- for(const id of ['fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);$('clearArea').hidden=true;
- for(const id of ['pieceWidth','pieceHeight','pieceRotate','pieceDuplicate','pieceDelete'])$(id).disabled=selected<0;$('pieceUndo').disabled=!history.length;
- $('viz').style.touchAction='none';const m=measure(pieces);let s='<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>';
- if($('fGrid').checked){for(let x=0;x<=28;x++)s+=`<path d="M${ox+x*step} 28V420" stroke="#e3d9eb"/>`;for(let y=0;y<=14;y++)s+=`<path d="M28 ${oy+y*step}H812" stroke="#e3d9eb"/>`}
- pieces.forEach((p,i)=>{const x=ox+p.x*step,y=oy+p.y*step;s+=`<g data-part="${i}" style="cursor:grab"><rect x="${x}" y="${y}" width="${p.w*step}" height="${p.h*step}" fill="${colours[i%colours.length]}" fill-opacity=".28" stroke="${colours[i%colours.length]}" stroke-width="${i===selected?3:1}" ${i===selected?'stroke-dasharray="6 3"':''}/><text x="${x+p.w*step/2}" y="${y+p.h*step/2}" text-anchor="middle" dominant-baseline="middle" font-size="${Math.min(16,p.w*step/4)}" fill="#352040">${p.w} × ${p.h}</text><title>Piece ${i+1}: ${p.w} by ${p.h} units. Drag to move.</title></g>`});
- if($('fBoundary').checked)for(const[a,b]of m.edges)s+=`<path pointer-events="none" d="M${ox+a[0]*step} ${oy+a[1]*step}L${ox+b[0]*step} ${oy+b[1]*step}" stroke="#d24452" stroke-width="4"/>`;
- svg(s,'Drag and drop composite area and perimeter builder');$('viz').querySelector('svg').setAttribute('tabindex','0');
- formula('Area = covered squares · Perimeter = exposed edges');results([['Area',m.area+' square units'],['Perimeter',m.perimeter+' units']]);legend([['Perimeter',C.red],['Selected piece: dashed outline',C.purple]]);note('Each grid square is 1 × 1 unit. Join rectangles to make composite shapes. Overlapping squares count once; shared edges are internal. Hole boundaries and separate pieces are included in the total perimeter.');table(['Measurement','Value'],[['Area (square units)',m.area],['Perimeter (units)',m.perimeter]]);
+ $('compositeState').oninput=()=>{
+  try{
+   const state=JSON.parse($('compositeState').value);
+   if(!Array.isArray(state.pieces)||state.pieces.length>200||!state.pieces.every(p=>['x','y','w','h'].every(k=>Number.isFinite(p[k]))))return;
+   pieces=state.pieces;pieces.forEach(clamp);
+   selected=Math.max(-1,Math.min(pieces.length-1,Number(state.selected)||0));sync();
+  }catch{}
  };
- sync();
+ const oldClick=$('viz').onclick;
+ $('viz').onclick=event=>{if($('fShape').value!=='builder')oldClick?.(event);};
+ $('viz').onpointerdown=event=>{
+  if($('fShape').value!=='builder')return;
+  const el=event.target.closest('[data-part]');
+  if(!el)return;
+  event.preventDefault();selected=Number(el.dataset.part);save();
+  const p=point(event);drag={dx:p.x-pieces[selected].x,dy:p.y-pieces[selected].y};
+  $('viz').setPointerCapture(event.pointerId);sync();run();$('viz').querySelector('svg').focus();
+ };
+ $('viz').onpointermove=event=>{
+  if(!drag)return;
+  const p=point(event);pieces[selected].x=p.x-drag.dx;pieces[selected].y=p.y-drag.dy;
+  clamp(pieces[selected]);run();
+ };
+ $('viz').onpointerup=$('viz').onpointercancel=()=>{drag=null;};
+ $('viz').onkeydown=event=>{
+  if($('fShape').value!=='builder'||selected<0)return;
+  const delta={ArrowLeft:[-.5,0],ArrowRight:[.5,0],ArrowUp:[0,-.5],ArrowDown:[0,.5]}[event.key];
+  if(!delta)return;
+  event.preventDefault();save();pieces[selected].x+=delta[0];pieces[selected].y+=delta[1];
+  clamp(pieces[selected]);run();$('viz').querySelector('svg').focus();
+ };
+ update=()=>{
+  $('compositeState').value=JSON.stringify({pieces,selected});
+  const active=$('fShape').value==='builder';
+  $('compositeControls').hidden=!active;
+  if(!active){$('viz').style.touchAction='auto';return base();}
+  for(const id of ['fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
+  $('clearArea').hidden=true;
+  const p=pieces[selected],round=p&&(p.kind==='circle'||p.kind==='sector');
+  for(const id of ['pieceOperation','pieceWidth','pieceHeight','pieceRadius','pieceAngle','pieceTop','pieceRotate','pieceDuplicate','pieceDelete'])$(id).disabled=!p;
+  showControl('pieceWidth',!!p&&!round);showControl('pieceHeight',!!p&&!round&&p.kind!=='square');
+  showControl('pieceRadius',!!round);showControl('pieceAngle',p?.kind==='sector');showControl('pieceTop',p?.kind==='trapezium');
+  if(p){
+   $('pieceTop').max=p.w;
+   const turned=p.rotation===90||p.rotation===270;
+   $('pieceWidth').max=turned?14:28;$('pieceHeight').max=turned?28:14;
+  }
+  $('pieceUndo').disabled=!history.length;
+  $('viz').style.touchAction='none';
+  const measurement=Geometry.measure(pieces);
+  let drawing='<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>';
+  if($('fGrid').checked){
+   for(let x=0;x<=28;x++)drawing+='<path d="M'+(ox+x*step)+' 28V420" stroke="#e3d9eb"/>';
+   for(let y=0;y<=14;y++)drawing+='<path d="M28 '+(oy+y*step)+'H812" stroke="#e3d9eb"/>';
+  }
+  const path=p=>Geometry.path(p);
+  drawing+='<defs><mask id="composite-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="28" height="14"><rect width="28" height="14" fill="white"/>'
+   +pieces.filter(p=>p.operation==='subtract').map(p=>'<path d="'+path(p)+'" fill="black"/>').join('')+'</mask></defs>';
+  drawing+='<g transform="translate(28 28) scale(28)" opacity=".32" mask="url(#composite-cutouts)">'
+   +pieces.filter(p=>p.operation!=='subtract').map(p=>'<path d="'+path(p)+'" fill="#8050b4"/>').join('')+'</g>';
+  pieces.forEach((p,i)=>{
+   const subtract=p.operation==='subtract',colour=subtract?'#ba3448':colours[i%colours.length];
+   const title=names[p.kind||'rectangle']+' '+(i+1)+' · '+(subtract?'Subtract':'Add')+' · '+description(p);
+   drawing+='<g data-part="'+i+'" style="cursor:grab"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+colour+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+'. Drag to move.</title></g>';
+   if(i===selected){
+    const turned=p.rotation===90||p.rotation===270;
+    const width=turned?p.h:p.w,height=turned?p.w:p.h;
+    drawing+='<text pointer-events="none" x="'+(ox+(p.x+width/2)*step)+'" y="'+(oy+(p.y+height/2)*step)+'" text-anchor="middle" font-size="12" stroke="white" stroke-width="3" paint-order="stroke" fill="'+colour+'">'+esc(description(p))+'</text>';
+   }
+  });
+  if($('fBoundary').checked)drawing+='<g transform="translate(28 28) scale(28)" pointer-events="none" fill="none" stroke="#d24452" stroke-width=".12">'
+   +measurement.boundaries.map(edge=>'<path d="'+Geometry.pathSegment(edge)+'"/>').join('')+'</g>';
+  svg(drawing,'Composite shapes with addition and subtraction');
+  $('viz').querySelector('svg').setAttribute('tabindex','0');
+  formula('Area of added shapes − removed regions');
+  results([['Area',fmt(measurement.area,3)+' square units'],['Perimeter',fmt(measurement.perimeter,3)+' units']]);
+  legend([['Final boundary',C.red],['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]);
+  note('Each grid square is 1 × 1 unit. Overlapping added shapes count once. Subtraction removes only the region covered by an added shape. Perimeter includes curved edges and hole boundaries. Values are rounded to 3 decimal places.');
+  table(['Measurement','Value'],[['Area (square units)',measurement.area],['Perimeter (units)',measurement.perimeter]]);
+ };
+ pieces.forEach(clamp);sync();
 };
 if(current==='area')launch('area');
 })(typeof window!=='undefined'?window:globalThis);
