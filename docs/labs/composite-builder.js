@@ -10,12 +10,14 @@ labs.area.setup=function() {
  let pieces=[{x:4,y:3,w:8,h:3},{x:4,y:6,w:3,h:4}],selected=0,drag=null,history=[];
  const colours=['#8050b4','#078477','#287caf','#b57618','#bf5268'];
  const names={rectangle:'Rectangle',square:'Square',circle:'Circle',sector:'Sector',triangle:'Triangle',trapezium:'Trapezium'};
- const step=28,ox=28,oy=28;
+ const step=28,ox=28,oy=28,columns=48,rows=28;
  $('fShape').insertAdjacentHTML('beforeend','<option value="builder">Drag & drop composite builder</option>');
  $('fShape').value='builder';
  $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',`
  <div id="compositeControls">
   <p>Click to add a shape, or drag it onto the grid. Select a placed shape to choose Add or Subtract.</p>
+  <div class="actions"><button id="compositeExpand" type="button">Expand build area</button><button id="compositeFit" type="button">Fit workspace</button></div>
+  <div><label for="compositeZoom">Workspace zoom <output id="compositeZoomValue">100%</output></label><input id="compositeZoom" type="range" min="40" max="150" step="1" value="100"></div>
   <label class="check"><input id="compositeGrid" type="checkbox" checked> Show placement grid</label>
   <label class="check"><input id="pieceDeleteMode" type="checkbox"> Click shapes to delete</label>
   <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
@@ -29,15 +31,31 @@ labs.area.setup=function() {
   <div><label for="pieceSelect">Selected shape</label><select id="pieceSelect"></select></div>
   <div><label for="pieceOperation">Selected shape operation</label>
   <select id="pieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
-  <div><label for="pieceWidth">Base / width (units)</label><input id="pieceWidth" type="number" min="0.5" max="28" step="0.5"></div>
-  <div><label for="pieceHeight">Height (units)</label><input id="pieceHeight" type="number" min="0.5" max="14" step="0.5"></div>
-  <div><label for="pieceRadius">Radius (units)</label><input id="pieceRadius" type="number" min="0.5" max="7" step="0.5"></div>
+  <div><label for="pieceWidth">Base / width (units)</label><input id="pieceWidth" type="number" min="0.5" max="${columns}" step="0.5"></div>
+  <div><label for="pieceHeight">Height (units)</label><input id="pieceHeight" type="number" min="0.5" max="${rows}" step="0.5"></div>
+  <div><label for="pieceRadius">Radius (units)</label><input id="pieceRadius" type="number" min="0.5" max="${rows/2}" step="0.5"></div>
   <div><label for="pieceAngle">Sector angle (degrees)</label><input id="pieceAngle" type="number" min="1" max="360" step="1"></div>
-  <div><label for="pieceApex">Triangle top vertex from left (units)</label><input id="pieceApex" type="number" min="0" max="28" step="0.5"></div>
-  <div><label for="pieceTop">Top width (units)</label><input id="pieceTop" type="number" min="0.5" max="28" step="0.5"></div>
+  <div><label for="pieceApex">Triangle top vertex from left (units)</label><input id="pieceApex" type="number" min="0" max="${columns}" step="0.5"></div>
+  <div><label for="pieceTop">Top width (units)</label><input id="pieceTop" type="number" min="0.5" max="${columns}" step="0.5"></div>
   <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete selected</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
   <p>Subtracted shapes cut through all added shapes. Arrow keys move the selected shape half a unit. Overlaps count once.</p>
  </div>`);
+ const layout=$('viz').closest('.layout');
+ $('compositeExpand').onclick=async()=>{
+  try{
+   if(document.fullscreenElement===layout)await document.exitFullscreen();
+   else await layout.requestFullscreen();
+  }catch{note('Use your browser’s full-screen mode to expand the build area.');}
+ };
+ layout.onfullscreenchange=()=>{
+  if($('compositeExpand'))$('compositeExpand').textContent=document.fullscreenElement===layout?'Exit expanded view':'Expand build area';
+ };
+ $('compositeFit').onclick=()=>{
+  const box=$('viz').querySelector('svg').viewBox.baseVal;
+  const fit=Math.min(($('viz').clientWidth-20)/box.width,($('viz').clientHeight-20)/box.height);
+  $('compositeZoom').value=String(Math.max(40,Math.min(150,Math.floor(fit*100))));
+  run();
+ };
  const save=()=>{history.push(JSON.stringify({pieces,selected}));if(history.length>100)history.shift();};
  const snap=n=>Math.round(n*2)/2;
  function clamp(piece) {
@@ -46,19 +64,19 @@ labs.area.setup=function() {
   piece.rotation=(((Math.round((piece.rotation||0)/90)*90)%360)+360)%360;
   const turned=piece.rotation===90||piece.rotation===270;
   if(piece.kind==='circle'||piece.kind==='sector'){
-   piece.r=Math.max(.5,Math.min(7,Number(piece.r)||Number(piece.w)/2||2));
+   piece.r=Math.max(.5,Math.min(rows/2,Number(piece.r)||Number(piece.w)/2||2));
    piece.w=piece.h=2*piece.r;
   }else{
-   piece.w=Math.max(.5,Math.min(turned?14:28,Number(piece.w)||3));
-   piece.h=Math.max(.5,Math.min(turned?28:14,Number(piece.h)||3));
-   if(piece.kind==='square')piece.w=piece.h=Math.min(14,piece.w);
+   piece.w=Math.max(.5,Math.min(turned?rows:columns,Number(piece.w)||3));
+   piece.h=Math.max(.5,Math.min(turned?columns:rows,Number(piece.h)||3));
+   if(piece.kind==='square')piece.w=piece.h=Math.min(rows,piece.w);
   }
   piece.top=Math.max(.5,Math.min(piece.w,Number(piece.top)||piece.w/2));
   piece.apex=Math.max(0,Math.min(piece.w,Number.isFinite(piece.apex)?piece.apex:piece.w/2));
   piece.angle=Math.max(1,Math.min(360,Number(piece.angle)||90));
   const width=turned?piece.h:piece.w,height=turned?piece.w:piece.h;
-  piece.x=Math.max(0,Math.min(28-width,snap(piece.x)));
-  piece.y=Math.max(0,Math.min(14-height,snap(piece.y)));
+  piece.x=Math.max(0,Math.min(columns-width,snap(piece.x)));
+  piece.y=Math.max(0,Math.min(rows-height,snap(piece.y)));
  }
  function description(piece) {
   if(piece.kind==='circle'||piece.kind==='sector')return 'r = '+fmt(piece.r)+(piece.kind==='sector'?', '+fmt(piece.angle)+'°':'');
@@ -95,7 +113,7 @@ labs.area.setup=function() {
    if(Math.hypot(event.clientX-x,event.clientY-y)<8)return;
    button.dataset.dragged='true';
    const p=point(event);
-   if(p.x>=0&&p.x<28&&p.y>=0&&p.y<14)add(button.dataset.piece,p.x,p.y);
+   if(p.x>=0&&p.x<columns&&p.y>=0&&p.y<rows)add(button.dataset.piece,p.x,p.y);
   };
  }
  $('pieceSelect').onchange=()=>{selected=Number($('pieceSelect').value);sync();run();};
@@ -138,7 +156,7 @@ labs.area.setup=function() {
   if($('pieceDeleteMode').checked){deleteSelected();return;}
   save();
   const p=point(event);drag={dx:p.x-pieces[selected].x,dy:p.y-pieces[selected].y};
-  $('viz').setPointerCapture(event.pointerId);sync();run();$('viz').querySelector('svg').focus();
+  $('viz').setPointerCapture(event.pointerId);sync();run();$('viz').querySelector('svg').focus({preventScroll:true});
  };
  $('viz').onpointermove=event=>{
   if(!drag)return;
@@ -149,18 +167,18 @@ labs.area.setup=function() {
  $('viz').onkeydown=event=>{
   if($('fShape').value!=='builder'||selected<0)return;
   if(event.key==='Delete'||event.key==='Backspace'){
-   event.preventDefault();deleteSelected();$('viz').querySelector('svg').focus();return;
+   event.preventDefault();deleteSelected();$('viz').querySelector('svg').focus({preventScroll:true});return;
   }
   const delta={ArrowLeft:[-.5,0],ArrowRight:[.5,0],ArrowUp:[0,-.5],ArrowDown:[0,.5]}[event.key];
   if(!delta)return;
   event.preventDefault();save();pieces[selected].x+=delta[0];pieces[selected].y+=delta[1];
-  clamp(pieces[selected]);run();$('viz').querySelector('svg').focus();
+  clamp(pieces[selected]);run();$('viz').querySelector('svg').focus({preventScroll:true});
  };
  update=()=>{
   $('compositeState').value=JSON.stringify({pieces,selected});
   const active=$('fShape').value==='builder';
   $('compositeControls').hidden=!active;
-  if(!active){$('viz').style.touchAction='auto';$('viz').style.height='';return base();}
+  if(!active){$('viz').style.touchAction='auto';$('viz').style.height='';$('viz').style.overflow='hidden';return base();}
   for(const id of ['fGrid','fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
   $('clearArea').hidden=true;
   const p=pieces[selected],round=p&&(p.kind==='circle'||p.kind==='sector');
@@ -170,21 +188,23 @@ labs.area.setup=function() {
   if(p){
    $('pieceTop').max=p.w;$('pieceApex').max=p.w;
    const turned=p.rotation===90||p.rotation===270;
-   $('pieceWidth').max=turned?14:28;$('pieceHeight').max=turned?28:14;
+   $('pieceWidth').max=turned?rows:columns;$('pieceHeight').max=turned?columns:rows;
   }
   $('pieceUndo').disabled=!history.length;
   $('viz').style.touchAction='none';
-  $('viz').style.height='clamp(380px,58dvh,650px)';
+  $('viz').style.height='clamp(540px,76dvh,900px)';
+  $('viz').style.overflow='auto';
   const construction=$('compositeConstruction').checked,deleteMode=$('pieceDeleteMode').checked;
   const unit=$('compositeUnit').value;
   const measurement=Geometry.measure(pieces);
-  let drawing=$('compositeGrid').checked?'<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>':'';
+  const gridWidth=columns*step,gridHeight=rows*step;
+  let drawing=$('compositeGrid').checked?'<rect x="'+ox+'" y="'+oy+'" width="'+gridWidth+'" height="'+gridHeight+'" fill="#faf7fc" stroke="#cbbbd8"/>':'';
   if($('compositeGrid').checked){
-   for(let x=0;x<=28;x++)drawing+='<path d="M'+(ox+x*step)+' 28V420" stroke="#e3d9eb"/>';
-   for(let y=0;y<=14;y++)drawing+='<path d="M28 '+(oy+y*step)+'H812" stroke="#e3d9eb"/>';
+   for(let x=0;x<=columns;x++)drawing+='<path d="M'+(ox+x*step)+' '+oy+'V'+(oy+gridHeight)+'" stroke="#e3d9eb"/>';
+   for(let y=0;y<=rows;y++)drawing+='<path d="M'+ox+' '+(oy+y*step)+'H'+(ox+gridWidth)+'" stroke="#e3d9eb"/>';
   }
   const path=p=>Geometry.path(p);
-  drawing+='<defs><mask id="composite-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="28" height="14"><rect width="28" height="14" fill="white"/>'
+  drawing+='<defs><mask id="composite-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="'+columns+'" height="'+rows+'"><rect width="'+columns+'" height="'+rows+'" fill="white"/>'
    +pieces.filter(p=>p.operation==='subtract').map(p=>'<path d="'+path(p)+'" fill="black"/>').join('')+'</mask></defs>';
   drawing+='<g transform="translate(28 28) scale(28)" opacity=".5" mask="url(#composite-cutouts)">'
    +pieces.filter(p=>p.operation!=='subtract').map(p=>'<path d="'+path(p)+'" fill="#14a98d"/>').join('')+'</g>';
@@ -213,9 +233,13 @@ labs.area.setup=function() {
     top:Math.min(box.top,piece.y),bottom:Math.max(box.bottom,bottom)}
     :{left:piece.x,right,top:piece.y,bottom};
   }
-  if($('compositeGrid').checked||!box)box={left:0,right:28,top:0,bottom:14};
-  diagram.setAttribute('viewBox',[(28+box.left*step)-150,(28+box.top*step)-75,
-   (box.right-box.left)*step+300,(box.bottom-box.top)*step+200].join(' '));
+  if($('compositeGrid').checked||!box)box={left:0,right:columns,top:0,bottom:rows};
+  const viewWidth=(box.right-box.left)*step+300,viewHeight=(box.bottom-box.top)*step+200;
+  diagram.setAttribute('viewBox',[(ox+box.left*step)-150,(oy+box.top*step)-75,viewWidth,viewHeight].join(' '));
+  const zoom=Number($('compositeZoom').value)/100;
+  $('compositeZoomValue').textContent=Math.round(zoom*100)+'%';
+  diagram.style.width=viewWidth*zoom+'px';diagram.style.height=viewHeight*zoom+'px';
+  diagram.style.maxWidth='none';
   formula('Area of added shapes − removed regions');
   results([['Area',fmt(measurement.area,3)+(unit==='units'?' square units':' '+unit+'²')],['Perimeter',fmt(measurement.perimeter,3)+' '+unit]]);
   legend([['Composite shape','#14a98d'],...(construction?[['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]:[])]);
