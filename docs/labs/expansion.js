@@ -47,23 +47,20 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  };
  const regionName=(n,i)=>i===0&&n===3?'Outside all sets':i===3&&n===2?'A ∩ B':regionNames[i];
  controls(select('sets','Number of sets',[['2','Two sets'],['3','Three sets']])
-  +select('vennEntry','Elements',[['random','Random sample'],['custom','Enter elements by region'],['counts','Enter counts']])
+  +select('vennEntry','Elements',[['random','Random sample'],['counts','Enter counts']])
   +input('elements','Number of elements',40,1,500,1)+btn('scatter','Randomise elements')
   +check('objects','Show objects')
   +select('event','Shade event',[['manual','Click regions to shade'],['A','A'],['B','B'],['and','A ∩ B'],['or','A ∪ B'],['not','Not A'],['given','A given B'],['C','C'],['abc','A ∩ B ∩ C'],['any','A ∪ B ∪ C']])
   +['Sport','Music','Gaming'].map((name,i)=>{
    const letter='ABC'[i];
    return `<div><label for="name${letter}">Set ${letter}</label><input id="name${letter}" value="${name}"></div>`;
-  }).join('')
-  +`<section class="section" id="vennRegions" hidden>
-    <div id="vennInputHelp">Enter names or values separated by commas or new lines. Leave empty regions blank.</div>
-    ${[2,3].map(n=>`<div id="vennRegions${n}">${layouts[n].map((_,i)=>`
-      <label for="venn-${n}-${i}">${regionName(n,i)}</label>
-      <textarea id="venn-${n}-${i}" rows="2" aria-describedby="vennInputHelp"></textarea>`).join('')}</div>`).join('')}
-  </section>`);
+  }).join(''));
  const centres=[[340,190],[500,190],[420,270]],r=125;
  const regionAt=(x,y,n)=>centres.slice(0,n).reduce((bits,[cx,cy],i)=>
   Math.hypot(x-cx,y-cy)<r?bits|(1<<i):bits,0);
+ // Leave room for the largest dot and the outline stroke on either side of a boundary.
+ const clearOfOutlines=(x,y,n)=>centres.slice(0,n).every(([cx,cy])=>
+  Math.abs(Math.hypot(x-cx,y-cy)-r)>=9);
  const matches=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
  const matchesRegion=(event,bits)=>matches(event,!!(bits&1),!!(bits&2),!!(bits&4));
  let tokens=[],key='',editing=null,tokenPointer=false;
@@ -87,12 +84,11 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   try{run()}finally{editing=null}
  }
 
- const customLists={2:layouts[2].map(()=>[]),3:layouts[3].map(()=>[])};
  function scatter(n,size){
   tokens=Array.from({length:size},()=>{
    const bits=Math.floor(secureUnit()*2**n);
    let x,y;
-   do{x=50+secureUnit()*740;y=70+secureUnit()*310}while(regionAt(x,y,n)!==bits);
+   do{x=50+secureUnit()*740;y=70+secureUnit()*310}while(!clearOfOutlines(x,y,n)||regionAt(x,y,n)!==bits);
    return {x,y};
   });
  }
@@ -119,31 +115,15 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   run();
  };
  update=()=>{
-  const n=+$('sets').value,custom=$('vennEntry').value==='custom';
-  const countMode=$('vennEntry').value==='counts',random=!custom&&!countMode;
+  const n=+$('sets').value,countMode=$('vennEntry').value==='counts';
   const filtered=countMode&&n===3;
   $('vennTableGroupLabel').hidden=!filtered;
   const tableGroup=filtered?+$('vennTableGroup').value:null;
   showControl('nameC',n===3);
-  showControl('elements',random);
-  showControl('objects',random);
-  $('scatter').hidden=!random;
-  $('vennRegions').hidden=!custom;
-  $('vennRegions2').hidden=n!==2;
-  $('vennRegions3').hidden=n!==3;
-  let lists=customLists[n];
-  if(custom){
-   const entered=layouts[n].map((_,i)=>$('venn-'+n+'-'+i).value.split(/[,\n]+/).map(label=>label.trim()).filter(Boolean));
-   const labels=entered.flat(),seen=new Set();
-   const duplicate=labels.find(label=>{
-    if(seen.has(label))return true;
-    seen.add(label);
-    return false;
-   });
-   if(duplicate!==undefined)softWarning=`“${duplicate}” is repeated. Enter each element once.`;
-   else if(labels.length>500)softWarning='Enter up to 500 elements.';
-   else lists=customLists[n]=entered;
-  }else if(random){
+  showControl('elements',!countMode);
+  showControl('objects',!countMode);
+  $('scatter').hidden=countMode;
+  if(!countMode){
    const size=value('elements'),next=n+','+size;
    if(next!==key){scatter(n,size);key=next}
   }
@@ -156,9 +136,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   let s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf" class="venn-board"/>';
  for(let bits=0;bits<2**n;bits++){const m=Array.from({length:n},(_,i)=>!!(bits&(1<<i)));if(!isSelected(bits))continue;let piece='<rect x="30" y="30" width="780" height="380" fill="#d9b7ee"/>';for(let i=0;i<n;i++)piece=`<g ${m[i]?'clip-path="url(#set'+i+')"':'mask="url(#outside'+i+')"'}>${piece}</g>`;s+=piece}
 
-  if(custom){
-   lists.forEach((labels,bits)=>{regions[bits]=labels.length});
-  }else if(random){
+  if(!countMode){
    tokens.forEach(({x,y},i)=>{
     const bits=regionAt(x,y,n);
     regions[bits]++;
@@ -176,19 +154,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
     +txt(x,i===2?425:50,letter+': '+$('name'+letter).value,16);
   });
   layouts[n].forEach(([x,y,w,h],bits)=>{
-   if(custom){
-    const labels=lists[bits];
-    if(!labels.length)return;
-    const longest=Math.max(...labels.map(label=>Array.from(label).length));
-    const columns=Math.min(labels.length,Math.max(1,Math.floor(w/Math.min(w,Math.max(30,longest*9+10)))));
-    const rows=Math.ceil(labels.length/columns),rowHeight=Math.min(23,h/rows),cellWidth=w/columns;
-    labels.forEach((label,i)=>{
-     const col=i%columns,row=Math.floor(i/columns),inRow=Math.min(columns,labels.length-row*columns);
-     const cx=x+(col-(inRow-1)/2)*cellWidth,cy=y+(row-(rows-1)/2)*rowHeight;
-     const size=Math.min(18,rowHeight*.86,(cellWidth-6)/Math.max(1,Array.from(label).length)*1.15);
-     s+=`<g><title>${esc(label)}</title><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${size}" fill="#493354">${esc(label)}</text></g>`;
-    });
-   }else if(countMode){
+   if(countMode){
     const width=Math.min(w,76),height=Math.min(h,32);
     s+=`<foreignObject x="${x-width/2}" y="${y-height/2}" width="${width}" height="${height}">${countInput(bits,n,regions[bits])}</foreignObject>`;
    }else if(!$('objects').checked)s+=txt(x,y+7,regions[bits],25);
@@ -236,9 +202,13 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   });
   $('vennTable').hidden=!revealed();
   $('vennTableHeading').textContent=n===3?'Two-way table for A and B':'Two-way table';
-  note(countMode?(filtered?'Edit counts on the diagram or choose a group to edit in the table. Probabilities use the full diagram.':'Edit the counts on the diagram or in the table. Totals update automatically.'):custom?'The table counts the elements you enter in each region.':"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
+  note(countMode?(filtered?'Edit counts on the diagram or choose a group to edit in the table. Probabilities use the full diagram.':'Edit the counts on the diagram or in the table. Totals update automatically.'):"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
  };
- dragSVG((id,x,y)=>{tokens[+id]={x:Math.max(45,Math.min(795,x)),y:Math.max(65,Math.min(395,y))}});
+ dragSVG((id,x,y)=>{
+  x=Math.max(45,Math.min(795,x));
+  y=Math.max(65,Math.min(395,y));
+  if(clearOfOutlines(x,y,+$('sets').value))tokens[+id]={x,y};
+ });
  const dragStart=$('viz').onpointerdown;
  $('viz').onpointerdown=e=>{
   tokenPointer=!!e.target.closest('[data-drag]');
