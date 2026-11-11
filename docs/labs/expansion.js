@@ -99,7 +99,6 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  details.hidden=true;
  $('viz').oninput=editCount;
  $('table').oninput=editCount;
- $('vennTableGroup').onchange=()=>run();
  $('viz').onclick=e=>{
   if(e.button!==0||tokenPointer||e.target.closest('input,[data-drag]'))return;
   const graphic=$('viz').querySelector('svg');
@@ -116,9 +115,8 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  };
  update=()=>{
   const n=+$('sets').value,countMode=$('vennEntry').value==='counts';
-  const filtered=countMode&&n===3;
-  $('vennTableGroupLabel').hidden=!filtered;
-  const tableGroup=filtered?+$('vennTableGroup').value:null;
+  $('vennTable').hidden=n===3||!revealed();
+  $('csv').hidden=n===3;
   showControl('nameC',n===3);
   showControl('elements',!countMode);
   showControl('objects',!countMode);
@@ -129,7 +127,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   }
   for(const opt of $('event').options)opt.disabled=n===2&&['C','abc','any'].includes(opt.value);
   if($('event').selectedOptions[0].disabled)$('event').value='A';
-  const event=$('event').value,counts=[0,0,0,0];
+  const event=$('event').value;
   const regions=countMode?enteredCounts[n]:Array(2**n).fill(0);
   const isSelected=bits=>event==='manual'?shaded[n].has(bits):matchesRegion(event,bits);
   let hit=0,den=0;
@@ -140,11 +138,10 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
    tokens.forEach(({x,y},i)=>{
     const bits=regionAt(x,y,n);
     regions[bits]++;
-    if($('objects').checked)s+=`<circle data-drag="${i}" cx="${x}" cy="${y}" r="${tokens.length>100?3:6}" fill="${isSelected(bits)?C.red:'#706479'}"/>`;
+    if($('objects').checked)s+=`<circle data-drag="${i}" cx="${x}" cy="${y}" r="${tokens.length>100?3:6}" fill="${isSelected(bits)?C.red:'#706479'}" stroke="white" stroke-width="1.5"/>`;
    });
   }
   regions.forEach((count,bits)=>{
-   if(tableGroup===null||(bits&4)===tableGroup)counts[(bits&1?0:2)+(bits&2?0:1)]+=count;
    if(isSelected(bits))hit+=count;
    if(event!=='given'||bits&2)den+=count;
   });
@@ -165,12 +162,20 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   }
   formula(event==='given'?'P(A | B): shaded intersection, with B as the reference group':event==='manual'?'Click regions to shade or clear them.':'Shading shows the selected event');
   results([['Selected',hit],['Reference group',den],['Probability',den?`${hit}/${den} = ${fmt(hit/den)}`:'Undefined']]);
+  note(countMode
+   ?(n===3?'Edit counts directly on the diagram.':'Edit the counts on the diagram or in the table. Totals update automatically.')
+   :'Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.');
+  if(n===3){
+   $('table').innerHTML='';
+   return;
+  }
+  const [neither,onlyA,onlyB,both]=regions;
   const a=$('nameA').value.trim(),b=$('nameB').value.trim();
   const headers=['',b?'B · '+b:'B','Not B','Total'];
   const rows=[
-   [a?'A · '+a:'A',counts[0],counts[1],counts[0]+counts[1]],
-   ['Not A',counts[2],counts[3],counts[2]+counts[3]],
-   ['Total',counts[0]+counts[2],counts[1]+counts[3],counts.reduce((sum,count)=>sum+count,0)]
+   [a?'A · '+a:'A',both,onlyA,both+onlyA],
+   ['Not A',onlyB,neither,onlyB+neither],
+   ['Total',both+onlyB,onlyA+neither,regions.reduce((sum,count)=>sum+count,0)]
   ];
   if(!editing)table(headers,rows);
   else exportRows=[headers,...rows];
@@ -187,7 +192,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
      if(editing)cell.textContent=rows[i][j];
      continue;
     }
-    const bits=(i===0?1:0)|(j===1?2:0)|(tableGroup??0);
+    const bits=(i===0?1:0)|(j===1?2:0);
     if(countMode){
      if(!editing)cell.innerHTML=countInput(bits,n,rows[i][j]);
      else{
@@ -195,14 +200,12 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
       if(field!==editing&&+field.value!==rows[i][j])field.value=rows[i][j];
      }
     }
-    const shadedCell=isSelected(bits)&&(n===2||filtered||isSelected(bits|4));
+    const shadedCell=isSelected(bits);
     cell.classList.toggle('venn-selected',shadedCell);
     cell.classList.toggle('venn-reference',event==='given'&&j===1&&!shadedCell);
    }
   });
-  $('vennTable').hidden=!revealed();
-  $('vennTableHeading').textContent=n===3?'Two-way table for A and B':'Two-way table';
-  note(countMode?(filtered?'Edit counts on the diagram or choose a group to edit in the table. Probabilities use the full diagram.':'Edit the counts on the diagram or in the table. Totals update automatically.'):"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
+
  };
  dragSVG((id,x,y)=>{
   x=Math.max(45,Math.min(795,x));
