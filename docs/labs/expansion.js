@@ -47,10 +47,10 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  };
  const regionName=(n,i)=>i===0&&n===3?'Outside all sets':i===3&&n===2?'A ∩ B':regionNames[i];
  controls(select('sets','Number of sets',[['2','Two sets'],['3','Three sets']])
-  +select('vennEntry','Elements',[['random','Random sample'],['custom','Enter elements by region']])
+  +select('vennEntry','Elements',[['random','Random sample'],['custom','Enter elements by region'],['counts','Enter counts']])
   +input('elements','Number of elements',40,1,500,1)+btn('scatter','Randomise elements')
   +check('objects','Show objects')
-  +select('event','Shade event',[['A','A'],['B','B'],['and','A ∩ B'],['or','A ∪ B'],['not','Not A'],['given','A given B'],['C','C'],['abc','A ∩ B ∩ C'],['any','A ∪ B ∪ C']])
+  +select('event','Shade event',[['manual','Click regions to shade'],['A','A'],['B','B'],['and','A ∩ B'],['or','A ∪ B'],['not','Not A'],['given','A given B'],['C','C'],['abc','A ∩ B ∩ C'],['any','A ∪ B ∪ C']])
   +['Sport','Music','Gaming'].map((name,i)=>{
    const letter='ABC'[i];
    return `<div><label for="name${letter}">Set ${letter}</label><input id="name${letter}" value="${name}"></div>`;
@@ -64,8 +64,29 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  const centres=[[340,190],[500,190],[420,270]],r=125;
  const regionAt=(x,y,n)=>centres.slice(0,n).reduce((bits,[cx,cy],i)=>
   Math.hypot(x-cx,y-cy)<r?bits|(1<<i):bits,0);
- const selected=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
- let tokens=[],key='';
+ const matches=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
+ const matchesRegion=(event,bits)=>matches(event,!!(bits&1),!!(bits&2),!!(bits&4));
+ let tokens=[],key='',editing=null,tokenPointer=false;
+ const enteredCounts={2:layouts[2].map(()=>0),3:layouts[3].map(()=>0)};
+ const shaded={2:new Set(),3:new Set()};
+ const countInput=(bits,n,count)=>`<input class="venn-count" type="number" min="0" step="1" inputmode="numeric" aria-label="${regionName(n,bits)} count" data-venn-count="${bits}" value="${count}">`;
+ function editCount(e){
+  const field=e.target.closest('input[data-venn-count]');
+  if(!field)return;
+  const counts=enteredCounts[+$('sets').value],bits=+field.dataset.vennCount;
+  const count=field.value===''?0:field.valueAsNumber;
+  const total=counts.reduce((sum,x,i)=>sum+(i===bits?count:x),0);
+  if(field.validity.badInput||!Number.isSafeInteger(count)||count<0||!Number.isSafeInteger(total)){
+   field.setAttribute('aria-invalid','true');
+   $('error').textContent='Enter a non-negative whole number that keeps the total within the supported range.';
+   return;
+  }
+  field.removeAttribute('aria-invalid');
+  counts[bits]=count;
+  editing=field;
+  try{run()}finally{editing=null}
+ }
+
  const customLists={2:layouts[2].map(()=>[]),3:layouts[3].map(()=>[])};
  function scatter(n,size){
   tokens=Array.from({length:size},()=>{
@@ -80,12 +101,33 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  $('vennTable').hidden=false;
  $('vennTable').append($('table'));
  details.hidden=true;
+ $('viz').oninput=editCount;
+ $('table').oninput=editCount;
+ $('vennTableGroup').onchange=()=>run();
+ $('viz').onclick=e=>{
+  if(e.button!==0||tokenPointer||e.target.closest('input,[data-drag]'))return;
+  const graphic=$('viz').querySelector('svg');
+  if(!graphic)return;
+  const {x,y}=new DOMPoint(e.clientX,e.clientY).matrixTransform(graphic.getScreenCTM().inverse());
+  if(x<30||x>810||y<30||y>410)return;
+  const n=+$('sets').value,bits=regionAt(x,y,n);
+  const event=$('event').value;
+  if(event!=='manual')shaded[n]=new Set(layouts[n].map((_,i)=>i).filter(i=>matchesRegion(event,i)));
+  $('event').value='manual';
+  if(shaded[n].has(bits))shaded[n].delete(bits);
+  else shaded[n].add(bits);
+  run();
+ };
  update=()=>{
   const n=+$('sets').value,custom=$('vennEntry').value==='custom';
+  const countMode=$('vennEntry').value==='counts',random=!custom&&!countMode;
+  const filtered=countMode&&n===3;
+  $('vennTableGroupLabel').hidden=!filtered;
+  const tableGroup=filtered?+$('vennTableGroup').value:null;
   showControl('nameC',n===3);
-  showControl('elements',!custom);
-  showControl('objects',!custom);
-  $('scatter').hidden=custom;
+  showControl('elements',random);
+  showControl('objects',random);
+  $('scatter').hidden=!random;
   $('vennRegions').hidden=!custom;
   $('vennRegions2').hidden=n!==2;
   $('vennRegions3').hidden=n!==3;
@@ -101,21 +143,22 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
    if(duplicate!==undefined)softWarning=`“${duplicate}” is repeated. Enter each element once.`;
    else if(labels.length>500)softWarning='Enter up to 500 elements.';
    else lists=customLists[n]=entered;
-  }else{
+  }else if(random){
    const size=value('elements'),next=n+','+size;
    if(next!==key){scatter(n,size);key=next}
   }
   for(const opt of $('event').options)opt.disabled=n===2&&['C','abc','any'].includes(opt.value);
   if($('event').selectedOptions[0].disabled)$('event').value='A';
-  const event=$('event').value,counts=[0,0,0,0],regions=Array(2**n).fill(0);
+  const event=$('event').value,counts=[0,0,0,0];
+  const regions=countMode?enteredCounts[n]:Array(2**n).fill(0);
+  const isSelected=bits=>event==='manual'?shaded[n].has(bits):matchesRegion(event,bits);
   let hit=0,den=0;
-  let s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf"/>';
- for(let bits=0;bits<2**n;bits++){const m=Array.from({length:n},(_,i)=>!!(bits&(1<<i)));if(!selected(event,...m))continue;let piece='<rect x="30" y="30" width="780" height="380" fill="#d9b7ee"/>';for(let i=0;i<n;i++)piece=`<g ${m[i]?'clip-path="url(#set'+i+')"':'mask="url(#outside'+i+')"'}>${piece}</g>`;s+=piece}
+  let s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf" class="venn-board"/>';
+ for(let bits=0;bits<2**n;bits++){const m=Array.from({length:n},(_,i)=>!!(bits&(1<<i)));if(!isSelected(bits))continue;let piece='<rect x="30" y="30" width="780" height="380" fill="#d9b7ee"/>';for(let i=0;i<n;i++)piece=`<g ${m[i]?'clip-path="url(#set'+i+')"':'mask="url(#outside'+i+')"'}>${piece}</g>`;s+=piece}
 
-  const isSelected=bits=>selected(event,!!(bits&1),!!(bits&2),!!(bits&4));
   if(custom){
    lists.forEach((labels,bits)=>{regions[bits]=labels.length});
-  }else{
+  }else if(random){
    tokens.forEach(({x,y},i)=>{
     const bits=regionAt(x,y,n);
     regions[bits]++;
@@ -123,7 +166,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
    });
   }
   regions.forEach((count,bits)=>{
-   counts[(bits&1?0:2)+(bits&2?0:1)]+=count;
+   if(tableGroup===null||(bits&4)===tableGroup)counts[(bits&1?0:2)+(bits&2?0:1)]+=count;
    if(isSelected(bits))hit+=count;
    if(event!=='given'||bits&2)den+=count;
   });
@@ -145,33 +188,62 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
      const size=Math.min(18,rowHeight*.86,(cellWidth-6)/Math.max(1,Array.from(label).length)*1.15);
      s+=`<g><title>${esc(label)}</title><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${size}" fill="#493354">${esc(label)}</text></g>`;
     });
+   }else if(countMode){
+    const width=Math.min(w,76),height=Math.min(h,32);
+    s+=`<foreignObject x="${x-width/2}" y="${y-height/2}" width="${width}" height="${height}">${countInput(bits,n,regions[bits])}</foreignObject>`;
    }else if(!$('objects').checked)s+=txt(x,y+7,regions[bits],25);
   });
-  svg(s,'Venn diagram with the selected event shaded');
-  formula(event==='given'?'P(A | B): shaded intersection, with B as the reference group':'Shading shows the selected event');
+  if(!editing)svg(s,'Venn diagram with the selected regions shaded');
+  else for(const field of $('viz').querySelectorAll('input[data-venn-count]')){
+   if(field!==editing&&+field.value!==regions[+field.dataset.vennCount])field.value=regions[+field.dataset.vennCount];
+  }
+  formula(event==='given'?'P(A | B): shaded intersection, with B as the reference group':event==='manual'?'Click regions to shade or clear them.':'Shading shows the selected event');
   results([['Selected',hit],['Reference group',den],['Probability',den?`${hit}/${den} = ${fmt(hit/den)}`:'Undefined']]);
   const a=$('nameA').value.trim(),b=$('nameB').value.trim();
-  table(['',b?'B · '+b:'B','Not B','Total'],[
+  const headers=['',b?'B · '+b:'B','Not B','Total'];
+  const rows=[
    [a?'A · '+a:'A',counts[0],counts[1],counts[0]+counts[1]],
    ['Not A',counts[2],counts[3],counts[2]+counts[3]],
-   ['Total',counts[0]+counts[2],counts[1]+counts[3],regions.reduce((sum,count)=>sum+count,0)]
-  ]);
+   ['Total',counts[0]+counts[2],counts[1]+counts[3],counts.reduce((sum,count)=>sum+count,0)]
+  ];
+  if(!editing)table(headers,rows);
+  else exportRows=[headers,...rows];
   $('table').querySelectorAll('tbody tr').forEach((tr,i)=>{
-   const rowLabel=document.createElement('th');
-   rowLabel.scope='row';
-   rowLabel.textContent=tr.firstElementChild.textContent;
-   tr.firstElementChild.replaceWith(rowLabel);
-   if(i>=2||['C','abc','any'].includes(event))return;
-   for(let j=1;j<=2;j++){
-    if(selected(event,i===0,j===1,false))tr.children[j].classList.add('venn-selected');
-    else if(event==='given'&&j===1)tr.children[j].classList.add('venn-reference');
+   if(!editing){
+    const rowLabel=document.createElement('th');
+    rowLabel.scope='row';
+    rowLabel.textContent=rows[i][0];
+    tr.firstElementChild.replaceWith(rowLabel);
+   }
+   for(let j=1;j<=3;j++){
+    const cell=tr.children[j];
+    if(i===2||j===3){
+     if(editing)cell.textContent=rows[i][j];
+     continue;
+    }
+    const bits=(i===0?1:0)|(j===1?2:0)|(tableGroup??0);
+    if(countMode){
+     if(!editing)cell.innerHTML=countInput(bits,n,rows[i][j]);
+     else{
+      const field=cell.firstElementChild;
+      if(field!==editing&&+field.value!==rows[i][j])field.value=rows[i][j];
+     }
+    }
+    const shadedCell=isSelected(bits)&&(n===2||filtered||isSelected(bits|4));
+    cell.classList.toggle('venn-selected',shadedCell);
+    cell.classList.toggle('venn-reference',event==='given'&&j===1&&!shadedCell);
    }
   });
   $('vennTable').hidden=!revealed();
   $('vennTableHeading').textContent=n===3?'Two-way table for A and B':'Two-way table';
-  note(custom?'The table counts the elements you enter in each region.':"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
+  note(countMode?(filtered?'Edit counts on the diagram or choose a group to edit in the table. Probabilities use the full diagram.':'Edit the counts on the diagram or in the table. Totals update automatically.'):custom?'The table counts the elements you enter in each region.':"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
  };
  dragSVG((id,x,y)=>{tokens[+id]={x:Math.max(45,Math.min(795,x)),y:Math.max(65,Math.min(395,y))}});
+ const dragStart=$('viz').onpointerdown;
+ $('viz').onpointerdown=e=>{
+  tokenPointer=!!e.target.closest('[data-drag]');
+  if(e.button===0&&tokenPointer)dragStart(e);
+ };
 });
 addLab('simultaneous','Simultaneous Equations Workshop','YEARS 9–10 · METHODS',()=>{let step=0,key='';controls(select('simExample','Problem',[['basic','2x + y = 7; x − y = 2'],['multiply','3x + 2y = 16; 2x − 3y = 2'],['custom','Custom equations']])+pair(input('aa','Equation 1: x coefficient',2,-20,20),input('bb','Equation 1: y coefficient',1,-20,20))+input('cc','Equation 1: right side',7,-100,100)+pair(input('dd','Equation 2: x coefficient',1,-20,20),input('ee','Equation 2: y coefficient',-1,-20,20))+input('ff','Equation 2: right side',2,-100,100)+select('eliminate','Eliminate',[['y','y first'],['x','x first']])+`<div class="actions">${btn('simPrev','Previous step')}${btn('simNext','Reveal next step')}${btn('simGenerate','Generate problem')}</div>`);$('simExample').onchange=()=>{const v=$('simExample').value==='basic'?[2,1,7,1,-1,2]:$('simExample').value==='multiply'?[3,2,16,2,-3,2]:null;if(v)['aa','bb','cc','dd','ee','ff'].forEach((id,i)=>$(id).value=v[i]);run()};$('simGenerate').onclick=()=>{const x=1+Math.floor(secureUnit()*6),y=1+Math.floor(secureUnit()*6),a=1+Math.floor(secureUnit()*4),b=1+Math.floor(secureUnit()*4),d=1+Math.floor(secureUnit()*4),e=-1-Math.floor(secureUnit()*4);['aa','bb','cc','dd','ee','ff'].forEach((id,i)=>$(id).value=[a,b,a*x+b*y,d,e,d*x+e*y][i]);$('simExample').value='custom';run()};$('simNext').onclick=()=>{step=Math.min(5,step+1);run()};$('simPrev').onclick=()=>{step=Math.max(0,step-1);run()};const eq=(a,b,c)=>`${fmt(a)}x ${b<0?'−':'+'} ${fmt(Math.abs(b))}y = ${fmt(c)}`;update=()=>{const[a,b,c,d,e,f]=['aa','bb','cc','dd','ee','ff'].map(value),el=$('eliminate').value,k=[a,b,c,d,e,f,el].join();if(key!==k){step=0;key=k}for(const id of ['aa','bb','cc','dd','ee','ff'])showControl(id,$('simExample').value==='custom');const sol=E.solve(a,b,c,d,e,f),m=el==='y'?e:d,n=el==='y'?-b:-a,coef=el==='y'?m*a+n*d:m*b+n*e,rhs=m*c+n*f,other=el==='y'?'x':'y';let rows=[['Write the system',eq(a,b,c)+'; '+eq(d,e,f)],['Choose multipliers',`Multiply equation 1 by ${m}; equation 2 by ${n}`],['Match and add',eq(m*a,m*b,m*c)+'; '+eq(n*d,n*e,n*f)],['Eliminate '+el,`${fmt(coef)}${other} = ${fmt(rhs)}`]];if(sol.kind==='unique'){const v=sol[other],u=sol[el];rows.push(['Solve and substitute',`${other} = ${fmt(v)}. Substitute into an original equation to find ${el} = ${fmt(u)}.`],['Check both original equations',`${fmt(a*sol.x+b*sol.y)} = ${c}; ${fmt(d*sol.x+e*sol.y)} = ${f}`]);if(coef===0){rows=[['Write the system',eq(a,b,c)+'; '+eq(d,e,f)],['Already eliminated',`Both ${el} coefficients are zero. Choose the other variable.`]]}}else rows.push(['Interpret',sol.kind==='none'?'Contradiction: no solution':'Dependent equations: infinitely many solutions']);const range=sol.kind==='unique'?Math.max(6,Math.abs(sol.x)+3,Math.abs(sol.y)+3):10,g=chart(-range,range,-range,range,'x','y',true);let s=g.s;[[a,b,c],[d,e,f]].forEach(([a,b,c],i)=>{if(b)s+=curve(g,x=>(c-a*x)/b,[C.purple,C.teal][i]);else if(a)s+=line(g,[c/a,-range],[c/a,range],[C.purple,C.teal][i])});if(sol.kind==='unique'&&step>=4&&revealed())s+=point(g,sol.x,sol.y,C.red);svg(s,'Original equations remain visible while elimination is worked through');formula(`Step ${Math.min(step+1,rows.length)}: ${rows[Math.min(step,rows.length-1)][0]}`);results([['Goal',`Eliminate ${el}, solve ${other}, then substitute`],['Solution',step>=4&&sol.kind==='unique'?`x = ${fmt(sol.x)}, y = ${fmt(sol.y)}`:'Reveal the working to solve']]);table(['Step','Working'],rows.slice(0,step+1));$('table').closest('details').open=true;$('simPrev').disabled=step===0;$('simNext').disabled=step>=rows.length-1;note('Ask students to predict each next step. The original lines stay fixed while equivalent equations eliminate one variable. Generate problems with integer solutions, or enter your own coefficients.');};});
 addLab('pythagoras','Pythagoras Lab','YEARS 8–10',()=>{controls(check('triples','Snap to Pythagorean triples')+select('triple','Triple',[[ '3,4','3, 4, 5'],['5,12','5, 12, 13'],['6,8','6, 8, 10'],['8,15','8, 15, 17'],['7,24','7, 24, 25'],['9,12','9, 12, 15'],['20,21','20, 21, 29']])+pair(slider('legA','Side a',3,1,25,.1),slider('legB','Side b',4,1,25,.1))+select('pyMode','View',[['squares','Squares on the sides'],['rearrange','Area rearrangement']])+slider('rearrange','Move triangles',0,0,1,.01)+btn('rearrangeEnd','Switch arrangement'));$('rearrangeEnd').onclick=()=>{$('rearrange').value=+$('rearrange').value<.5?1:0;$('rearrangeval').textContent=$('rearrange').value;run()};$('triple').onchange=()=>{$('triples').checked=true;const v=$('triple').value.split(',');$('legA').value=v[0];$('legB').value=v[1];run()};update=()=>{showControl('triple',$('triples').checked);if($('triples').checked){if(changedControl==='triple'){const v=$('triple').value.split(',');$('legA').value=v[0];$('legB').value=v[1]}const pairs=[[3,4],[5,12],[6,8],[8,15],[7,24],[9,12],[20,21]],a=Number($('legA').value),b=Number($('legB').value);const pair=pairs.reduce((best,v)=>(v[0]-a)**2+(v[1]-b)**2<(best[0]-a)**2+(best[1]-b)**2?v:best);$('legA').value=pair[0];$('legB').value=pair[1];$('triple').value=pair.join(',');$('legAval').textContent=pair[0];$('legBval').textContent=pair[1]}const a=value('legA'),b=value('legB'),c=Math.hypot(a,b),mode=$('pyMode').value;showControl('rearrange',mode==='rearrange');$('rearrangeEnd').hidden=mode!=='rearrange';let s='';if(mode==='root'){const g=chart(0,12,-1,1,'Distance','',false,{x:Array.from({length:13},(_,i)=>i),y:[]});s=g.s+line(g,[0,0],[c,0],C.teal)+point(g,c,0);if(revealed())s+=txt(g.X(c),165,'√'+fmt(a*a+b*b)+' ≈ '+fmt(c));}else if(mode==='squares'){const k=200/(a+b),A=[360,220],B=[360+a*k,220],D=[360,220-b*k];s=path([A,B,D,A],C.red);const square=(p,q,col)=>{const v=[q[0]-p[0],q[1]-p[1]],r=[v[1],-v[0]];return path([p,q,[q[0]+r[0],q[1]+r[1]],[p[0]+r[0],p[1]+r[1]],p],col,col+'30')};s+=square(B,A,C.purple)+square(A,D,C.teal)+square(D,B,C.gold);if(revealed())s+=txt(110,160,'a² = '+fmt(a*a),20,C.purple)+txt(110,200,'b² = '+fmt(b*b),20,C.teal)+txt(110,240,'c² = '+fmt(c*c),20,C.gold)}else{const k=300/(a+b),u=a*k,v=b*k,L=u+v,t=value('rearrange'),start=[[[0,0],[u,0],[0,v]],[[L,0],[L,u],[L-v,0]],[[L,L],[L-u,L],[L,L-v]],[[0,L],[0,L-u],[v,L]]],end=[[[0,0],[u,0],[0,v]],[[u,v],[0,v],[u,0]],[[u,L],[u,v],[L,L]],[[L,v],[L,L],[u,v]]];s=`<rect x="260" y="55" width="300" height="300" fill="#e9dbf6" stroke="#8050b4"/>`;start.forEach((tri,i)=>{const target=end[i],v=[tri[1][0]-tri[0][0],tri[1][1]-tri[0][1]],w=[target[1][0]-target[0][0],target[1][1]-target[0][1]],angle=Math.atan2(v[0]*w[1]-v[1]*w[0],v[0]*w[0]+v[1]*w[1])*t,co=Math.cos(angle),si=Math.sin(angle),origin=tri[0].map((v,k)=>v*(1-t)+target[0][k]*t),points=tri.map(p=>[260+origin[0]+co*(p[0]-tri[0][0])-si*(p[1]-tri[0][1]),55+origin[1]+si*(p[0]-tri[0][0])+co*(p[1]-tri[0][1])]);s+=path([...points,points[0]],C.teal,'#60bcb0')});s+=txt(410,395,t===0?'Uncovered area: c²':t===1?'Uncovered area: a² + b²':'Moving the same four triangles')}svg(s,'Pythagorean areas and square roots');formula(revealed()?`${fmt(a*a)} + ${fmt(b*b)} = ${fmt(c*c)}`:'Compare the areas of the squares.');results([['Hypotenuse',fmt(c)],['Exact form','√'+fmt(a*a+b*b)],['a² + b²',fmt(a*a+b*b)]]);table(['a','b','c','a²','b²','c²'],[[a,b,c,a*a,b*b,c*c]]);note('The rearrangement uses four congruent right triangles in the same outer square. Compare the two endpoints; triangles may overlap while moving between arrangements.')}});
