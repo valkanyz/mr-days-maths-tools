@@ -38,13 +38,141 @@ addLab('tiles','Algebra Tiles','YEARS 7–10',()=>{
 function angleArc(p,a,b,r,col,label=''){const d=b-a,at=t=>[p[0]+r*Math.cos(t),p[1]+r*Math.sin(t)],start=at(a),end=at(b),mid=(a+b)/2;return `<path d="M${start} A${r} ${r} 0 ${Math.abs(d)>Math.PI?1:0} ${d>0?1:0} ${end}" fill="none" stroke="${col}" stroke-width="3"/>`+(label?txt(p[0]+(r+17)*Math.cos(mid),p[1]+(r+17)*Math.sin(mid)+4,label,13,col):'')}
 function vertexArc(p,a,b,r,col,show){let t=Math.atan2(a[1]-p[1],a[0]-p[0]),d=Math.atan2(b[1]-p[1],b[0]-p[0])-t;d=(d+3*Math.PI)%(2*Math.PI)-Math.PI;return angleArc(p,t,t+d,r,col,show?fmt(Math.abs(d)*180/Math.PI,1)+'°':'')}
 addLab('angles','Angle Lab','YEARS 7–10',()=>{let pts=[[190,330],[650,330],[360,90]];controls(select('angleMode','Diagram',[['parallel','Parallel lines'],['triangle','Triangle'],['polygon','Regular polygon']])+slider('theta','Transversal angle',60,25,155,1)+input('sides','Number of sides',5,3,12,1)+check('corresponding','Corresponding',true)+check('opposite','Vertically opposite')+check('cointerior','Co-interior')+check('alternate','Alternate')+check('exterior','Show exterior angles')+check('numbers','Show angle values',true));update=()=>{const mode=$('angleMode').value,show=revealed()&&$('numbers').checked;for(const id of ['theta','corresponding','opposite','cointerior','alternate'])showControl(id,mode==='parallel');showControl('sides',mode==='polygon');showControl('exterior',mode!=='parallel');let s='',rows=[],leg=[];if(mode==='parallel'){const a=value('theta')*Math.PI/180,cot=1/Math.tan(a),top=[420+70*cot,150],bottom=[420-70*cot,290];s=path([[70,150],[770,150]],'#8f7a9f')+path([[70,290],[770,290]],'#8f7a9f')+path([[420+190*cot,30],[420-190*cot,410]],'#493354');const arc=(p,lo,hi,r,col)=>angleArc(p,lo,hi,r,col,show?fmt((hi-lo)*180/Math.PI,0)+'°':'');const pairs=[['corresponding','Corresponding',C.purple,top,-a,0,bottom,-a,0],['opposite','Vertically opposite',C.teal,top,-a,0,top,Math.PI-a,Math.PI],['cointerior','Co-interior',C.red,top,0,Math.PI-a,bottom,-a,0],['alternate','Alternate',C.blue,top,Math.PI-a,Math.PI,bottom,-a,0]];pairs.forEach(([id,label,col,p,lo,hi,q,l,h],i)=>{if($(id).checked){s+=arc(p,lo,hi,18+i*9,col)+arc(q,l,h,18+i*9,col);leg.push([label,col]);rows.push([label,fmt((hi-lo)*180/Math.PI)+'°',fmt((h-l)*180/Math.PI)+'°',id==='cointerior'?'Sum = 180°':'Equal'])}});s+=handle(420+110*cot,110,'angle');}else{const n=mode==='triangle'?3:value('sides'),p=mode==='triangle'?pts:Array.from({length:n},(_,i)=>[420+145*Math.sin(i*2*Math.PI/n),220-145*Math.cos(i*2*Math.PI/n)]);s=path([...p,p[0]]);p.forEach((v,i)=>{const prev=p[(i+n-1)%n],next=p[(i+1)%n],col=[C.purple,C.teal,C.gold,C.blue,C.red][i%5],u=prev.map((x,k)=>x-v[k]),w=next.map((x,k)=>x-v[k]),ang=Math.acos(Math.max(-1,Math.min(1,E.dot(u,w)/Math.hypot(...u)/Math.hypot(...w))))*180/Math.PI;s+=vertexArc(v,prev,next,Math.min(22,Math.hypot(...u)*.18,Math.hypot(...w)*.18),col,show);if(mode==='triangle')s+=handle(...v,i,col);if($('exterior').checked&&(mode==='polygon'||i===1)){const len=Math.hypot(...u),ext=v.map((x,k)=>x-u[k]/len*65);s+=path([v,ext],col)+vertexArc(v,ext,next,30,col,show)}rows.push([String.fromCharCode(65+i),fmt(ang,1)+'°',fmt(180-ang,1)+'°'])});}svg(s,'Colour coordinated angle arcs');formula(mode==='parallel'?'Select relationships to compare their angle arcs':mode==='triangle'?'Drag vertices to investigate interior and exterior angles':'Interior angle + exterior angle = 180°');legend(leg);results(mode==='parallel'?rows.map(r=>[r[0],r[3]]):[['Interior angle sum',(mode==='triangle'?180:(value('sides')-2)*180)+'°'],['Exterior angle sum','360°']]);table(mode==='parallel'?['Relationship','Angle 1','Angle 2','Rule']:['Vertex','Interior','Exterior'],rows);note(mode==='parallel'?'Each selected relationship has its own colour and arc radius. Co-interior angles are on the same side between the parallel lines.':'An exterior angle is formed by extending one side. For a triangle it equals the sum of the two opposite interior angles.');};dragSVG((id,x,y)=>{if(id==='angle'){$('theta').value=Math.max(25,Math.min(155,Math.atan2(220-y,x-420)*180/Math.PI));$('thetaval').textContent=$('theta').value}else{const next=pts.map((v,i)=>i===+id?[Math.max(90,Math.min(740,x)),Math.max(85,Math.min(350,y))]:v),area=Math.abs((next[1][0]-next[0][0])*(next[2][1]-next[0][1])-(next[1][1]-next[0][1])*(next[2][0]-next[0][0]));if(area>4000)pts=next}})});
-addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{let tokens=[],key='';controls(select('sets','Number of sets',[['2','Two sets'],['3','Three sets']])+input('elements','Number of elements',40,1,500,1)+btn('scatter','Randomise elements')+check('objects','Show objects')+select('event','Shade event',[['A','A'],['B','B'],['and','A ∩ B'],['or','A ∪ B'],['not','Not A'],['given','A given B'],['C','C'],['abc','A ∩ B ∩ C'],['any','A ∪ B ∪ C']])+`<div><label for="nameA">Set A</label><input id="nameA" value="Sport"></div><div><label for="nameB">Set B</label><input id="nameB" value="Music"></div><div><label for="nameC">Set C</label><input id="nameC" value="Gaming"></div>`);
- const centres=[[340,190],[500,190],[420,270]],r=125,member=t=>centres.map(c=>Math.hypot(t.x-c[0],t.y-c[1])<r),selected=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
- function scatter(){const n=+$('sets').value;tokens=Array.from({length:value('elements')},()=>{const bits=Math.floor(secureUnit()*2**n);for(let k=0;k<10000;k++){const t={x:50+secureUnit()*740,y:70+secureUnit()*310},m=member(t);if(m.slice(0,n).every((v,i)=>v===!!(bits&(1<<i))))return t}return{x:60,y:370}})}$('scatter').onclick=()=>{scatter();run()};
- update=()=>{const n=+$('sets').value,next=n+','+value('elements');if(next!==key){scatter();key=next}showControl('nameC',n===3);for(const opt of $('event').options)opt.disabled=n===2&&['C','abc','any'].includes(opt.value);if(n===2&&['C','abc','any'].includes($('event').value))$('event').value='A';const event=$('event').value,counts=[0,0,0,0],regions=Array(2**n).fill(0);let hit=0,den=0,s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf"/>';
+addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
+ const regionNames=['Neither','A only','B only','A ∩ B only','C only','A ∩ C only','B ∩ C only','A ∩ B ∩ C'];
+ const layouts={
+  2:[[130,340,170,96],[300,190,126,130],[540,190,126,130],[420,190,68,86]],
+  3:[[130,340,170,96],[284,153,100,78],[556,153,100,78],[420,130,38,22],
+     [420,354,104,52],[350,258,48,90],[490,258,48,90],[420,210,60,64]]
+ };
+ const regionName=(n,i)=>i===0&&n===3?'Outside all sets':i===3&&n===2?'A ∩ B':regionNames[i];
+ controls(select('sets','Number of sets',[['2','Two sets'],['3','Three sets']])
+  +select('vennEntry','Elements',[['random','Random sample'],['custom','Enter elements by region']])
+  +input('elements','Number of elements',40,1,500,1)+btn('scatter','Randomise elements')
+  +check('objects','Show objects')
+  +select('event','Shade event',[['A','A'],['B','B'],['and','A ∩ B'],['or','A ∪ B'],['not','Not A'],['given','A given B'],['C','C'],['abc','A ∩ B ∩ C'],['any','A ∪ B ∪ C']])
+  +['Sport','Music','Gaming'].map((name,i)=>{
+   const letter='ABC'[i];
+   return `<div><label for="name${letter}">Set ${letter}</label><input id="name${letter}" value="${name}"></div>`;
+  }).join('')
+  +`<section class="section" id="vennRegions" hidden>
+    <div id="vennInputHelp">Enter names or values separated by commas or new lines. Leave empty regions blank.</div>
+    ${[2,3].map(n=>`<div id="vennRegions${n}">${layouts[n].map((_,i)=>`
+      <label for="venn-${n}-${i}">${regionName(n,i)}</label>
+      <textarea id="venn-${n}-${i}" rows="2" aria-describedby="vennInputHelp"></textarea>`).join('')}</div>`).join('')}
+  </section>`);
+ const centres=[[340,190],[500,190],[420,270]],r=125;
+ const regionAt=(x,y,n)=>centres.slice(0,n).reduce((bits,[cx,cy],i)=>
+  Math.hypot(x-cx,y-cy)<r?bits|(1<<i):bits,0);
+ const selected=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
+ let tokens=[],key='';
+ const customLists={2:layouts[2].map(()=>[]),3:layouts[3].map(()=>[])};
+ function scatter(n,size){
+  tokens=Array.from({length:size},()=>{
+   const bits=Math.floor(secureUnit()*2**n);
+   let x,y;
+   do{x=50+secureUnit()*740;y=70+secureUnit()*310}while(regionAt(x,y,n)!==bits);
+   return {x,y};
+  });
+ }
+ $('scatter').onclick=()=>{key='';run()};
+ const details=$('table').closest('details');
+ $('vennTable').hidden=false;
+ $('vennTable').append($('table'));
+ details.hidden=true;
+ update=()=>{
+  const n=+$('sets').value,custom=$('vennEntry').value==='custom';
+  showControl('nameC',n===3);
+  showControl('elements',!custom);
+  showControl('objects',!custom);
+  $('scatter').hidden=custom;
+  $('vennRegions').hidden=!custom;
+  $('vennRegions2').hidden=n!==2;
+  $('vennRegions3').hidden=n!==3;
+  let lists=customLists[n];
+  if(custom){
+   const entered=layouts[n].map((_,i)=>$('venn-'+n+'-'+i).value.split(/[,\n]+/).map(label=>label.trim()).filter(Boolean));
+   const labels=entered.flat(),seen=new Set();
+   const duplicate=labels.find(label=>{
+    if(seen.has(label))return true;
+    seen.add(label);
+    return false;
+   });
+   if(duplicate!==undefined)softWarning=`“${duplicate}” is repeated. Enter each element once.`;
+   else if(labels.length>500)softWarning='Enter up to 500 elements.';
+   else lists=customLists[n]=entered;
+  }else{
+   const size=value('elements'),next=n+','+size;
+   if(next!==key){scatter(n,size);key=next}
+  }
+  for(const opt of $('event').options)opt.disabled=n===2&&['C','abc','any'].includes(opt.value);
+  if($('event').selectedOptions[0].disabled)$('event').value='A';
+  const event=$('event').value,counts=[0,0,0,0],regions=Array(2**n).fill(0);
+  let hit=0,den=0;
+  let s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf"/>';
  for(let bits=0;bits<2**n;bits++){const m=Array.from({length:n},(_,i)=>!!(bits&(1<<i)));if(!selected(event,...m))continue;let piece='<rect x="30" y="30" width="780" height="380" fill="#d9b7ee"/>';for(let i=0;i<n;i++)piece=`<g ${m[i]?'clip-path="url(#set'+i+')"':'mask="url(#outside'+i+')"'}>${piece}</g>`;s+=piece}
- tokens.forEach((t,i)=>{const m=member(t),[a,b,c]=m;counts[(a?0:2)+(b?0:1)]++;regions[m.slice(0,n).reduce((v,b,i)=>v+(b?1<<i:0),0)]++;const yes=selected(event,a,b,c);if(yes)hit++;if(event!=='given'||b)den++;if($('objects').checked)s+=`<circle data-drag="${i}" cx="${t.x}" cy="${t.y}" r="${tokens.length>100?3:6}" fill="${yes?C.red:'#706479'}"/>`});centres.slice(0,n).forEach((c,i)=>s+=`<circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="none" stroke="${[C.purple,C.teal,C.gold][i]}" stroke-width="3"/>`+txt(c[0],i===2?425:50,String.fromCharCode(65+i)+': '+$('name'+String.fromCharCode(65+i)).value,16));
- if(!$('objects').checked&&n===2)[[95,365,0],[275,195,1],[565,195,2],[420,195,3]].forEach(([x,y,i])=>s+=txt(x,y,regions[i],25));svg(s,'Selected Venn event shaded across complete regions');formula(event==='given'?'P(A | B): shaded intersection, with B as the reference group':'Shading shows the selected event');results([['Selected',hit],['Reference group',den],['Probability',den?`${hit}/${den} = ${fmt(hit/den)}`:'Undefined']]);table(['','B','Not B','Total'],[['A',counts[0],counts[1],counts[0]+counts[1]],['Not A',counts[2],counts[3],counts[2]+counts[3]],['Total',counts[0]+counts[2],counts[1]+counts[3],tokens.length]]);$('table').querySelectorAll('tbody tr').forEach((tr,i)=>tr.querySelectorAll('td').forEach((td,j)=>{td.style.background='white';if(i<2&&j>0&&j<3){const a=i===0,b=j===1;if(['C','abc','any'].includes(event))return;if(selected(event,a,b,false))td.style.background='#d9b7ee';else if(event==='given'&&b)td.style.background='#e5f3ee'}}));note('Randomisation assigns elements independently to each region with equal probability. Turn on objects to drag individual elements. The two-way table summarises A and B; C-specific events are shown only in the diagram.');};dragSVG((id,x,y)=>{tokens[+id]={x:Math.max(45,Math.min(795,x)),y:Math.max(65,Math.min(395,y))}})});
+
+  const isSelected=bits=>selected(event,!!(bits&1),!!(bits&2),!!(bits&4));
+  if(custom){
+   lists.forEach((labels,bits)=>{regions[bits]=labels.length});
+  }else{
+   tokens.forEach(({x,y},i)=>{
+    const bits=regionAt(x,y,n);
+    regions[bits]++;
+    if($('objects').checked)s+=`<circle data-drag="${i}" cx="${x}" cy="${y}" r="${tokens.length>100?3:6}" fill="${isSelected(bits)?C.red:'#706479'}"/>`;
+   });
+  }
+  regions.forEach((count,bits)=>{
+   counts[(bits&1?0:2)+(bits&2?0:1)]+=count;
+   if(isSelected(bits))hit+=count;
+   if(event!=='given'||bits&2)den+=count;
+  });
+  centres.slice(0,n).forEach(([x,y],i)=>{
+   const letter='ABC'[i];
+   s+=`<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${[C.purple,C.teal,C.gold][i]}" stroke-width="3"/>`
+    +txt(x,i===2?425:50,letter+': '+$('name'+letter).value,16);
+  });
+  layouts[n].forEach(([x,y,w,h],bits)=>{
+   if(custom){
+    const labels=lists[bits];
+    if(!labels.length)return;
+    const longest=Math.max(...labels.map(label=>Array.from(label).length));
+    const columns=Math.min(labels.length,Math.max(1,Math.floor(w/Math.min(w,Math.max(30,longest*9+10)))));
+    const rows=Math.ceil(labels.length/columns),rowHeight=Math.min(23,h/rows),cellWidth=w/columns;
+    labels.forEach((label,i)=>{
+     const col=i%columns,row=Math.floor(i/columns),inRow=Math.min(columns,labels.length-row*columns);
+     const cx=x+(col-(inRow-1)/2)*cellWidth,cy=y+(row-(rows-1)/2)*rowHeight;
+     const size=Math.min(18,rowHeight*.86,(cellWidth-6)/Math.max(1,Array.from(label).length)*1.15);
+     s+=`<g><title>${esc(label)}</title><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${size}" fill="#493354">${esc(label)}</text></g>`;
+    });
+   }else if(!$('objects').checked)s+=txt(x,y+7,regions[bits],25);
+  });
+  svg(s,'Venn diagram with the selected event shaded');
+  formula(event==='given'?'P(A | B): shaded intersection, with B as the reference group':'Shading shows the selected event');
+  results([['Selected',hit],['Reference group',den],['Probability',den?`${hit}/${den} = ${fmt(hit/den)}`:'Undefined']]);
+  const a=$('nameA').value.trim(),b=$('nameB').value.trim();
+  table(['',b?'B · '+b:'B','Not B','Total'],[
+   [a?'A · '+a:'A',counts[0],counts[1],counts[0]+counts[1]],
+   ['Not A',counts[2],counts[3],counts[2]+counts[3]],
+   ['Total',counts[0]+counts[2],counts[1]+counts[3],regions.reduce((sum,count)=>sum+count,0)]
+  ]);
+  $('table').querySelectorAll('tbody tr').forEach((tr,i)=>{
+   const rowLabel=document.createElement('th');
+   rowLabel.scope='row';
+   rowLabel.textContent=tr.firstElementChild.textContent;
+   tr.firstElementChild.replaceWith(rowLabel);
+   if(i>=2||['C','abc','any'].includes(event))return;
+   for(let j=1;j<=2;j++){
+    if(selected(event,i===0,j===1,false))tr.children[j].classList.add('venn-selected');
+    else if(event==='given'&&j===1)tr.children[j].classList.add('venn-reference');
+   }
+  });
+  $('vennTable').hidden=!revealed();
+  $('vennTableHeading').textContent=n===3?'Two-way table for A and B':'Two-way table';
+  note(custom?'The table counts the elements you enter in each region.':"Randomisation assigns each element to a region with equal probability. Turn on Show objects to drag elements between regions.");
+ };
+ dragSVG((id,x,y)=>{tokens[+id]={x:Math.max(45,Math.min(795,x)),y:Math.max(65,Math.min(395,y))}});
+});
 addLab('simultaneous','Simultaneous Equations Workshop','YEARS 9–10 · METHODS',()=>{let step=0,key='';controls(select('simExample','Problem',[['basic','2x + y = 7; x − y = 2'],['multiply','3x + 2y = 16; 2x − 3y = 2'],['custom','Custom equations']])+pair(input('aa','Equation 1: x coefficient',2,-20,20),input('bb','Equation 1: y coefficient',1,-20,20))+input('cc','Equation 1: right side',7,-100,100)+pair(input('dd','Equation 2: x coefficient',1,-20,20),input('ee','Equation 2: y coefficient',-1,-20,20))+input('ff','Equation 2: right side',2,-100,100)+select('eliminate','Eliminate',[['y','y first'],['x','x first']])+`<div class="actions">${btn('simPrev','Previous step')}${btn('simNext','Reveal next step')}${btn('simGenerate','Generate problem')}</div>`);$('simExample').onchange=()=>{const v=$('simExample').value==='basic'?[2,1,7,1,-1,2]:$('simExample').value==='multiply'?[3,2,16,2,-3,2]:null;if(v)['aa','bb','cc','dd','ee','ff'].forEach((id,i)=>$(id).value=v[i]);run()};$('simGenerate').onclick=()=>{const x=1+Math.floor(secureUnit()*6),y=1+Math.floor(secureUnit()*6),a=1+Math.floor(secureUnit()*4),b=1+Math.floor(secureUnit()*4),d=1+Math.floor(secureUnit()*4),e=-1-Math.floor(secureUnit()*4);['aa','bb','cc','dd','ee','ff'].forEach((id,i)=>$(id).value=[a,b,a*x+b*y,d,e,d*x+e*y][i]);$('simExample').value='custom';run()};$('simNext').onclick=()=>{step=Math.min(5,step+1);run()};$('simPrev').onclick=()=>{step=Math.max(0,step-1);run()};const eq=(a,b,c)=>`${fmt(a)}x ${b<0?'−':'+'} ${fmt(Math.abs(b))}y = ${fmt(c)}`;update=()=>{const[a,b,c,d,e,f]=['aa','bb','cc','dd','ee','ff'].map(value),el=$('eliminate').value,k=[a,b,c,d,e,f,el].join();if(key!==k){step=0;key=k}for(const id of ['aa','bb','cc','dd','ee','ff'])showControl(id,$('simExample').value==='custom');const sol=E.solve(a,b,c,d,e,f),m=el==='y'?e:d,n=el==='y'?-b:-a,coef=el==='y'?m*a+n*d:m*b+n*e,rhs=m*c+n*f,other=el==='y'?'x':'y';let rows=[['Write the system',eq(a,b,c)+'; '+eq(d,e,f)],['Choose multipliers',`Multiply equation 1 by ${m}; equation 2 by ${n}`],['Match and add',eq(m*a,m*b,m*c)+'; '+eq(n*d,n*e,n*f)],['Eliminate '+el,`${fmt(coef)}${other} = ${fmt(rhs)}`]];if(sol.kind==='unique'){const v=sol[other],u=sol[el];rows.push(['Solve and substitute',`${other} = ${fmt(v)}. Substitute into an original equation to find ${el} = ${fmt(u)}.`],['Check both original equations',`${fmt(a*sol.x+b*sol.y)} = ${c}; ${fmt(d*sol.x+e*sol.y)} = ${f}`]);if(coef===0){rows=[['Write the system',eq(a,b,c)+'; '+eq(d,e,f)],['Already eliminated',`Both ${el} coefficients are zero. Choose the other variable.`]]}}else rows.push(['Interpret',sol.kind==='none'?'Contradiction: no solution':'Dependent equations: infinitely many solutions']);const range=sol.kind==='unique'?Math.max(6,Math.abs(sol.x)+3,Math.abs(sol.y)+3):10,g=chart(-range,range,-range,range,'x','y',true);let s=g.s;[[a,b,c],[d,e,f]].forEach(([a,b,c],i)=>{if(b)s+=curve(g,x=>(c-a*x)/b,[C.purple,C.teal][i]);else if(a)s+=line(g,[c/a,-range],[c/a,range],[C.purple,C.teal][i])});if(sol.kind==='unique'&&step>=4&&revealed())s+=point(g,sol.x,sol.y,C.red);svg(s,'Original equations remain visible while elimination is worked through');formula(`Step ${Math.min(step+1,rows.length)}: ${rows[Math.min(step,rows.length-1)][0]}`);results([['Goal',`Eliminate ${el}, solve ${other}, then substitute`],['Solution',step>=4&&sol.kind==='unique'?`x = ${fmt(sol.x)}, y = ${fmt(sol.y)}`:'Reveal the working to solve']]);table(['Step','Working'],rows.slice(0,step+1));$('table').closest('details').open=true;$('simPrev').disabled=step===0;$('simNext').disabled=step>=rows.length-1;note('Ask students to predict each next step. The original lines stay fixed while equivalent equations eliminate one variable. Generate problems with integer solutions, or enter your own coefficients.');};});
 addLab('pythagoras','Pythagoras Lab','YEARS 8–10',()=>{controls(check('triples','Snap to Pythagorean triples')+select('triple','Triple',[[ '3,4','3, 4, 5'],['5,12','5, 12, 13'],['6,8','6, 8, 10'],['8,15','8, 15, 17'],['7,24','7, 24, 25'],['9,12','9, 12, 15'],['20,21','20, 21, 29']])+pair(slider('legA','Side a',3,1,25,.1),slider('legB','Side b',4,1,25,.1))+select('pyMode','View',[['squares','Squares on the sides'],['rearrange','Area rearrangement']])+slider('rearrange','Move triangles',0,0,1,.01)+btn('rearrangeEnd','Switch arrangement'));$('rearrangeEnd').onclick=()=>{$('rearrange').value=+$('rearrange').value<.5?1:0;$('rearrangeval').textContent=$('rearrange').value;run()};$('triple').onchange=()=>{$('triples').checked=true;const v=$('triple').value.split(',');$('legA').value=v[0];$('legB').value=v[1];run()};update=()=>{showControl('triple',$('triples').checked);if($('triples').checked){if(changedControl==='triple'){const v=$('triple').value.split(',');$('legA').value=v[0];$('legB').value=v[1]}const pairs=[[3,4],[5,12],[6,8],[8,15],[7,24],[9,12],[20,21]],a=Number($('legA').value),b=Number($('legB').value);const pair=pairs.reduce((best,v)=>(v[0]-a)**2+(v[1]-b)**2<(best[0]-a)**2+(best[1]-b)**2?v:best);$('legA').value=pair[0];$('legB').value=pair[1];$('triple').value=pair.join(',');$('legAval').textContent=pair[0];$('legBval').textContent=pair[1]}const a=value('legA'),b=value('legB'),c=Math.hypot(a,b),mode=$('pyMode').value;showControl('rearrange',mode==='rearrange');$('rearrangeEnd').hidden=mode!=='rearrange';let s='';if(mode==='root'){const g=chart(0,12,-1,1,'Distance','',false,{x:Array.from({length:13},(_,i)=>i),y:[]});s=g.s+line(g,[0,0],[c,0],C.teal)+point(g,c,0);if(revealed())s+=txt(g.X(c),165,'√'+fmt(a*a+b*b)+' ≈ '+fmt(c));}else if(mode==='squares'){const k=200/(a+b),A=[360,220],B=[360+a*k,220],D=[360,220-b*k];s=path([A,B,D,A],C.red);const square=(p,q,col)=>{const v=[q[0]-p[0],q[1]-p[1]],r=[v[1],-v[0]];return path([p,q,[q[0]+r[0],q[1]+r[1]],[p[0]+r[0],p[1]+r[1]],p],col,col+'30')};s+=square(B,A,C.purple)+square(A,D,C.teal)+square(D,B,C.gold);if(revealed())s+=txt(110,160,'a² = '+fmt(a*a),20,C.purple)+txt(110,200,'b² = '+fmt(b*b),20,C.teal)+txt(110,240,'c² = '+fmt(c*c),20,C.gold)}else{const k=300/(a+b),u=a*k,v=b*k,L=u+v,t=value('rearrange'),start=[[[0,0],[u,0],[0,v]],[[L,0],[L,u],[L-v,0]],[[L,L],[L-u,L],[L,L-v]],[[0,L],[0,L-u],[v,L]]],end=[[[0,0],[u,0],[0,v]],[[u,v],[0,v],[u,0]],[[u,L],[u,v],[L,L]],[[L,v],[L,L],[u,v]]];s=`<rect x="260" y="55" width="300" height="300" fill="#e9dbf6" stroke="#8050b4"/>`;start.forEach((tri,i)=>{const target=end[i],v=[tri[1][0]-tri[0][0],tri[1][1]-tri[0][1]],w=[target[1][0]-target[0][0],target[1][1]-target[0][1]],angle=Math.atan2(v[0]*w[1]-v[1]*w[0],v[0]*w[0]+v[1]*w[1])*t,co=Math.cos(angle),si=Math.sin(angle),origin=tri[0].map((v,k)=>v*(1-t)+target[0][k]*t),points=tri.map(p=>[260+origin[0]+co*(p[0]-tri[0][0])-si*(p[1]-tri[0][1]),55+origin[1]+si*(p[0]-tri[0][0])+co*(p[1]-tri[0][1])]);s+=path([...points,points[0]],C.teal,'#60bcb0')});s+=txt(410,395,t===0?'Uncovered area: c²':t===1?'Uncovered area: a² + b²':'Moving the same four triangles')}svg(s,'Pythagorean areas and square roots');formula(revealed()?`${fmt(a*a)} + ${fmt(b*b)} = ${fmt(c*c)}`:'Compare the areas of the squares.');results([['Hypotenuse',fmt(c)],['Exact form','√'+fmt(a*a+b*b)],['a² + b²',fmt(a*a+b*b)]]);table(['a','b','c','a²','b²','c²'],[[a,b,c,a*a,b*b,c*c]]);note('The rearrangement uses four congruent right triangles in the same outer square. Compare the two endpoints; triangles may overlap while moving between arrangements.')}});
 addLab('numberline','Number Line Lab','YEARS 7–9',()=>{controls(pair(input('start','Start',-2,-20,20,.25),input('operand','Change',-3,-20,20,.25))+select('numberOp','Operation',[['add','Add'],['subtract','Subtract'],['less','x < boundary'],['atmost','x ≤ boundary'],['greater','x > boundary'],['atleast','x ≥ boundary']]));update=()=>{const a=value('start'),b=value('operand'),op=$('numberOp').value,ineq=!['add','subtract'].includes(op);showControl('operand',!ineq);const end=op==='subtract'?a-b:a+b,lo=Math.floor(Math.min(-5,a,end)-2),hi=Math.ceil(Math.max(5,a,end)+2),g=chart(lo,hi,-1,1,'Number','',false,{x:Array.from({length:Math.min(16,hi-lo+1)},(_,i)=>lo+i*Math.ceil((hi-lo)/15)),y:[]});let s=g.s;if(ineq){const left=['less','atmost'].includes(op);s+=line(g,[left?lo:a,0],[left?a:hi,0],C.purple)+`<circle cx="${g.X(a)}" cy="${g.Y(0)}" r="8" stroke="${C.purple}" stroke-width="3" fill="${['less','greater'].includes(op)?'white':C.purple}"/>`;formula(`x ${{less:'<',atmost:'≤',greater:'>',atleast:'≥'}[op]} ${a}`)}else{s+=`<path d="M${g.X(a)} ${g.Y(.25)}H${g.X(a+(end-a)*1)}" stroke="${C.teal}" stroke-width="6" marker-end="url(#arrow)"/>`+point(g,a,0,C.purple)+point(g,a+(end-a)*1,0,C.red);formula(`${a} ${op==='add'?'+':'−'} (${b})${revealed()?' = '+fmt(end):''}`)}svg(s,'Directed movement and inequality intervals');results([['Result / boundary',fmt(ineq?a:end)]]);table(['Start','Operation','Change','Result'],[[a,op,ineq?'':b,ineq?a:end]]);note('Negative subtraction reverses the direction of movement. Enter decimals such as 0.25 to represent fractions. Open endpoints exclude the boundary; filled endpoints include it.')}});
