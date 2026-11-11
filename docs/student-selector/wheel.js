@@ -30,6 +30,8 @@ let pendingDelete = false;
 let popup = null;
 let popupContext = null;
 let popupResult = null;
+let popupSpin = null;
+let wheelGesture = null;
 let publicResult = '';
 
 const activeClass = () => state.classes.find(group => group.id === state.activeClassId);
@@ -88,20 +90,64 @@ el('popout').onclick = () => {
     border: 5px solid #fff2e5; border-radius: 50% }
   figure::after { content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
     border: 11px solid transparent; border-top: 27px solid white }
+  canvas { cursor: grab; touch-action: none }
+  button { justify-self: center; padding: 10px 22px; border: 0; border-radius: 10px; background: #ffc962; color: #2b192c; font: 700 1rem system-ui; cursor: pointer }
+  button:disabled { opacity: .5; cursor: default }
   #result { min-height: 1.2em; max-width: min(calc(100vw - 40px), 72dvh); overflow-wrap: anywhere }
 </style>
 </head>
 <body>
 <figure><canvas width="900" height="900" aria-label="Student selector wheel"></canvas></figure>
 <div id="result" role="status" aria-live="polite"></div>
+<button id="spin" type="button">Spin wheel</button>
 </body>
 </html>`);
   popup.document.close();
-  popupContext = popup.document.querySelector('canvas').getContext('2d');
+  const displayCanvas = popup.document.querySelector('canvas');
+  popupContext = displayCanvas.getContext('2d');
+  popupSpin = popup.document.getElementById('spin');
+  popupSpin.onclick = () => el('spin').click();
+  bindWheel(displayCanvas);
+  updatePopupSpin();
   popupResult = popup.document.getElementById('result');
   popupResult.textContent = publicResult;
   mirrorWheel();
 };
+
+function updatePopupSpin() {
+  if (!popup || popup.closed) return;
+  popupSpin.disabled = el('spin').disabled;
+  popupSpin.textContent = el('spin').textContent;
+}
+
+function bindWheel(wheel) {
+  const pointerAngle = event => {
+    const box = wheel.getBoundingClientRect();
+    return Math.atan2(event.clientY - box.top - box.height / 2, event.clientX - box.left - box.width / 2);
+  };
+  wheel.onpointerdown = event => {
+    if (popup?.closed && wheelGesture?.wheel !== canvas) wheelGesture = null;
+    if (event.button !== 0 || spinning || wheelGesture || !remaining.length) return;
+    wheelGesture = {wheel, id: event.pointerId, start: pointerAngle(event), angle};
+    wheel.setPointerCapture(event.pointerId);
+  };
+  wheel.onpointermove = event => {
+    if (wheelGesture?.wheel !== wheel || wheelGesture.id !== event.pointerId || spinning) return;
+    angle = (wheelGesture.angle + pointerAngle(event) - wheelGesture.start + turn) % turn;
+    draw(remaining);
+  };
+  wheel.onpointerup = event => {
+    if (wheelGesture?.wheel !== wheel || wheelGesture.id !== event.pointerId) return;
+    wheelGesture = null;
+    el('spin').click();
+  };
+  wheel.onpointercancel = wheel.onlostpointercapture = event => {
+    if (wheelGesture?.wheel !== wheel || wheelGesture.id !== event.pointerId) return;
+    angle = wheelGesture.angle;
+    wheelGesture = null;
+    if (!spinning) draw(remaining);
+  };
+}
 
 function draw(entries) {
   const radius = canvas.width / 2;
@@ -149,6 +195,7 @@ function controls() {
   const used = usedStudents();
   el('spin').disabled = spinning || !remaining.length;
   el('spin').textContent = el('instant').checked ? 'Select student' : 'Spin wheel';
+  updatePopupSpin();
   el('reset').disabled = spinning || !used.size;
   el('all-present').disabled = spinning || !roster.some(student => student.absent);
   for (const id of ['names', 'class-name', 'instant', 'remove', 'add-class', 'delete-class', 'cancel-delete']) el(id).disabled = spinning;
@@ -227,6 +274,7 @@ function renderRoster() {
 
 function refreshPool() {
   remaining = model.available(roster, usedStudents());
+  wheelGesture = null;
   angle = 0;
   setResult(!roster.length ? 'Add your class list'
     : roster.every(student => student.absent) ? 'All students are marked absent'
@@ -355,6 +403,7 @@ el('remove').onchange = () => {
 };
 el('spin').onclick = () => {
   if (spinning || !remaining.length) return;
+  wheelGesture = null;
   const pool = remaining.slice();
   const index = Math.floor(Math.random() * pool.length);
   const target = turn * (1 - (index + .5) / pool.length);
@@ -412,6 +461,7 @@ window.addEventListener('storage', event => {
     else applyIncoming(incoming);
   } catch {}
 });
+bindWheel(canvas);
 renderClass();
 if (namesMigrated) save();
 if (storageFailed) el('saved-status').textContent = 'Saved classes are unavailable in this browser. Changes may not persist.';

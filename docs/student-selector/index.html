@@ -14,7 +14,7 @@ h1 { font-size: clamp(2rem,5vw,3.4rem); line-height: 1.1; letter-spacing: -.045e
 .stage, aside { border: 1px solid #5f4774; border-radius: 20px; background: #302044; padding: clamp(16px,3vw,28px) }
 .stage { text-align: center; background: radial-gradient(ellipse at center,#503262,#302044 76%) }
 figure { position: relative; margin: 8px auto 16px; max-width: 440px }
-canvas { width: 100%; display: block; border-radius: 50%; border: 5px solid #fff2e5; background: #4b385b; box-shadow: 0 6px 18px #130e2380 }
+canvas { cursor: grab; touch-action: none; width: 100%; display: block; border-radius: 50%; border: 5px solid #fff2e5; background: #4b385b; box-shadow: 0 6px 18px #130e2380 }
 figure::after { content: ""; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 27px solid #fff; filter: drop-shadow(0 2px 2px #21132d) }
 button, textarea, input { font: inherit }
 button { cursor: pointer; padding: 10px 22px; border: 0; border-radius: 10px; font-weight: 700 }
@@ -92,5 +92,5 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <p id="saved-status" role="status">Classes are saved in this browser on this device.</p>
 </aside></div></main>
 <script src="class-lists.js?v=first-name-import"></script>
-<script src="wheel.js?v=spinner-popout"></script>
+<script src="wheel.js?v=drag-spin"></script>
 </body></html>

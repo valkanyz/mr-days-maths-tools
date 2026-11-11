@@ -78,11 +78,44 @@ register('percentages','Percentages Lab','Number & finance',()=>{
  };
 });
 register('decimals','Decimal Lab','Number & finance',()=>{
- controls(select('fMode','Explore',[['place','Place value'],['compare','Compare decimals'],['calculate','Calculate']])+input('fA','First number',2.35,0,9999.999,.001)+input('fB','Second number',2.4,0,9999.999,.001)+select('fOp','Operation',[['add','Add'],['subtract','Subtract'],['multiply','Multiply'],['divide','Divide']])+select('fRound','Round to',[['0','Whole number'],['1','1 decimal place'],['2','2 decimal places'],['3','3 decimal places']])+stepsHTML());const next=stepper();
- update=()=>{const mode=$('fMode').value,a=value('fA'),b=value('fB'),op=$('fOp').value,dp=Number($('fRound').value),reveal=$('reveal').checked;showControl('fB',mode!=='place');showControl('fOp',mode==='calculate');showControl('fRound',mode==='place');if([a,b].some(v=>Math.abs(v*1000-Math.round(v*1000))>1e-6))throw Error('Use up to three decimal places.');const calc=mode==='calculate'?Foundation.decimals(a,b,op):a,sa=a.toFixed(3).padStart(8,' '),sb=b.toFixed(3).padStart(8,' '),relation=a<b?'<':a>b?'>':'=';
- const messages=mode==='place'?[`Write ${a} in the place-value columns.`,`Round to ${dp===0?'the nearest whole number':dp+' decimal places'}. Inspect the next digit.`,`${a} rounds to ${Foundation.roundDecimal(a,dp)}.`]:mode==='compare'?['Align the decimal points. Fill empty decimal places with zeros.','Compare from the highest place value. The first different digit decides.',`${a} ${relation} ${b}`]:op==='add'||op==='subtract'?['Align the decimal points and matching place values.','Work from right to left, regrouping when needed.',`${a} ${op==='add'?'+':'−'} ${b} = ${fmt(calc,6)}`]:['Identify the size of each number before calculating.',op==='multiply'?'Multiply as whole numbers, then use the total number of decimal places.':'Multiply both numbers by the same power of ten to make the divisor a whole number.',`${a} ${op==='multiply'?'×':'÷'} ${b} = ${fmt(calc,6)}${op==='divide'&&Math.abs(calc-Number(calc.toFixed(6)))>1e-10?' (rounded)':''}`];const st=next(messages,[a,b,mode,op,dp].join());
- let s='';const labels=['1000','100','10','1','·','0.1','0.01','0.001'];labels.forEach((v,i)=>{const x=62+i*91;s+=rect(x,65,85,55,i===4?'#fff5e0':'#eee4f6')+text(x+42,100,v,17);s+=rect(x,125,85,65,'#f7f2fb')+text(x+42,168,sa[i]||'',30,C.purple);if(mode!=='place')s+=rect(x,196,85,65,'#eef8f5')+text(x+42,239,sb[i]||'',30,C.teal)});
- s+=text(420,320,reveal?st.s:'Predict, then reveal.',18);svg(s,'Decimal numbers aligned by place value');formula(mode==='place'?'Each place is ten times the value of the place to its right.':mode==='compare'?'Trailing zeros do not change the value.':'Match place values, then calculate.');results(mode==='place'?[['Rounded value',Foundation.roundDecimal(a,dp)],['In thousandths',Math.round(a*1000)]]:mode==='compare'?[['Comparison',`${a} ${relation} ${b}`],['Difference',fmt(Math.abs(a-b),3)]]:[['Answer',fmt(calc,6)]]);work('Numbers are limited to three decimal places for the place-value model. Division answers display up to six decimal places.');table(['Number','Thousands','Hundreds','Tens','Ones','Tenths','Hundredths','Thousandths'],[a,...mode==='place'?[]:[b]].map(v=>[v,...v.toFixed(3).padStart(8,'0').replace('.','').split('')]));
+ const modes=[['place','Place value'],['compare','Compare'],['calculate','Calculate'],['powers','Powers of ten']];
+ const modeButtons='<div class="actions decimal-modes" role="group" aria-label="Decimal Lab mode"><input id="fMode" type="hidden" value="place">'
+  +modes.map(([id,label])=>'<button type="button" id="decimal-'+id+'" aria-pressed="'+(id==='place')+'">'+label+'</button>').join('')+'</div>';
+ controls(modeButtons+input('fA','First number',2.35,0,1e12)+input('fB','Second number',2.4,0,1e12)
+  +select('fOp','Operation',[['add','Add'],['subtract','Subtract'],['multiply','Multiply'],['divide','Divide']])
+  +select('fRound','Round to',Array.from({length:13},(_,i)=>[String(i),i===0?'Whole number':i+' decimal place'+(i===1?'':'s')]))
+  +select('fPowerOp','Operation',[['divide','Divide'],['multiply','Multiply']])
+  +slider('fPower','Power of ten',3,0,12,1)
+  +select('fNotation','Notation',[['index','Index form'],['ordinary','Ordinary number']])+stepsHTML());
+ const next=stepper();
+ for(const [id]of modes)$('decimal-'+id).onclick=()=>{$('fMode').value=id;run();};
+ update=()=>{
+  const mode=$('fMode').value,powers=mode==='powers',reveal=$('reveal').checked;
+  for(const [id]of modes)$('decimal-'+id).setAttribute('aria-pressed',String(mode===id));
+  showControl('fB',mode==='compare'||mode==='calculate');
+  showControl('fOp',mode==='calculate');showControl('fRound',mode==='place');
+  for(const id of ['fPowerOp','fPower','fNotation'])showControl(id,powers);
+  const a=DecimalModel.parse($('fA').value);
+  const b=mode==='compare'||mode==='calculate'?DecimalModel.parse($('fB').value):null;
+  const operation=$(powers?'fPowerOp':'fOp').value,places=value('fPower'),notation=$('fNotation').value,dp=Number($('fRound').value);
+  const plan=DecimalModel.build({mode,a,b,operation,places,notation,dp});
+  const st=next(plan.steps.map(step=>step.message),[mode,$('fA').value,b&&$('fB').value,operation,places,dp].join());
+  const frame=reveal?plan.steps[st.step]:{rows:[{label:'First number',value:a},...(b?[{label:'Second number',value:b}]:[])]};
+  const diagram=DecimalDiagram.render(plan,frame,!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const host=$('viz');
+  host.style.height='auto';host.style.overflow='auto';
+  svg(diagram.svg,'Place-value columns showing the current decimal operation step');
+  const picture=host.querySelector('svg');
+  picture.setAttribute('viewBox','0 0 '+diagram.width+' '+diagram.height);
+  picture.style.minWidth=Math.min(diagram.width,Math.max(640,diagram.width*.8))+'px';
+  picture.style.height='auto';
+  const answer=DecimalModel.format(plan.result,mode!=='place');
+  const final=reveal&&st.step===plan.steps.length-1;
+  formula(plan.title+(final&&mode!=='compare'?(plan.approximate?' ≈ ':' = ')+answer:''));
+  results(mode==='compare'?[['Comparison',final?DecimalModel.format(a)+' '+plan.comparison+' '+DecimalModel.format(b):'?'],['Difference',final?answer:'?']]
+   :[[mode==='place'?'Rounded value':'Answer',final?(plan.approximate?'≈ ':'')+answer:'?']]);
+  work(reveal?st.s:'Predict the result, then reveal the working.');
+  table(['Step','Working'],plan.steps.slice(0,st.step+1).map((step,i)=>[i+1,step.message]));
  };
 });
 register('powers','Powers & Roots Lab','Number & finance',()=>{
