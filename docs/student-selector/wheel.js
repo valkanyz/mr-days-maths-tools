@@ -24,6 +24,7 @@ let remaining = [];
 let angle = 0;
 let spinning = false;
 let pendingState = null;
+let pendingDelete = false;
 
 const activeClass = () => state.classes.find(group => group.id === state.activeClassId);
 function usedStudents() {
@@ -88,7 +89,7 @@ function controls() {
   el('spin').textContent = el('instant').checked ? 'Select student' : 'Spin wheel';
   el('reset').disabled = spinning || !used.size;
   el('all-present').disabled = spinning || !roster.some(student => student.absent);
-  for (const id of ['names', 'class-name', 'instant', 'remove', 'add-class', 'delete-class']) el(id).disabled = spinning;
+  for (const id of ['names', 'class-name', 'instant', 'remove', 'add-class', 'delete-class', 'cancel-delete']) el(id).disabled = spinning;
   for (const tab of el('class-tabs').querySelectorAll('button')) tab.disabled = spinning;
   for (const checkbox of el('roster').querySelectorAll('input')) checkbox.disabled = spinning;
   const present = roster.filter(student => !student.absent).length;
@@ -173,6 +174,7 @@ function refreshPool() {
 }
 
 function renderClass() {
+  cancelDelete();
   roster = activeClass().students;
   el('class-name').value = activeClass().name;
   el('names').value = roster.map(student => student.name).join('\n');
@@ -241,8 +243,23 @@ el('add-class').onclick = () => {
   el('class-name').focus();
   el('class-name').select();
 };
+function cancelDelete() {
+  pendingDelete = false;
+  el('delete-class').textContent = 'Delete class';
+  el('cancel-delete').hidden = true;
+  el('delete-warning').hidden = true;
+}
+el('cancel-delete').onclick = cancelDelete;
 el('delete-class').onclick = () => {
-  if (spinning || !window.confirm('Delete "' + activeClass().name + '" and its saved student list?')) return;
+  if (spinning) return;
+  if (!pendingDelete) {
+    pendingDelete = true;
+    el('delete-class').textContent = 'Confirm delete';
+    el('cancel-delete').hidden = false;
+    el('delete-warning').textContent = 'Delete “' + activeClass().name + '” and its saved student list?';
+    el('delete-warning').hidden = false;
+    return;
+  }
   roundSelections.delete(state.activeClassId);
   state.classes = state.classes.filter(group => group.id !== state.activeClassId);
   if (!state.classes.length) state.classes.push(model.createClass('Class 1'));

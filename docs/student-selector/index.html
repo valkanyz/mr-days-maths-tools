@@ -69,7 +69,8 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <div id="class-list-panel">
 <label for="class-name">Class name</label>
 <input id="class-name" type="text" maxlength="60" autocomplete="off">
-<div class="class-actions"><button id="all-present" type="button">Mark all present</button><button id="delete-class" type="button">Delete class</button></div>
+<div class="class-actions"><button id="all-present" type="button">Mark all present</button><button id="delete-class" type="button">Delete class</button><button id="cancel-delete" type="button" hidden>Cancel</button></div>
+<p id="delete-warning" class="hint" role="status" hidden></p>
 <details id="edit-list">
 <summary>Paste or edit class list</summary>
 <p class="hint" id="hint">Enter one student per line. Changes save automatically.</p>
@@ -87,5 +88,5 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <p id="saved-status" role="status">Classes are saved in this browser on this device.</p>
 </aside></div></main>
 <script src="class-lists.js?v=saved-classes"></script>
-<script src="wheel.js?v=saved-classes-autosave"></script>
+<script src="wheel.js?v=saved-classes-confirm"></script>
 </body></html>
