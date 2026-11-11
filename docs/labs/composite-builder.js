@@ -19,13 +19,15 @@ labs.area.setup=function() {
   <div class="actions"><button id="compositeExpand" type="button">Expand build area</button><button id="compositeFit" type="button">Fit workspace</button></div>
   <div><label for="compositeZoom">Workspace zoom <output id="compositeZoomValue">100%</output></label><input id="compositeZoom" type="range" min="40" max="150" step="1" value="100"></div>
   <label class="check"><input id="compositeGrid" type="checkbox" checked> Show placement grid</label>
+  <div><label for="compositeTask">Dimensions for</label><select id="compositeTask"><option value="area">Area — bases and heights</option><option value="perimeter">Perimeter — boundary lengths</option></select></div>
   <label class="check"><input id="pieceDeleteMode" type="checkbox"> Click shapes to delete</label>
   <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
   <details><summary>Diagram dimensions</summary>
    <div><label for="compositeUnit">Units</label><select id="compositeUnit"><option value="m">m</option><option value="cm">cm</option><option value="units">units</option></select></div>
    <label class="check"><input id="compositeDimensions" type="checkbox" checked> Show dimensions</label>
    <label class="check"><input id="compositeOverall" type="checkbox" checked> Overall width and height</label>
-   <label class="check"><input id="compositeSides" type="checkbox" checked> Exposed side lengths</label>
+   <label class="check"><input id="compositeSides" type="checkbox" checked> Shape dimensions</label>
+   <label class="check"><input id="compositeCutoutGuides" type="checkbox" checked> Show subtraction guides</label>
    <label class="check"><input id="compositeConstruction" type="checkbox"> Show individual shape outlines</label>
   </details>
   <div><label for="pieceSelect">Selected shape</label><select id="pieceSelect"></select></div>
@@ -195,7 +197,8 @@ labs.area.setup=function() {
   $('viz').style.height='clamp(540px,76dvh,900px)';
   $('viz').style.overflow='auto';
   const construction=$('compositeConstruction').checked,deleteMode=$('pieceDeleteMode').checked;
-  const unit=$('compositeUnit').value;
+  const unit=$('compositeUnit').value,task=$('compositeTask').value;
+  const guides=$('compositeCutoutGuides').checked;
   const measurement=Geometry.measure(pieces);
   const gridWidth=columns*step,gridHeight=rows*step;
   let drawing=$('compositeGrid').checked?'<rect x="'+ox+'" y="'+oy+'" width="'+gridWidth+'" height="'+gridHeight+'" fill="#faf7fc" stroke="#cbbbd8"/>':'';
@@ -210,22 +213,23 @@ labs.area.setup=function() {
    +pieces.filter(p=>p.operation!=='subtract').map(p=>'<path d="'+path(p)+'" fill="#14a98d"/>').join('')+'</g>';
   pieces.forEach((p,i)=>{
    const subtract=p.operation==='subtract',colour=subtract?'#ba3448':colours[i%colours.length];
+   const outlined=construction||subtract&&(guides||deleteMode);
    const title=names[p.kind||'rectangle']+' '+(i+1)+' · '+(subtract?'Subtract':'Add')+' · '+description(p);
-   drawing+='<g data-part="'+i+'" style="cursor:'+(deleteMode?'crosshair':'grab')+'"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract&&construction?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+(construction?colour:'none')+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+(deleteMode?'. Click to delete.':'. Drag to move.')+'</title></g>';
+   drawing+='<g data-part="'+i+'" style="cursor:'+(deleteMode?'crosshair':'grab')+'"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract&&outlined?'#ffe8e8':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+(outlined?colour:'none')+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+(deleteMode?'. Click to delete.':'. Drag to move.')+'</title></g>';
 
   });
   if($('fBoundary').checked)drawing+='<g transform="translate(28 28) scale(28)" pointer-events="none" fill="none" stroke="#1c2530" stroke-width=".09">'
    +measurement.boundaries.map(edge=>'<path d="'+Geometry.pathSegment(edge)+'"/>').join('')+'</g>';
   if($('compositeDimensions').checked){
    drawing+=root.CompositeDimensions.render(measurement,pieces,{
-    unit,overall:$('compositeOverall').checked,sides:$('compositeSides').checked
+    unit,task,selected,overall:$('compositeOverall').checked,sides:$('compositeSides').checked
    });
   }
   svg(drawing,'Composite shape with textbook dimension arrows');
   const diagram=$('viz').querySelector('svg');
   diagram.setAttribute('tabindex','0');
   let box=root.CompositeDimensions.extent(measurement.boundaries);
-  const included=pieces.filter((piece,i)=>construction||i===selected||!box);
+  const included=pieces.filter((piece,i)=>construction||piece.operation==='subtract'&&guides||i===selected||!box);
   for(const piece of included){
    const turned=piece.rotation===90||piece.rotation===270;
    const right=piece.x+(turned?piece.h:piece.w),bottom=piece.y+(turned?piece.w:piece.h);
@@ -234,16 +238,16 @@ labs.area.setup=function() {
     :{left:piece.x,right,top:piece.y,bottom};
   }
   if($('compositeGrid').checked||!box)box={left:0,right:columns,top:0,bottom:rows};
-  const viewWidth=(box.right-box.left)*step+300,viewHeight=(box.bottom-box.top)*step+200;
-  diagram.setAttribute('viewBox',[(ox+box.left*step)-150,(oy+box.top*step)-75,viewWidth,viewHeight].join(' '));
+  const viewWidth=(box.right-box.left)*step+380,viewHeight=(box.bottom-box.top)*step+250;
+  diagram.setAttribute('viewBox',[(ox+box.left*step)-190,(oy+box.top*step)-100,viewWidth,viewHeight].join(' '));
   const zoom=Number($('compositeZoom').value)/100;
   $('compositeZoomValue').textContent=Math.round(zoom*100)+'%';
   diagram.style.width=viewWidth*zoom+'px';diagram.style.height=viewHeight*zoom+'px';
   diagram.style.maxWidth='none';
-  formula('Area of added shapes − removed regions');
-  results([['Area',fmt(measurement.area,3)+(unit==='units'?' square units':' '+unit+'²')],['Perimeter',fmt(measurement.perimeter,3)+' '+unit]]);
-  legend([['Composite shape','#14a98d'],...(construction?[['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]:[])]);
-  note((deleteMode?'Click a shape to delete it. Use Undo to restore it. ':'')+'Dimension arrows measure the finished outline and cut-outs. Overall dimensions sit outside the shape; curved boundaries show their radius. Use Diagram dimensions to choose which labels are shown. Overlapping added shapes count once. Values are rounded to 3 decimal places.');
+  formula(task==='area'?'Area · use bases and perpendicular heights':'Perimeter · add exposed sides and arcs');
+  results(task==='area'?[['Area',fmt(measurement.area,3)+(unit==='units'?' square units':' '+unit+'²')]]:[['Perimeter',fmt(measurement.perimeter,3)+' '+unit]]);
+  legend([['Composite shape','#14a98d'],...(construction?[['Selected shape: dashed outline',C.purple]]:[]),...(guides?[['Subtraction guide','#ba3448']]:[])]);
+  note((deleteMode?'Click a shape to delete it. Use Undo to restore it. ':'')+(task==='area'?'Area dimensions show triangle and trapezium bases with dashed perpendicular heights. ':'Perimeter dimensions follow the finished boundary, including cut-outs. Sloping labels run parallel to their edges. ')+'Red dashed subtraction guides stay visible while positioning; hide them under Diagram dimensions for a clean problem diagram. Values are rounded to 3 decimal places.');
   table(['Measurement','Value'],[['Area ('+(unit==='units'?'square units':unit+'²')+')',measurement.area],['Perimeter ('+unit+')',measurement.perimeter]]);
  };
  pieces.forEach(clamp);sync();

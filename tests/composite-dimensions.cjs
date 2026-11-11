@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+const G=require('../docs/labs/composite-geometry.js');
+const D=require('../docs/labs/composite-dimensions.js');
+const rectangle={x:0,y:0,w:8,h:8};
+const triangle={kind:'triangle',x:0,y:5,w:5,h:3,apex:2.5,operation:'subtract'};
+const pieces=[rectangle,triangle];
+const measurement=G.measure(pieces);
+const area=D.render(measurement,pieces,{task:'area',unit:'m',overall:true,sides:true});
+assert.match(area,/>b = 5 m<\/text>/);
+assert.match(area,/>h = 3 m<\/text>/);
+assert.doesNotMatch(area,/>3\.905 m<\/text>/);
+assert.match(area,/stroke-dasharray="5 4"/);
+const perimeter=D.render(measurement,pieces,{task:'perimeter',unit:'m',overall:true,sides:true});
+assert.doesNotMatch(perimeter,/>h =/);
+assert.doesNotMatch(perimeter,/>b =/);
+const labels=[...perimeter.matchAll(/<text x="([^"]+)" y="([^"]+)"([^>]*)>3\.905 m<\/text>/g)];
+assert.equal(labels.length,2);
+for(const [,x,y,attributes]of labels){
+ assert.match(attributes,/transform="rotate/);
+ assert.equal(G.shape(triangle).contains([(+x-28)/28,(+y-28)/28]),false);
+}
+const trapezium={kind:'trapezium',x:1,y:1,w:6,h:4,top:2,rotation:90};
+const rotated=D.render(G.measure([trapezium]),[trapezium],{task:'area',unit:'cm',overall:false,sides:true});
+assert.match(rotated,/>h = 4 cm<\/text>/);
+assert.match(rotated,/>2 cm<\/text>/);
+assert.match(rotated,/>6 cm<\/text>/);
+const circle={kind:'circle',x:4,y:0,r:4,operation:'subtract'};
+const curved=D.render(G.measure([rectangle,circle]),[rectangle,circle],{task:'perimeter',unit:'m',overall:true,sides:true});
+assert.match(curved,/>r = 4 m<\/text>/);
+assert.match(curved,/>arc 180°<\/text>/);
+console.log('PASS: usable area heights and bases, external rotated perimeter labels and exposed arc angles.');

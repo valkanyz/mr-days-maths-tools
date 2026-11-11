@@ -99,7 +99,7 @@ function measure(pieces) {
  const shapes=pieces.map(shape),added=shapes.filter((_,i)=>pieces[i].operation!=='subtract');
  const removed=shapes.filter((_,i)=>pieces[i].operation==='subtract');
  const inside=p=>added.some(s=>s.contains(p))&&!removed.some(s=>s.contains(p));
- const segments=shapes.flatMap(s=>s.segments),cuts=segments.map(()=>[0,1]);
+ const segments=shapes.flatMap((s,i)=>s.segments.map(edge=>({...edge,piece:i,subtracted:pieces[i].operation==='subtract'}))),cuts=segments.map(()=>[0,1]);
  for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++)
   for(const point of intersections(segments[i],segments[j])){
    cuts[i].push(Math.max(0,Math.min(1,parameter(segments[i],point))));
@@ -133,7 +133,7 @@ function measure(pieces) {
    const key=edge.type+ends.join('|')+'|'+round(point);
    if(seen.has(key))continue;
    seen.add(key);
-   boundaries.push({...segment,interiorLeft:left});perimeter+=segmentLength;area+=left?integral:-integral;
+   boundaries.push({...segment,interiorLeft:left,piece:edge.piece,subtracted:edge.subtracted});perimeter+=segmentLength;area+=left?integral:-integral;
   }
  }
  return {area:Math.max(0,area),perimeter,boundaries,
