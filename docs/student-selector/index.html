@@ -28,6 +28,8 @@ label { display: block; font-weight: 600 }
 .options label { display: flex; align-items: center; gap: 9px; padding: 7px 0; cursor: pointer }
 input[type="checkbox"] { width: 20px; height: 20px; accent-color: #b390ff }
 input[type="text"] { width:100%; border:1px solid #90789d; background:#241931; color:white; border-radius:9px; padding:9px }
+#popout { background: #504064; color: white; margin-top: 10px }
+#popout-status { margin: 8px 0 0 }
 #reset { background: #504064; color: white; margin-top: 10px }
 [hidden] { display:none !important }
 .privacy-toggle { display:flex; align-items:center; gap:9px; margin-bottom:16px; cursor:pointer }
@@ -63,6 +65,8 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <figure><canvas id="wheel" width="900" height="900" aria-label="Student selector wheel"></canvas></figure>
 <div id="result" role="status" aria-live="polite">Add your class list</div>
 <button id="spin" disabled>Spin wheel</button>
+<button id="popout" type="button">Pop out spinner</button>
+<p id="popout-status" role="status" hidden></p>
 </section>
 <aside>
 <label class="privacy-toggle"><input id="hide-list" type="checkbox" aria-controls="class-list-panel"> Hide class list</label>
@@ -88,5 +92,5 @@ summary { cursor:pointer; font-weight:600; margin-bottom:8px }
 <p id="saved-status" role="status">Classes are saved in this browser on this device.</p>
 </aside></div></main>
 <script src="class-lists.js?v=first-name-import"></script>
-<script src="wheel.js?v=first-name-import"></script>
+<script src="wheel.js?v=spinner-popout"></script>
 </body></html>

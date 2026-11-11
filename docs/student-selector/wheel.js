@@ -27,6 +27,10 @@ let angle = 0;
 let spinning = false;
 let pendingState = null;
 let pendingDelete = false;
+let popup = null;
+let popupContext = null;
+let popupResult = null;
+let publicResult = '';
 
 const activeClass = () => state.classes.find(group => group.id === state.activeClassId);
 function usedStudents() {
@@ -44,6 +48,61 @@ function save() {
     ? 'This browser could not save your changes. Keep this page open to retain them.'
     : 'Classes and attendance are saved in this browser on this device.';
 }
+function setResult(message, display = message) {
+  el('result').textContent = message;
+  publicResult = display;
+  if (popup && !popup.closed) popupResult.textContent = display;
+}
+
+function mirrorWheel() {
+  if (popup && !popup.closed) popupContext.drawImage(canvas, 0, 0);
+}
+
+el('popout').onclick = () => {
+  if (popup && !popup.closed) {
+    popup.focus();
+    return;
+  }
+
+  popup = window.open('', '_blank', 'popup,width=620,height=700');
+  const status = el('popout-status');
+  status.hidden = !!popup;
+  if (!popup) {
+    status.textContent = 'Allow pop-ups for this site to open the spinner.';
+    return;
+  }
+
+  popup.document.write(`<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Spinner</title>
+<style>
+  * { box-sizing: border-box }
+  body { margin: 0; min-height: 100dvh; display: grid; place-content: center; gap: 14px;
+    padding: 20px; background: #302044; color: #faf7ff; text-align: center;
+    font: 700 clamp(1.25rem, 5vw, 2.4rem)/1.2 system-ui, sans-serif }
+  figure { position: relative; margin: 0 }
+  canvas { display: block; width: min(calc(100vw - 40px), 72dvh); height: auto;
+    border: 5px solid #fff2e5; border-radius: 50% }
+  figure::after { content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    border: 11px solid transparent; border-top: 27px solid white }
+  #result { min-height: 1.2em; max-width: min(calc(100vw - 40px), 72dvh); overflow-wrap: anywhere }
+</style>
+</head>
+<body>
+<figure><canvas width="900" height="900" aria-label="Student selector wheel"></canvas></figure>
+<div id="result" role="status" aria-live="polite"></div>
+</body>
+</html>`);
+  popup.document.close();
+  popupContext = popup.document.querySelector('canvas').getContext('2d');
+  popupResult = popup.document.getElementById('result');
+  popupResult.textContent = publicResult;
+  mirrorWheel();
+};
+
 function draw(entries) {
   const radius = canvas.width / 2;
   const count = entries.length || 8;
@@ -83,6 +142,7 @@ function draw(entries) {
   ctx.fillStyle = '#fff3df';
   ctx.fill();
   ctx.restore();
+  mirrorWheel();
 }
 
 function controls() {
@@ -168,9 +228,9 @@ function renderRoster() {
 function refreshPool() {
   remaining = model.available(roster, usedStudents());
   angle = 0;
-  el('result').textContent = !roster.length ? 'Add your class list'
+  setResult(!roster.length ? 'Add your class list'
     : roster.every(student => student.absent) ? 'All students are marked absent'
-    : remaining.length ? 'Ready to select' : 'Round complete';
+    : remaining.length ? 'Ready to select' : 'Round complete', '');
   draw(remaining);
   controls();
 }
@@ -300,7 +360,12 @@ el('spin').onclick = () => {
   const target = turn * (1 - (index + .5) / pool.length);
   const start = angle;
   const distance = 3 * turn + (target - start + turn) % turn;
+  let finished = false;
+  let fallback;
   function finish() {
+    if (finished) return;
+    finished = true;
+    clearTimeout(fallback);
     angle = target;
     draw(pool);
     if (el('remove').checked) usedStudents().add(pool[index].id);
@@ -313,7 +378,7 @@ el('spin').onclick = () => {
       renderRoster();
       controls();
     }
-    el('result').textContent = pool[index].name;
+    setResult(pool[index].name);
   }
   if (el('instant').checked || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     finish();
@@ -321,16 +386,22 @@ el('spin').onclick = () => {
   }
   spinning = true;
   controls();
-  el('result').textContent = 'Spinning…';
+  setResult('Spinning…');
   const began = performance.now();
-  function frame(now) {
-    const t = Math.min(1, (now - began) / 2300);
+  function scheduleFrame() {
+    if (popup && !popup.closed) popup.requestAnimationFrame(frame);
+    else requestAnimationFrame(frame);
+  }
+  function frame() {
+    if (finished) return;
+    const t = Math.min(1, (performance.now() - began) / 2300);
     if (t === 1) return finish();
     angle = start + distance * (1 - (1 - t) ** 3);
     draw(pool);
-    requestAnimationFrame(frame);
+    scheduleFrame();
   }
-  requestAnimationFrame(frame);
+  fallback = setTimeout(finish, 2350);
+  scheduleFrame();
 };
 window.addEventListener('storage', event => {
   if (event.key !== storageKey || !event.newValue) return;
