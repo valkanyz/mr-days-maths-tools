@@ -215,12 +215,12 @@ el('names').oninput = () => {
   renderRoster();
   refreshPool();
 };
-el('class-name').onchange = () => {
+el('class-name').oninput = () => {
   activeClass().name = el('class-name').value.trim() || 'Untitled class';
-  el('class-name').value = activeClass().name;
   save();
   document.getElementById('class-tab-' + state.activeClassId).textContent = activeClass().name;
 };
+el('class-name').onchange = () => { el('class-name').value = activeClass().name; };
 el('class-name').onkeydown = event => {
   if (event.key === 'Enter') {
     event.preventDefault();
