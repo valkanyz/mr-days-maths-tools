@@ -43,3 +43,11 @@ for(const operation of ['multiply','divide']){
  assert.equal((last.match(/<animateMotion/g)||[]).length,1);
 }
 console.log('PASS: three decimal-point hops with stationary digits in both directions.');
+
+assert.equal(M.display(M.parse('2435000.123456')),'2,435,000.123456');
+assert.equal(M.display(calculate('1','subtract','2435001').result),'−2,435,000');
+const large=M.build({mode:'powers',a:M.parse('2.435'),operation:'multiply',places:6});
+const labelled=window.DecimalDiagram.render(large,large.steps.at(-1),false).svg;
+assert.match(labelled,/>Start<\/text>/);
+assert.match(labelled,/>End<\/text>/);
+assert.match(labelled,/>2,435,000<\/text>/);

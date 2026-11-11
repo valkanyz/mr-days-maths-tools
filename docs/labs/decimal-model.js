@@ -21,6 +21,11 @@ function format({units,scale},trim=false) {
  if(trim && scale)value=value.replace(/\.?0+$/,'');
  return (units<0n?'−':'')+value;
 }
+function display(value,trim=false) {
+ const [whole,fraction]=format(value,trim).split('.');
+ const grouped=whole.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+ return fraction===undefined?grouped:grouped+'.'+fraction;
+}
 const atScale=(value,scale)=>value.units*power(scale-value.scale);
 const row=(label,value,extra={})=>({label,value,...extra});
 const exact=(units,scale=0)=>({units,scale});
@@ -137,7 +142,7 @@ function build({mode,a,b,operation,places=0,notation='index',dp=0}) {
   const steps=[{message:places?'Start with the decimal point in its original position.':'The factor is 1, so the decimal point stays in place.',
    rows:[row('Start',a)],hops:0}];
   for(let i=1;i<=places;i++){
-   steps.push({message:'Hop one space '+side+' to get '+format(shift(a,direction*i),true)+'.',
+   steps.push({message:'Hop one space '+side+' to get '+display(shift(a,direction*i),true)+'.',
     rows:[row('After',shift(a,direction*i))],hops:i});
   }
   if(places>1)steps.push({message:'The decimal point hopped '+places+' spaces '+side+'.',
@@ -162,7 +167,7 @@ function build({mode,a,b,operation,places=0,notation='index',dp=0}) {
   steps:[{message:'Find '+place(-dp)+' and look one place to its right.',rows:[row('Original',a)],column:-dp-1},
    {message:'Round up when the next digit is 5 or more.',rows:[row('Original',a),row('Rounded',result)],column:-dp}]};
 }
-const api={parse,format,build};
+const api={parse,format,display,build};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 else root.DecimalModel=api;
 })(typeof window!=='undefined'?window:globalThis);

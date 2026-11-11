@@ -109,7 +109,7 @@ register('decimals','Decimal Lab','Number & finance',()=>{
   picture.setAttribute('viewBox','0 0 '+diagram.width+' '+diagram.height);
   picture.style.minWidth=Math.min(diagram.width,Math.max(640,diagram.width*.8))+'px';
   picture.style.height='auto';
-  const answer=DecimalModel.format(plan.result,mode!=='place');
+  const answer=DecimalModel.display(plan.result,mode!=='place');
   const final=reveal&&st.step===plan.steps.length-1;
   formula(plan.title+(final&&mode!=='compare'?(plan.approximate?' ≈ ':' = ')+answer:''));
   results(mode==='compare'?[['Comparison',final?DecimalModel.format(a)+' '+plan.comparison+' '+DecimalModel.format(b):'?'],['Difference',final?answer:'?']]

@@ -16,11 +16,11 @@ function renderHops({start,places,direction},frame,animated){
  const original=whole+fraction;
  const ribbon='0'.repeat(padding)+original+'0'.repeat(Math.max(0,target-original.length));
  const initial=whole.length+padding, hops=frame.hops||0, current=initial+hops*direction;
- const width=Math.max(840,ribbon.length*55+90),height=265;
+ const width=Math.max(840,ribbon.length*55+90),height=280;
  const left=(width-ribbon.length*55)/2, x=index=>left+index*55;
  const pointY=158, colour='#8050b4';
  const text=(x,y,value,size,fill='#493455')=>'<text x="'+x+'" y="'+y+'" text-anchor="middle" dominant-baseline="middle" font-family="system-ui,sans-serif" font-size="'+size+'" fill="'+fill+'">'+value+'</text>';
- let svg=text(width/2,33,'Start at '+M.format(start),22);
+ let svg=text(width/2,33,'Start at '+M.display(start),22);
  const activeLeft=Math.min(padding,current-1),activeRight=Math.max(padding+original.length,current);
  [...ribbon].forEach((digit,index)=>{
   const active=index>=activeLeft&&index<activeRight;
@@ -32,15 +32,22 @@ function renderHops({start,places,direction},frame,animated){
   const from=initial+i*direction,to=from+direction;
   svg+='<path data-decimal-hop="true" d="M'+x(from)+' '+pointY+curve(from,to)+'" fill="none" stroke="'+colour+'" stroke-width="2.6" marker-end="url(#arrow)"/>';
  }
- const previous=frame.replay?0:hops-1;
- if(animated&&hops){
-  let path='M'+x(initial+previous*direction)+' '+pointY;
-  for(let i=previous;i<hops;i++)path+=curve(initial+i*direction,initial+(i+1)*direction);
-  svg+='<circle r="5.5" fill="'+colour+'" stroke="white" stroke-width="1.5"><animateMotion dur="'+((hops-previous)*.45)+'s" fill="freeze" path="'+path+'"/></circle>';
- }else{
-  svg+='<circle cx="'+x(current)+'" cy="'+pointY+'" r="5.5" fill="'+colour+'"/>';
+ const startX=x(initial),endX=x(current),endColour='#087455';
+ const positionLabel=(cx,label,fill)=>'<path d="M'+cx+' 168V179" stroke="'+fill+'"/>'
+  +text(cx,194,label,14,fill);
+ svg+='<circle cx="'+startX+'" cy="'+pointY+'" r="6" fill="white" stroke="'+colour+'" stroke-width="2.5"/>'
+  +positionLabel(startX,places?'Start':'Start and end',colour);
+ if(hops){
+  svg+='<circle cx="'+endX+'" cy="'+pointY+'" r="6" fill="'+endColour+'" stroke="white" stroke-width="1.5"/>'
+   +positionLabel(endX,hops===places?'End':'Now',endColour);
+  if(animated){
+   const previous=frame.replay?0:hops-1;
+   let path='M'+x(initial+previous*direction)+' '+pointY;
+   for(let i=previous;i<hops;i++)path+=curve(initial+i*direction,initial+(i+1)*direction);
+   svg+='<circle r="5.5" fill="'+endColour+'" stroke="white" stroke-width="1.5"><animateMotion dur="'+((hops-previous)*.45)+'s" fill="freeze" path="'+path+'"/></circle>';
+  }
+  svg+=text(width/2,235,M.display(frame.rows[0].value,true),25);
  }
- if(hops)svg+=text(width/2,216,M.format(frame.rows[0].value,true),25);
  return {svg,width,height};
 }
 function render(plan,frame,animated){
