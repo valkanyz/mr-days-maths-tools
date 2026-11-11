@@ -13,13 +13,12 @@ labs.area.setup=function() {
  const step=28,ox=28,oy=28;
  $('fShape').insertAdjacentHTML('beforeend','<option value="builder">Drag & drop composite builder</option>');
  $('fShape').value='builder';
- $('fGrid').checked=false;
  $('controls').querySelector('.section').insertAdjacentHTML('beforebegin',`
  <div id="compositeControls">
-  <p>Click to add a shape, or drag it onto the grid. Drag placed shapes to move them.</p>
+  <p>Click to add a shape, or drag it onto the grid. Select a placed shape to choose Add or Subtract.</p>
+  <label class="check"><input id="compositeGrid" type="checkbox" checked> Show placement grid</label>
+  <label class="check"><input id="pieceDeleteMode" type="checkbox"> Click shapes to delete</label>
   <div class="actions">${Object.entries(names).map(([kind,name])=>'<button type="button" data-piece="'+kind+'">'+name+'</button>').join('')}</div>
-  <div><label for="newPieceOperation">New shapes</label>
-  <select id="newPieceOperation"><option value="add">Add</option><option value="subtract">Subtract</option></select></div>
   <details><summary>Diagram dimensions</summary>
    <div><label for="compositeUnit">Units</label><select id="compositeUnit"><option value="m">m</option><option value="cm">cm</option><option value="units">units</option></select></div>
    <label class="check"><input id="compositeDimensions" type="checkbox" checked> Show dimensions</label>
@@ -36,7 +35,7 @@ labs.area.setup=function() {
   <div><label for="pieceAngle">Sector angle (degrees)</label><input id="pieceAngle" type="number" min="1" max="360" step="1"></div>
   <div><label for="pieceApex">Triangle top vertex from left (units)</label><input id="pieceApex" type="number" min="0" max="28" step="0.5"></div>
   <div><label for="pieceTop">Top width (units)</label><input id="pieceTop" type="number" min="0.5" max="28" step="0.5"></div>
-  <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
+  <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete selected</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
   <p>Subtracted shapes cut through all added shapes. Arrow keys move the selected shape half a unit. Overlaps count once.</p>
  </div>`);
  const save=()=>{history.push(JSON.stringify({pieces,selected}));if(history.length>100)history.shift();};
@@ -77,7 +76,8 @@ labs.area.setup=function() {
  function add(kind,x=10,y=4) {
   if(pieces.length>=200){note('Use up to 200 shapes. Delete a shape to add another.');return;}
   save();
-  const piece={kind,operation:$('newPieceOperation').value,x,y,w:kind==='square'?3:5,h:3,r:2,angle:90,top:3};
+  $('pieceDeleteMode').checked=false;
+  const piece={kind,operation:'add',x,y,w:kind==='square'?3:5,h:3,r:2,angle:90,top:3};
   clamp(piece);pieces.push(piece);selected=pieces.length-1;sync();run();
  }
  function point(event) {
@@ -111,7 +111,12 @@ labs.area.setup=function() {
  const action=(id,fn)=>$(id).onclick=()=>{save();fn();selected=Math.min(selected,pieces.length-1);sync();run();};
  action('pieceRotate',()=>{const p=pieces[selected];if(p){p.rotation=(p.rotation||0)+90;clamp(p);}});
  action('pieceDuplicate',()=>{const p=pieces[selected];if(p&&pieces.length<200){pieces.push({...p,x:p.x+.5,y:p.y+.5});selected=pieces.length-1;clamp(pieces[selected]);}});
- action('pieceDelete',()=>{if(selected>=0)pieces.splice(selected,1);});
+ const deleteSelected=()=>{
+  if(selected<0)return;
+  save();pieces.splice(selected,1);selected=Math.min(selected,pieces.length-1);
+  drag=null;sync();run();
+ };
+ $('pieceDelete').onclick=deleteSelected;
  action('pieceClear',()=>{pieces=[];});
  $('pieceUndo').onclick=()=>{if(history.length){({pieces,selected}=JSON.parse(history.pop()));sync();run();}};
  $('controls').insertAdjacentHTML('beforeend','<input type="hidden" id="compositeState">');
@@ -129,7 +134,9 @@ labs.area.setup=function() {
   if($('fShape').value!=='builder')return;
   const el=event.target.closest('[data-part]');
   if(!el)return;
-  event.preventDefault();selected=Number(el.dataset.part);save();
+  event.preventDefault();selected=Number(el.dataset.part);
+  if($('pieceDeleteMode').checked){deleteSelected();return;}
+  save();
   const p=point(event);drag={dx:p.x-pieces[selected].x,dy:p.y-pieces[selected].y};
   $('viz').setPointerCapture(event.pointerId);sync();run();$('viz').querySelector('svg').focus();
  };
@@ -141,6 +148,9 @@ labs.area.setup=function() {
  $('viz').onpointerup=$('viz').onpointercancel=()=>{drag=null;};
  $('viz').onkeydown=event=>{
   if($('fShape').value!=='builder'||selected<0)return;
+  if(event.key==='Delete'||event.key==='Backspace'){
+   event.preventDefault();deleteSelected();$('viz').querySelector('svg').focus();return;
+  }
   const delta={ArrowLeft:[-.5,0],ArrowRight:[.5,0],ArrowUp:[0,-.5],ArrowDown:[0,.5]}[event.key];
   if(!delta)return;
   event.preventDefault();save();pieces[selected].x+=delta[0];pieces[selected].y+=delta[1];
@@ -151,7 +161,7 @@ labs.area.setup=function() {
   const active=$('fShape').value==='builder';
   $('compositeControls').hidden=!active;
   if(!active){$('viz').style.touchAction='auto';$('viz').style.height='';return base();}
-  for(const id of ['fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
+  for(const id of ['fGrid','fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
   $('clearArea').hidden=true;
   const p=pieces[selected],round=p&&(p.kind==='circle'||p.kind==='sector');
   for(const id of ['pieceOperation','pieceWidth','pieceHeight','pieceRadius','pieceAngle','pieceTop','pieceApex','pieceRotate','pieceDuplicate','pieceDelete'])$(id).disabled=!p;
@@ -165,11 +175,11 @@ labs.area.setup=function() {
   $('pieceUndo').disabled=!history.length;
   $('viz').style.touchAction='none';
   $('viz').style.height='clamp(380px,58dvh,650px)';
-  const construction=$('compositeConstruction').checked;
+  const construction=$('compositeConstruction').checked,deleteMode=$('pieceDeleteMode').checked;
   const unit=$('compositeUnit').value;
   const measurement=Geometry.measure(pieces);
-  let drawing=$('fGrid').checked?'<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>':'';
-  if($('fGrid').checked){
+  let drawing=$('compositeGrid').checked?'<rect x="28" y="28" width="784" height="392" fill="#faf7fc" stroke="#cbbbd8"/>':'';
+  if($('compositeGrid').checked){
    for(let x=0;x<=28;x++)drawing+='<path d="M'+(ox+x*step)+' 28V420" stroke="#e3d9eb"/>';
    for(let y=0;y<=14;y++)drawing+='<path d="M28 '+(oy+y*step)+'H812" stroke="#e3d9eb"/>';
   }
@@ -181,7 +191,7 @@ labs.area.setup=function() {
   pieces.forEach((p,i)=>{
    const subtract=p.operation==='subtract',colour=subtract?'#ba3448':colours[i%colours.length];
    const title=names[p.kind||'rectangle']+' '+(i+1)+' · '+(subtract?'Subtract':'Add')+' · '+description(p);
-   drawing+='<g data-part="'+i+'" style="cursor:grab"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract&&construction?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+(construction?colour:'none')+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+'. Drag to move.</title></g>';
+   drawing+='<g data-part="'+i+'" style="cursor:'+(deleteMode?'crosshair':'grab')+'"><path transform="translate(28 28) scale(28)" d="'+path(p)+'" fill="'+(subtract&&construction?'#fff0f0':'transparent')+'" fill-opacity="'+(subtract?'.18':'1')+'" stroke="'+(construction?colour:'none')+'" stroke-width="'+(i===selected?.1:.04)+'"'+(subtract||i===selected?' stroke-dasharray=".2 .12"':'')+'/><title>'+esc(title)+(deleteMode?'. Click to delete.':'. Drag to move.')+'</title></g>';
 
   });
   if($('fBoundary').checked)drawing+='<g transform="translate(28 28) scale(28)" pointer-events="none" fill="none" stroke="#1c2530" stroke-width=".09">'
@@ -203,13 +213,13 @@ labs.area.setup=function() {
     top:Math.min(box.top,piece.y),bottom:Math.max(box.bottom,bottom)}
     :{left:piece.x,right,top:piece.y,bottom};
   }
-  if($('fGrid').checked||!box)box={left:0,right:28,top:0,bottom:14};
+  if($('compositeGrid').checked||!box)box={left:0,right:28,top:0,bottom:14};
   diagram.setAttribute('viewBox',[(28+box.left*step)-150,(28+box.top*step)-75,
    (box.right-box.left)*step+300,(box.bottom-box.top)*step+200].join(' '));
   formula('Area of added shapes − removed regions');
   results([['Area',fmt(measurement.area,3)+(unit==='units'?' square units':' '+unit+'²')],['Perimeter',fmt(measurement.perimeter,3)+' '+unit]]);
   legend([['Composite shape','#14a98d'],...(construction?[['Selected shape: dashed outline',C.purple],['Subtract: red dashed outline','#ba3448']]:[])]);
-  note('Dimension arrows measure the finished outline and cut-outs. Overall dimensions sit outside the shape; curved boundaries show their radius. Use Diagram dimensions to choose which labels are shown. Overlapping added shapes count once. Values are rounded to 3 decimal places.');
+  note((deleteMode?'Click a shape to delete it. Use Undo to restore it. ':'')+'Dimension arrows measure the finished outline and cut-outs. Overall dimensions sit outside the shape; curved boundaries show their radius. Use Diagram dimensions to choose which labels are shown. Overlapping added shapes count once. Values are rounded to 3 decimal places.');
   table(['Measurement','Value'],[['Area ('+(unit==='units'?'square units':unit+'²')+')',measurement.area],['Perimeter ('+unit+')',measurement.perimeter]]);
  };
  pieces.forEach(clamp);sync();
