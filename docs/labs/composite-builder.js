@@ -26,6 +26,7 @@ labs.area.setup=function() {
   <div><label for="pieceHeight">Height (units)</label><input id="pieceHeight" type="number" min="0.5" max="14" step="0.5"></div>
   <div><label for="pieceRadius">Radius (units)</label><input id="pieceRadius" type="number" min="0.5" max="7" step="0.5"></div>
   <div><label for="pieceAngle">Sector angle (degrees)</label><input id="pieceAngle" type="number" min="1" max="360" step="1"></div>
+  <div><label for="pieceApex">Triangle top vertex from left (units)</label><input id="pieceApex" type="number" min="0" max="28" step="0.5"></div>
   <div><label for="pieceTop">Top width (units)</label><input id="pieceTop" type="number" min="0.5" max="28" step="0.5"></div>
   <div class="actions"><button id="pieceRotate">Rotate 90°</button><button id="pieceDuplicate">Duplicate</button><button id="pieceDelete">Delete</button><button id="pieceUndo">Undo</button><button id="pieceClear">Clear</button></div>
   <p>Subtracted shapes cut through all added shapes. Arrow keys move the selected shape half a unit. Overlaps count once.</p>
@@ -46,6 +47,7 @@ labs.area.setup=function() {
    if(piece.kind==='square')piece.w=piece.h=Math.min(14,piece.w);
   }
   piece.top=Math.max(.5,Math.min(piece.w,Number(piece.top)||piece.w/2));
+  piece.apex=Math.max(0,Math.min(piece.w,Number.isFinite(piece.apex)?piece.apex:piece.w/2));
   piece.angle=Math.max(1,Math.min(360,Number(piece.angle)||90));
   const width=turned?piece.h:piece.w,height=turned?piece.w:piece.h;
   piece.x=Math.max(0,Math.min(28-width,snap(piece.x)));
@@ -61,7 +63,7 @@ labs.area.setup=function() {
   $('pieceSelect').value=String(selected);
   const p=pieces[selected];
   if(!p)return;
-  for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top']])$(id).value=p[key]??'';
+  for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top'],['pieceApex','apex']])$(id).value=p[key]??'';
   $('pieceOperation').value=p.operation||'add';
  }
  function add(kind,x=10,y=4) {
@@ -89,7 +91,7 @@ labs.area.setup=function() {
   };
  }
  $('pieceSelect').onchange=()=>{selected=Number($('pieceSelect').value);sync();run();};
- for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top']]){
+ for(const [id,key]of [['pieceWidth','w'],['pieceHeight','h'],['pieceRadius','r'],['pieceAngle','angle'],['pieceTop','top'],['pieceApex','apex']]){
   $(id).oninput=()=>{
    const value=Number($(id).value),piece=pieces[selected];
    if(!piece||!Number.isFinite(value)||value<Number($(id).min))return;
@@ -144,11 +146,11 @@ labs.area.setup=function() {
   for(const id of ['fWidth','fHeight','topWidth','cutHeight','slant','decompose'])showControl(id,false);
   $('clearArea').hidden=true;
   const p=pieces[selected],round=p&&(p.kind==='circle'||p.kind==='sector');
-  for(const id of ['pieceOperation','pieceWidth','pieceHeight','pieceRadius','pieceAngle','pieceTop','pieceRotate','pieceDuplicate','pieceDelete'])$(id).disabled=!p;
+  for(const id of ['pieceOperation','pieceWidth','pieceHeight','pieceRadius','pieceAngle','pieceTop','pieceApex','pieceRotate','pieceDuplicate','pieceDelete'])$(id).disabled=!p;
   showControl('pieceWidth',!!p&&!round);showControl('pieceHeight',!!p&&!round&&p.kind!=='square');
-  showControl('pieceRadius',!!round);showControl('pieceAngle',p?.kind==='sector');showControl('pieceTop',p?.kind==='trapezium');
+  showControl('pieceRadius',!!round);showControl('pieceAngle',p?.kind==='sector');showControl('pieceTop',p?.kind==='trapezium');showControl('pieceApex',p?.kind==='triangle');
   if(p){
-   $('pieceTop').max=p.w;
+   $('pieceTop').max=p.w;$('pieceApex').max=p.w;
    const turned=p.rotation===90||p.rotation===270;
    $('pieceWidth').max=turned?14:28;$('pieceHeight').max=turned?28:14;
   }

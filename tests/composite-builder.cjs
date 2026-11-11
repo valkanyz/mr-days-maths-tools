@@ -22,6 +22,7 @@ for(const [pieces,area,perimeter] of [
  [[r(0,0,4,4),{...r(0,0,4,4),operation:'subtract'}],0,0],
  [[circle(0,0,2,'subtract')],0,0],
  [[{...r(0,0,6,4),kind:'triangle'}],12,16],
+ [[{...r(0,0,6,4),kind:'triangle',apex:0}],12,10+Math.sqrt(52)],
  [[{...r(0,0,6,4),kind:'trapezium',top:2}],16,8+2*Math.sqrt(20)],
  [[{...r(0,0,6,4),kind:'trapezium',top:2,rotation:90}],16,8+2*Math.sqrt(20)]
 ]){

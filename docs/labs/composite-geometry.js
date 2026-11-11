@@ -42,7 +42,7 @@ function shape(piece) {
    &&(full||normalAngle(Math.atan2(y-cy,x-cx)-arc.start)<span)};
  }
  let points;
- if(kind==='triangle')points=[[0,h],[w,h],[w/2,0]];
+ if(kind==='triangle')points=[[0,h],[w,h],[piece.apex??w/2,0]];
  else if(kind==='trapezium'){
   const top=piece.top??w/2;
   points=[[(w-top)/2,0],[(w+top)/2,0],[w,h],[0,h]];
