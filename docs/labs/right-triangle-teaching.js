@@ -16,15 +16,15 @@ const RightTriangleTeaching = (() => {
     return sides[key].name + (reveal ? ' = ' + display(length) : '');
   }
 
-  function angleMark(points, angle, display) {
+  function angleMark(points, angle, display, label='', colour='#493455') {
     const [[x,y],[hx,hy],[bx,by]] = points;
     const hyp = Math.hypot(hx-x,hy-y), adj = Math.hypot(bx-x,by-y);
     const ux = (bx-x)/adj, uy = (by-y)/adj, vx = (hx-x)/hyp, vy = (hy-y)/hyp;
     const r = Math.min(32, .26*adj, .26*hyp);
     const sweep = ux*vy-uy*vx > 0 ? 1 : 0;
     const mid = Math.atan2(uy+vy,ux+vx), labelRadius = r+24;
-    return '<path d="M'+(x+r*ux)+','+(y+r*uy)+' A'+r+','+r+' 0 0 '+sweep+' '+(x+r*vx)+','+(y+r*vy)+'" fill="none" stroke="#5e476e" stroke-width="2"/>'
-      + '<text x="'+(x+labelRadius*Math.cos(mid))+'" y="'+(y+labelRadius*Math.sin(mid))+'" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#493455" stroke="white" stroke-width="4" paint-order="stroke">'+(display(angle))+'°</text>';
+    return '<path d="M'+(x+r*ux)+','+(y+r*uy)+' A'+r+','+r+' 0 0 '+sweep+' '+(x+r*vx)+','+(y+r*vy)+'" fill="none" stroke="'+colour+'" stroke-width="2"/>'
+      + '<text x="'+(x+labelRadius*Math.cos(mid))+'" y="'+(y+labelRadius*Math.sin(mid))+'" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="'+colour+'" stroke="white" stroke-width="4" paint-order="stroke">'+label+display(angle)+'°</text>';
   }
 
   function comparison(T, factor, scale, display, reveal, baseLocked) {

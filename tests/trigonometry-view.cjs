@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const html=fs.readFileSync('docs/labs/index.html','utf8'),els={};
 for(const [id,value]of Object.entries({mode:'right',tria:5,trib:7,tric:9,triA:35,triB:55,solution:0,sineCase:'aas'}))els[id]={value};
 for(const k of ['a','b','c','A'])els['lock'+k]={checked:false};els.reveal={checked:true};els.viz={style:{}};
-els['right-trig-ratios']={};
+els['right-trig-ratios']={};els.formula={};
 for(const key of ['Sin','Cos','Tan','Compare'])els['trig'+key]={checked:key!=='Compare'};
 els.trigScale={value:1.5};els.trigScaleval={};
 els.trigAngle={value:35,dataset:{}};els.trigAngleval={};
