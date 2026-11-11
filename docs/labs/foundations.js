@@ -19,8 +19,54 @@ function work(message){$('note').textContent=message}
 function register(id,title,group,setup){addLab(id,title,'YEARS 7–8 · FOUNDATIONS',setup);labs[id].subtitle='Build understanding, one step at a time.';activityGroups[group].push(id)}
 function integerTicks(a,b,max=12){const d=Math.max(1,Math.ceil((b-a)/max)),first=Math.ceil(a/d)*d;return Array.from({length:Math.max(0,Math.floor((b-first)/d)+1)},(_,i)=>first+i*d)}
 register('percentages','Percentages Lab','Number & finance',()=>{
- controls(select('fMode','Explore',[['part','Percentage of an amount'],['increase','Percentage increase'],['decrease','Percentage decrease']])+input('fAmount','Original amount',80,0,100000,.01)+slider('fPercent','Percentage',25,0,100,1)+check('fGrid','Show hundred square',true)+stepsHTML());const next=stepper();
+ controls(select('fMode','Explore',[['part','Percentage of an amount'],['increase','Percentage increase'],['decrease','Percentage decrease']])+input('fAmount','Original amount',80,0,100000,.01)+slider('fPercent','Percentage',25,0,100,1)+check('fGrid','Show amount tiles',true)+stepsHTML());const next=stepper();let percentageDragging=false;
  update=()=>{const a=value('fAmount'),p=value('fPercent'),mode=$('fMode').value,r=Foundation.percent(a,p,mode),reveal=$('reveal').checked;
+ const host=$('viz');
+ $('fGrid').closest('label').lastChild.textContent=mode==='part'?'Show amount tiles':'Show hundred square';
+ if(mode==='part'){
+  const model=PercentageAmount.plan(a,p),st=next(PercentageAmount.steps(model),[a,p,mode].join());
+  const teaching=!!window.MathsUX?.teaching;
+  host.style.height='clamp(500px,72dvh,780px)';
+  svg(PercentageAmount.render(model,{tiles:$('fGrid').checked,reveal,teaching,step:st.step}),'The whole amount, percentage number line and selected amount tiles');
+  host.querySelector('svg').setAttribute('viewBox','0 0 840 630');
+  host.style.touchAction='none';
+  const setPercentage=event=>{
+   const root=host.querySelector('svg'),point=root.createSVGPoint();
+   point.x=event.clientX;point.y=event.clientY;
+   const position=point.matrixTransform(root.getScreenCTM().inverse());
+   const percent=Math.max(0,Math.min(100,Math.round((position.x-60)/720*100)));
+   if(Number($('fPercent').value)===percent)return;
+   $('fPercent').value=String(percent);
+   $('fPercentval').textContent=$('fPercent').value;
+   run();
+  };
+  host.onpointerdown=event=>{
+   if(!event.target.closest('[data-percentage-drag]'))return;
+   event.preventDefault();percentageDragging=true;host.setPointerCapture(event.pointerId);setPercentage(event);
+  };
+  host.onpointermove=event=>{if(percentageDragging)setPercentage(event);};
+  host.onpointerup=host.onpointercancel=()=>{percentageDragging=false;};
+  host.onkeydown=event=>{
+   if(!event.target.closest('[data-percentage-drag]'))return;
+   const movement={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[event.key];
+   if(movement===undefined&&event.key!=='Home'&&event.key!=='End')return;
+   event.preventDefault();
+   $('fPercent').value=String(event.key==='Home'?0:event.key==='End'?100:Math.max(0,Math.min(100,p+movement)));
+   $('fPercentval').textContent=$('fPercent').value;
+   run();host.querySelector('[data-percentage-drag]').focus({preventScroll:true});
+  };
+  const finalVisible=reveal&&(!teaching||st.step===4);
+  const calculation=finalVisible?' = '+fmt(model.part,4):' = ?';
+  $('formula').innerHTML='<math><mtext>'+p+'% of '+fmt(a)+'</mtext><mo>=</mo><mfrac><mn>'+p+'</mn><mn>100</mn></mfrac><mo>×</mo><mn>'+a+'</mn><mtext>'+calculation+'</mtext></math>';
+  results([['Percentage amount',finalVisible?fmt(model.part,4):'?'],['10% of the whole',!teaching||st.step>=1?fmt(model.ten,4):'?'],['1% of the whole',!teaching||st.step>=2?fmt(model.one,4):'?']]);
+  legend([[model.tens+'% portion',C.purple],[model.ones+'% portion',C.teal]]);
+  work(reveal?st.s:'Use the whole amount and the benchmarks to predict the selected amount.');
+  table(['Original','Percentage','10% value','1% value','Percentage amount'],[[a,p,model.ten,model.one,model.part]]);
+  return;
+ }
+ percentageDragging=false;
+ host.onpointerdown=host.onpointermove=host.onpointerup=host.onpointercancel=host.onkeydown=null;
+ host.style.height='';host.style.touchAction='auto';
  const seq=[`The whole amount is ${fmt(a)}. This is 100%.`,`1% = ${fmt(a)} ÷ 100 = ${fmt(a/100,4)}.`,`${p}% = ${fmt(a/100,4)} × ${p} = ${fmt(r.part,4)}.`];if(mode!=='part')seq.push(`${fmt(a)} ${mode==='increase'?'+':'−'} ${fmt(r.part,4)} = ${fmt(r.total,4)}.`);const st=next(seq,[a,p,mode].join());
  let s=text(420,35,`${p}% ${mode==='part'?'of':mode==='increase'?'increase on':'decrease from'} ${fmt(a)}`,23);
  if($('fGrid').checked){for(let i=0;i<100;i++)s+=rect(65+(i%10)*22,72+Math.floor(i/10)*22,20,20,i<(window.MathsUX?.teaching?(st.step===0?0:st.step===1?1:p):p)?C.teal:'#e8dfee');s+=text(174,320,'Each square = 1%',15)}
