@@ -29,3 +29,14 @@ const curved=D.render(G.measure([rectangle,circle]),[rectangle,circle],{task:'pe
 assert.match(curved,/>r = 4 m<\/text>/);
 assert.match(curved,/>arc 180°<\/text>/);
 console.log('PASS: usable area heights and bases, external rotated perimeter labels and exposed arc angles.');
+
+const simpleTrapezium={kind:'trapezium',x:0,y:0,w:5,h:3,top:3};
+for(const rotation of [0,90,180,270]){
+ const piece={...simpleTrapezium,rotation};
+ const diagram=D.render(G.measure([piece]),[piece],{task:'area',unit:'m',overall:true,sides:true});
+ const labels=[...diagram.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map(match=>match[1]);
+ assert.equal(labels.filter(label=>label==='h = 3 m').length,1);
+ assert.equal(labels.filter(label=>label==='3 m').length,1,'Only the top base has an unprefixed 3 m label.');
+ assert.equal(labels.filter(label=>label==='5 m').length,1);
+}
+console.log('PASS: trapezium area has one height and two bases in every orientation.');

@@ -103,9 +103,20 @@ function render(measurement,pieces,options) {
  }
  let svg='<defs><marker id="composite-dimension-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L5 5L0 10" fill="none" stroke="'+stroke+'" stroke-width="1.6"/></marker></defs><g data-composite-dimensions="true" pointer-events="none">';
  const width=box.right-box.left,totalHeight=box.bottom-box.top;
+ const suppliedShapes=area&&options.sides?pieces.filter((piece,index)=>
+  (piece.kind==='triangle'||piece.kind==='trapezium')
+  &&(measurement.boundaries.some(edge=>edge.piece===index)||index===options.selected)):[];
+ const horizontalSupplied=suppliedShapes.some(piece=>{
+  const turned=piece.rotation===90||piece.rotation===270,span=turned?piece.h:piece.w;
+  return Math.abs(piece.x-box.left)<1e-7&&Math.abs(piece.x+span-box.right)<1e-7;
+ });
+ const verticalSupplied=suppliedShapes.some(piece=>{
+  const turned=piece.rotation===90||piece.rotation===270,span=turned?piece.w:piece.h;
+  return Math.abs(piece.y-box.top)<1e-7&&Math.abs(piece.y+span-box.bottom)<1e-7;
+ });
  if(options.overall){
-  if(width>1e-7)svg+=dimension(screen([box.left,box.bottom]),screen([box.right,box.bottom]),-65);
-  if(totalHeight>1e-7)svg+=dimension(screen([box.left,box.top]),screen([box.left,box.bottom]),-65);
+  if(width>1e-7&&!horizontalSupplied)svg+=dimension(screen([box.left,box.bottom]),screen([box.right,box.bottom]),-65);
+  if(totalHeight>1e-7&&!verticalSupplied)svg+=dimension(screen([box.left,box.top]),screen([box.left,box.bottom]),-65);
  }
  if(area&&options.sides)for(const [index,piece]of pieces.entries()){
   if(!measurement.boundaries.some(edge=>edge.piece===index)&&index!==options.selected)continue;
