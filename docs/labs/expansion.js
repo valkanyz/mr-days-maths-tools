@@ -42,8 +42,8 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
  const regionNames=['Neither','A only','B only','A ∩ B only','C only','A ∩ C only','B ∩ C only','A ∩ B ∩ C'];
  const layouts={
   2:[[130,340,170,96],[300,190,126,130],[540,190,126,130],[420,190,68,86]],
-  3:[[130,340,170,96],[286,145,82,64],[554,145,82,64],[420,130,38,22],
-     [420,354,104,52],[350,258,48,90],[490,258,48,90],[420,210,60,64]]
+  3:[[130,340,76,32],[302,141,76,32],[538,141,76,32],[420,141,52,32],
+     [420,350,76,32],[361,243,52,32],[479,243,52,32],[420,207,44,32]]
  };
  const regionName=(n,i)=>i===0&&n===3?'Outside all sets':i===3&&n===2?'A ∩ B':regionNames[i];
  controls(select('sets','Number of sets',[['2','Two sets'],['3','Three sets']])
@@ -55,12 +55,15 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
    const letter='ABC'[i];
    return `<div><label for="name${letter}">Set ${letter}</label><input id="name${letter}" value="${name}"></div>`;
   }).join(''));
- const centres=[[340,190],[500,190],[420,270]],r=125;
- const regionAt=(x,y,n)=>centres.slice(0,n).reduce((bits,[cx,cy],i)=>
-  Math.hypot(x-cx,y-cy)<r?bits|(1<<i):bits,0);
+ const circles={
+  2:{centres:[[340,190],[500,190]],radius:125},
+  3:{centres:[[349,168],[491,168],[420,168+71*Math.sqrt(3)]],radius:112}
+ };
+ const regionAt=(x,y,n)=>circles[n].centres.reduce((bits,[cx,cy],i)=>
+  Math.hypot(x-cx,y-cy)<circles[n].radius?bits|(1<<i):bits,0);
  // Leave room for the largest dot and the outline stroke on either side of a boundary.
- const clearOfOutlines=(x,y,n)=>centres.slice(0,n).every(([cx,cy])=>
-  Math.abs(Math.hypot(x-cx,y-cy)-r)>=9);
+ const clearOfOutlines=(x,y,n)=>circles[n].centres.every(([cx,cy])=>
+  Math.abs(Math.hypot(x-cx,y-cy)-circles[n].radius)>=9);
  const matches=(event,a,b,c)=>event==='A'?a:event==='B'?b:event==='and'||event==='given'?a&&b:event==='or'?a||b:event==='not'?!a:event==='C'?c:event==='abc'?a&&b&&c:a||b||c;
  const matchesRegion=(event,bits)=>matches(event,!!(bits&1),!!(bits&2),!!(bits&4));
  let tokens=[],key='',editing=null,tokenPointer=false;
@@ -127,11 +130,11 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
   }
   for(const opt of $('event').options)opt.disabled=n===2&&['C','abc','any'].includes(opt.value);
   if($('event').selectedOptions[0].disabled)$('event').value='A';
-  const event=$('event').value;
+  const event=$('event').value,{centres,radius:r}=circles[n];
   const regions=countMode?enteredCounts[n]:Array(2**n).fill(0);
   const isSelected=bits=>event==='manual'?shaded[n].has(bits):matchesRegion(event,bits);
   let hit=0,den=0;
-  let s='<defs>'+centres.slice(0,n).map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf" class="venn-board"/>';
+  let s='<defs>'+centres.map((c,i)=>`<clipPath id="set${i}"><circle cx="${c[0]}" cy="${c[1]}" r="${r}"/></clipPath><mask id="outside${i}"><rect width="840" height="440" fill="white"/><circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="black"/></mask>`).join('')+'</defs><rect x="30" y="30" width="780" height="380" rx="12" fill="#faf7fd" stroke="#ad97bf" class="venn-board"/>';
  for(let bits=0;bits<2**n;bits++){const m=Array.from({length:n},(_,i)=>!!(bits&(1<<i)));if(!isSelected(bits))continue;let piece='<rect x="30" y="30" width="780" height="380" fill="#d9b7ee"/>';for(let i=0;i<n;i++)piece=`<g ${m[i]?'clip-path="url(#set'+i+')"':'mask="url(#outside'+i+')"'}>${piece}</g>`;s+=piece}
 
   if(!countMode){
@@ -145,7 +148,7 @@ addLab('venn','Venn & Two-way Table Lab','YEARS 8–12',()=>{
    if(isSelected(bits))hit+=count;
    if(event!=='given'||bits&2)den+=count;
   });
-  centres.slice(0,n).forEach(([x,y],i)=>{
+  centres.forEach(([x,y],i)=>{
    const letter='ABC'[i];
    s+=`<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${[C.purple,C.teal,C.gold][i]}" stroke-width="3"/>`
     +txt(x,i===2?425:50,letter+': '+$('name'+letter).value,16);
