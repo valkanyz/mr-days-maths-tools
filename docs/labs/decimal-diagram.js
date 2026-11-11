@@ -9,7 +9,42 @@ function digits(value){
  const [whole,fraction='']=M.format(value).replace('−','').split('.');
  return Object.fromEntries([...whole+fraction].map((digit,i)=>[whole.length-i-1,digit]));
 }
+function renderHops({start,places,direction},frame,animated){
+ const [whole,fraction='']=M.format(start).split('.');
+ const target=whole.length+places*direction;
+ const padding=Math.max(0,1-target);
+ const original=whole+fraction;
+ const ribbon='0'.repeat(padding)+original+'0'.repeat(Math.max(0,target-original.length));
+ const initial=whole.length+padding, hops=frame.hops||0, current=initial+hops*direction;
+ const width=Math.max(840,ribbon.length*55+90),height=265;
+ const left=(width-ribbon.length*55)/2, x=index=>left+index*55;
+ const pointY=158, colour='#8050b4';
+ const text=(x,y,value,size,fill='#493455')=>'<text x="'+x+'" y="'+y+'" text-anchor="middle" dominant-baseline="middle" font-family="system-ui,sans-serif" font-size="'+size+'" fill="'+fill+'">'+value+'</text>';
+ let svg=text(width/2,33,'Start at '+M.format(start),22);
+ const activeLeft=Math.min(padding,current-1),activeRight=Math.max(padding+original.length,current);
+ [...ribbon].forEach((digit,index)=>{
+  const active=index>=activeLeft&&index<activeRight;
+  svg+='<rect x="'+(x(index)+4)+'" y="123" width="47" height="51" rx="5" fill="#f5f0fa" opacity="'+(active?1:.35)+'"/>';
+  svg+=text(x(index)+27.5,149,digit,31,active?'#302044':'#b9a9c5');
+ });
+ const curve=(from,to)=>'Q'+((x(from)+x(to))/2)+' 58 '+x(to)+' '+pointY;
+ for(let i=0;i<hops;i++){
+  const from=initial+i*direction,to=from+direction;
+  svg+='<path data-decimal-hop="true" d="M'+x(from)+' '+pointY+curve(from,to)+'" fill="none" stroke="'+colour+'" stroke-width="2.6" marker-end="url(#arrow)"/>';
+ }
+ const previous=frame.replay?0:hops-1;
+ if(animated&&hops){
+  let path='M'+x(initial+previous*direction)+' '+pointY;
+  for(let i=previous;i<hops;i++)path+=curve(initial+i*direction,initial+(i+1)*direction);
+  svg+='<circle r="5.5" fill="'+colour+'" stroke="white" stroke-width="1.5"><animateMotion dur="'+((hops-previous)*.45)+'s" fill="freeze" path="'+path+'"/></circle>';
+ }else{
+  svg+='<circle cx="'+x(current)+'" cy="'+pointY+'" r="5.5" fill="'+colour+'"/>';
+ }
+ if(hops)svg+=text(width/2,216,M.format(frame.rows[0].value,true),25);
+ return {svg,width,height};
+}
 function render(plan,frame,animated){
+ if(plan.pointShift)return renderHops(plan.pointShift,frame,animated);
  const arrowFrames=plan.steps.flatMap(step=>[...(step.arrows||[]),...(step.arrow?[step.arrow]:[])]);
  const values=plan.steps.flatMap(step=>step.rows.map(row=>row.value));
  const powers=values.flatMap(value=>Object.keys(digits(value)).map(Number));

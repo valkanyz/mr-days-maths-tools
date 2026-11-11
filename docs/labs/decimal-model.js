@@ -133,16 +133,17 @@ function build({mode,a,b,operation,places=0,notation='index',dp=0}) {
  if(mode==='powers'){
   const direction=operation==='divide'?-1:1;
   const factor=notation==='index'?'10'+superscript(places):String(power(places));
-  const steps=[{message:'The decimal point stays fixed. Track the digits from their original columns.',
-   rows:[row('Start',a)]}];
+  const side=direction<0?'left':'right';
+  const steps=[{message:places?'Start with the decimal point in its original position.':'The factor is 1, so the decimal point stays in place.',
+   rows:[row('Start',a)],hops:0}];
   for(let i=1;i<=places;i++){
-   const from=shift(a,direction*(i-1));
-   steps.push({message:'Move the digits one column '+(direction<0?'right':'left')+'. Fill any empty places with zeros.',
-    rows:[row('Before',from),row('After',shift(a,direction*i))],arrows:digitShifts(from,direction)});
+   steps.push({message:'Hop one space '+side+' to get '+format(shift(a,direction*i),true)+'.',
+    rows:[row('After',shift(a,direction*i))],hops:i});
   }
-  if(places>1)steps.push({message:'Each digit has moved '+places+' places '+(direction<0?'right':'left')+'.',
-   rows:[row('Start',a),row('Answer',shift(a,direction*places))],arrows:digitShifts(a,direction*places)});
-  return {result:shift(a,direction*places),steps,title:format(a)+' '+(direction<0?'÷':'×')+' '+factor};
+  if(places>1)steps.push({message:'The decimal point hopped '+places+' spaces '+side+'.',
+   rows:[row('Answer',shift(a,direction*places))],hops:places,replay:true});
+  return {result:shift(a,direction*places),steps,pointShift:{start:a,places,direction},
+   title:format(a)+' '+(direction<0?'÷':'×')+' '+factor};
  }
  if(mode==='compare'){
   const scale=Math.max(a.scale,b.scale),A=atScale(a,scale),B=atScale(b,scale);

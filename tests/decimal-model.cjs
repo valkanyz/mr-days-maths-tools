@@ -20,9 +20,26 @@ for(const places of [1,2,3,12]){
  assert.equal(M.format(index.result),'0.'+'0'.repeat(places-1)+'925');
  assert.deepEqual(index.steps,ordinary.steps);
  assert.notEqual(index.title,ordinary.title);
- assert.equal(index.steps.at(-1).arrows[0].to,-places);
+ assert.equal(index.steps.at(-1).hops,places);
+ assert.equal(index.pointShift.direction,-1);
+ assert.deepEqual(index.steps.slice(0,places+1).map(step=>step.hops),Array.from({length:places+1},(_,i)=>i));
 }
 assert.equal(M.format(M.build({mode:'powers',a:M.parse('0.00925'),operation:'multiply',places:3}).result,true),'9.25');
 assert.equal(M.format(M.build({mode:'place',a:M.parse('1.999999999999'),dp:11}).result),'2.00000000000');
 assert.equal(M.build({mode:'compare',a:M.parse('0.30000'),b:M.parse('0.3')}).comparison,'=');
 console.log('PASS: exact carrying, borrowing, partial products, division rounding and power-of-ten shifts.');
+
+const fs=require('node:fs'),vm=require('node:vm');
+const window={DecimalModel:M};
+vm.runInNewContext(fs.readFileSync('docs/labs/decimal-diagram.js','utf8'),{window});
+for(const operation of ['multiply','divide']){
+ const plan=M.build({mode:'powers',a:M.parse('9.25'),operation,places:3});
+ const first=window.DecimalDiagram.render(plan,plan.steps[0],false).svg;
+ const last=window.DecimalDiagram.render(plan,plan.steps.at(-1),true).svg;
+ const coordinates=svg=>[...svg.matchAll(/<text x="([^"]+)" y="149"[^>]*>([925])<\/text>/g)].map(m=>[m[1],m[2]]);
+ assert.deepEqual(coordinates(first),coordinates(last));
+ assert.equal(coordinates(last).length,3);
+ assert.equal((last.match(/data-decimal-hop=/g)||[]).length,3);
+ assert.equal((last.match(/<animateMotion/g)||[]).length,1);
+}
+console.log('PASS: three decimal-point hops with stationary digits in both directions.');
