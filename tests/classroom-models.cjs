@@ -11,6 +11,23 @@ assert.equal(M.journeys(t,'A','C',M.clock('07:55'),4).routes[0].arrival,M.clock(
 assert.equal(M.journeys('Night,A,B,23:50,00:10\nLink,B,C,24:15,24:40','A','C',M.clock('23:45'),5).routes[0].arrival,1480);
 assert.equal(M.journeys(t,'C','A',0,0).routes.length,0);assert.throws(()=>M.clock('09:65'));assert.throws(()=>M.clock('48:00'));
 near(M.circleAngle([-1,0],[0,1],[1,0]),90);
+const rehearsal = [
+ 'Walk,A,Stop,6,,Walk', 'Bus,Stop,Gate,09:40,10:05,Bus',
+ 'Bus,Stop,Gate,09:55,10:17,Bus', 'Walk,Gate,Hall,9,,Walk',
+ 'Bike,A,Hall,37,,Bike'
+].join('\n');
+const deadline = M.clock('10:20');
+const planned = M.journeys(rehearsal, 'A', 'Hall', 0, 5, deadline).routes;
+assert.deepEqual(planned.map(r => [r.modes, M.time(r.departure), M.time(r.arrival), r.waiting, r.eventWait, r.duration]), [
+ ['Bike', '09:43', '10:20', 0, 0, 37],
+ ['Bus', '09:34', '10:14', 0, 6, 46],
+ ['Bus', '09:49', '10:26', 0, 0, 37]
+]);
+const forward = M.journeys(rehearsal, 'A', 'Hall', M.clock('09:30'), 5).routes[0];
+assert.deepEqual([forward.start, forward.departure, forward.arrival, forward.waiting], [570, 570, 607, 0]);
+assert.deepEqual(M.timetableRows('Cycle\tA\tB\t30\t\tBike'), [['Cycle', 'A', 'B', '30', '', 'Bike']]);
+assert.equal(M.journeys('Bike,A,B,30,,Bike', 'A', 'B', 0, 0, 20).routes[0].arrival, 30);
+assert.throws(() => M.journeys('Bike,A,B,0,,Bike', 'A', 'B', 0, 0), /duration/);
 console.log('PASS: centred averages, seasonal forecasts, solid capacities, nonlinear fill heights, connections and overnight journeys.');
 const engine=require('../docs/labs/machine-engine.js');
 assert.equal(engine.plan('sin(x)','45','degrees').stages.at(-1).text,'√2/2');

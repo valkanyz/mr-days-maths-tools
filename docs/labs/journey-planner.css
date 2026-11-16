@@ -1,0 +1,36 @@
+.jp-planner { padding: 16px; }
+.jp-planner h3 { margin: 0 auto 0 0; font-size: 1.1rem; }
+.jp-planner p { margin: 8px 0; }
+.jp-tools, .jp-route-bar, .jp-key {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.jp-tools { align-items: center; margin: 18px 0 8px; }
+.jp-route-bar { margin-top: 12px; }
+.jp-route-bar > div { min-width: 0; max-width: 100%; }
+.jp-route-bar select { max-width: 100%; }
+.jp-scroll { overflow: auto; }
+.jp-planner .jp-chart { display: block; min-width: 640px; width: 100%; height: auto; }
+.jp-chart text { font-family: system-ui, sans-serif; font-size: 12px; }
+.jp-key span::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 4px;
+  margin-right: 5px;
+  vertical-align: middle;
+  background: var(--jp-colour);
+}
+.jp-planner table { width: 100%; }
+.jp-source td, .jp-source th { text-align: left; white-space: nowrap; }
+.jp-source button { text-align: left; padding: 4px 8px; }
+.jp-source .jp-active td { background: #eee6f9; }
+.jp-source input { min-width: 112px; }
+.jp-source select { min-width: 90px; }
+.jp-paste { margin-top: 12px; }
+.viz:has(.jp-planner) { height: auto; min-height: 160px; }
+.jp-planner #jpProgress { width: min(100%, 340px); display: block; }
+.ux-present .viz:has(.jp-planner) { height: auto; }
+.jp-chart [hidden] { display: none; }
