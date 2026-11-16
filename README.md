@@ -47,7 +47,7 @@ Single-variable displays include dot plots, histograms and box plots, alongside 
 - **Time Series:** centred moving averages, seasonal indices, deseasonalisation and model forecasts.
 - **Circle Theorems:** draggable points and revealable angle relationships.
 - **Volume & Capacity:** compare containers, fill and pour, convert cubic centimetres/millilitres/litres and account for spills.
-- **Timetable & Journey Planner:** editable services, connections, transfer allowances and journey timelines.
+- **Mandurah Line Timetable:** explore scheduled stops, departures, arrivals and travel times in both directions, or work backwards from an arrival deadline.
 - Other improvements include composite area/perimeter construction, rotatable nets, linked conditional-probability views, finance comparisons and guided network decisions.
 
 ## Activity catalogue
@@ -88,7 +88,7 @@ The following list follows the current homepage. Shared labs use `docs/labs/inde
 - [Time & Time Zones](docs/labs/#timezones)
 - [Circle Theorems Lab](docs/labs/#circles)
 - [Volume & Capacity Lab](docs/labs/#capacity)
-- [Timetable & Journey Planner](docs/labs/#journeys)
+- [Mandurah Line Timetable](docs/labs/#journeys)
 - [Geometry Diagram Maker](docs/geometry-maker/)
 
 ### Probability

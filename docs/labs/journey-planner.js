@@ -1,356 +1,268 @@
 (() => {
 'use strict';
 
-const {clock, time, timetableRows, journeys} = ClassroomModels;
-const practice = `Walk to bus stop,Rockingham Library,Library bus stop,6,,Walk
-Bus 24,Library bus stop,Arts Centre stop,09:34,10:05,Bus
-Bus 24,Library bus stop,Arts Centre stop,09:49,10:22,Bus
-Bus 24,Library bus stop,Arts Centre stop,10:04,10:37,Bus
-Walk to rehearsal,Arts Centre stop,Arts Centre,9,,Walk
-Walk to station,Rockingham Library,Rockingham Station,14,,Walk
-Train,Rockingham Station,Event Station,09:46,10:00,Train
-Train,Rockingham Station,Event Station,10:01,10:15,Train
-Train,Rockingham Station,Event Station,10:16,10:30,Train
-Walk to rehearsal,Event Station,Arts Centre,8,,Walk
-Cycle to rehearsal,Rockingham Library,Arts Centre,37,,Bike`;
-const connections = `Bus 1,Lakelands,Station,08:05,08:17,Bus
-Bus 2,Lakelands,Station,08:20,08:32,Bus
-Train 1,Station,City,08:22,09:12,Train
-Train 2,Station,City,08:37,09:27,Train
-Shuttle 1,City,Museum,09:20,09:35,Shuttle
-Shuttle 2,City,Museum,09:35,09:50,Shuttle
-Express,Lakelands,Museum,08:15,09:45,Bus`;
-
-const colours = {Walk:'#267351', Bike:'#8450a8', Bus:'#245da5', Train:'#227786', Shuttle:'#834989', Ferry:'#33618d', Tram:'#5f6933', transfer:'#987020', event:'#ad541d'};
-const colour = mode => Object.hasOwn(colours, mode) ? colours[mode] : '#425275';
-const minuteText = diff => diff === 0 ? 'Exactly on time' : `${Math.abs(diff)} min ${diff > 0 ? 'late' : 'early'}`;
-const describe = route => route.legs.filter(leg => leg.mode !== 'Walk').map(leg =>
- leg.flexible ? leg.mode : `${leg.service} ${time(leg.dep)}`
-).join(' + ') || 'Walk';
-
-function parts(route) {
- const list = [];
- let at = route.start;
- for (const leg of route.legs) {
-  if (leg.dep > at) list.push({mode:'transfer', label:at === route.start ? 'Initial wait' : 'Transfer wait', dep:at, arr:leg.dep});
-  list.push({...leg, label:`${leg.service} · ${leg.from} to ${leg.to}`});
-  at = leg.arr;
- }
- if (route.eventWait) list.push({mode:'event', label:'Wait at destination', dep:at, arr:at + route.eventWait});
- return list;
-}
-
-function timeline(routes, deadline, selected, byDeadline) {
- const low = Math.min(deadline, ...routes.map(route => route.start));
- const high = Math.max(deadline, ...routes.map(route => route.arrival), low + 1);
- const tickStep = [1, 2, 5, 10, 15, 30, 60, 120, 240, 480].find(step => (high - low) / step <= 8) || 720;
- const min = Math.floor(low / tickStep) * tickStep;
- const max = Math.ceil(high / tickStep) * tickStep;
- const width = 840, left = 184, right = 806;
- const x = t => left + (t - min) * (right - left) / (max - min);
- const bottom = 64 + routes.length * 49;
- let diagram = '';
- for (let t = min; t <= max; t += tickStep) {
-  diagram += `<path d="M${x(t)} 42V${bottom}" stroke="#dfd9e9"/><text x="${x(t)}" y="31" text-anchor="middle">${esc(time(t))}</text>`;
- }
- diagram += `<path d="M${x(deadline)} 49V${bottom}" stroke="#ad541d" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="${x(deadline)}" y="12" text-anchor="${deadline === max ? 'end' : 'middle'}" fill="#803b16">${byDeadline ? 'Event' : 'Deadline'} ${esc(time(deadline))}</text>`;
- routes.forEach((route, index) => {
-  const y = 66 + index * 49;
-  const name = route.modes.length > 20 ? route.modes.slice(0, 19) + '…' : route.modes;
-  diagram += `<text x="10" y="${y + 3}" font-weight="${route === selected ? 750 : 550}">${esc(name)}</text>
-   <text x="10" y="${y + 19}" fill="#60566e">${esc(time(route.departure))} → ${esc(time(route.arrival))} · ${route.duration} min</text>`;
-  for (const part of parts(route)) {
-   const label = `${part.label} · ${time(part.dep)}–${time(part.arr)} · ${part.arr - part.dep} min`;
-   diagram += `<path d="M${x(part.dep)} ${y}H${x(part.arr)}" stroke="${colour(part.mode)}" stroke-width="13"
-    ${part.mode === 'transfer' ? 'stroke-dasharray="4 3"' : part.mode === 'event' ? 'stroke-dasharray="2 3"' : ''}><title>${esc(label)}</title></path>`;
-  }
-  diagram += `<circle cx="${x(route.arrival)}" cy="${y}" r="4" fill="#fff" stroke="#342049" stroke-width="2"/>`;
- });
- diagram += `<path id="jpCursor" d="M${x(selected.start)} 43V${bottom}" stroke="#342049" stroke-width="2" hidden/>`;
- return {
-  html:`<div class="jp-scroll"><svg class="jp-chart" viewBox="0 0 ${width} ${bottom + 10}" role="img" aria-label="Journey comparison on a shared time scale">${diagram}</svg></div>`,
-  x, bottom
- };
-}
-
-const headers = ['Service', 'From', 'To', 'Departure / duration', 'Arrival', 'Mode'];
-const transport = ['Bus', 'Train', 'Bike', 'Walk', 'Service', 'Shuttle', 'Ferry', 'Tram'];
-function sourceTable(rows, editing, active) {
- return `<div class="jp-scroll"><table class="jp-source"><thead><tr>${headers.map(label => `<th scope="col">${label}</th>`).join('')}${editing ? '<th scope="col">Remove</th>' : ''}</tr></thead>
-  <tbody>${rows.map(([name, from, to, start, end, mode = 'Service'], index) => {
-   const flexible = mode === 'Walk' || mode === 'Bike';
-   const cells = [name, from, to, start, end, mode];
-   const choices = transport.includes(mode) ? transport : [...transport, mode];
-   return `<tr${active === index ? ' class="jp-active"' : ''}>${cells.map((cell = '', column) => {
-    if (editing) {
-     const label = esc(`${headers[column]}, row ${index + 1}`);
-     if (column === 5) return `<td><select aria-label="${label}" data-jp-cell="${index},${column}">${choices.map(choice =>
-      `<option${choice === mode ? ' selected' : ''}>${esc(choice)}</option>`).join('')}</select></td>`;
-     return `<td><input aria-label="${label}" data-jp-cell="${index},${column}" value="${esc(cell)}" ${flexible && column === 4 ? 'disabled' : ''}></td>`;
-    }
-    if (column === 0) return `<td><button type="button" data-jp-trip="${index}" aria-pressed="${active === index}" aria-label="${esc(`Trace ${name}, ${flexible ? start + ' minutes' : start}`)}">${esc(name)}</button></td>`;
-    if (column === 3 && flexible) return `<td>${esc(start)} min</td>`;
-    return `<td>${flexible && column === 4 ? '—' : esc(cell)}</td>`;
-   }).join('')}${editing ? `<td><button type="button" data-jp-remove="${index}" aria-label="Remove row ${index + 1}">Remove</button></td>` : ''}</tr>`;
-  }).join('')}</tbody></table></div>`;
-}
+const {stations, findJourneys, trip, formatTime} = MandurahLine;
+const days = [
+ ['weekday', 'Monday–Thursday'],
+ ['friday', 'Friday'],
+ ['saturday', 'Saturday'],
+ ['sunday', 'Sunday and public holidays']
+];
+const shortNames = ['Perth Underground', 'Elizabeth Quay', 'Canning Bridge', 'Bull Creek', 'Murdoch',
+ 'Cockburn Central', 'Aubin Grove', 'Kwinana', 'Wellard', 'Rockingham', 'Warnbro', 'Lakelands', 'Mandurah'];
 
 labs.journeys = {
- title:'Timetable & Journey Planner',
- tag:'YEARS 7–11 · ESSENTIAL',
- subtitle:'Read timetables and compare journeys',
+ title:'Mandurah Line Timetable',
+ tag:'TIMETABLES & ELAPSED TIME',
+ subtitle:'Plan a train journey',
  setup() {
-  const field = (id, label) => `<div><label for="${id}">${label}</label><input id="${id}" autocomplete="off"></div>`;
-  controls(select('jpPreset','Timetable',[['practice','Get to rehearsal'],['connections','Lakelands to the museum']]) +
-   select('jpMode','Planning mode',[['arrive','Arrive by'],['depart','Depart after']]) +
-   field('jpFrom','Start') + field('jpTo','Destination') +
-   field('jpReady','Ready to leave (HH:MM)') + field('jpDeadline','Arrive by (HH:MM)') +
-   input('jpTransfer','Minimum time between services (min)',0,0,120,1) +
-   '<div style="display:none"><input type="hidden" id="jpData"></div>');
-  let rows, selectedTrip, selectedKey, editing, pasteOpen, pasteValue, pasteError, diagram, animation = 0;
-  let preset, modelKey, model;
+  const stationOptions = stations.map((name, index) => [String(index), name]);
+  controls(
+   select('mlDay', 'Service day', days) +
+   select('mlFrom', 'Origin', stationOptions) +
+   select('mlTo', 'Destination', stationOptions) +
+   '<button type="button" id="mlSwap" class="wide">Swap origin and destination</button>' +
+   select('mlMode', 'Plan by', [['depart', 'Depart after'], ['arrive', 'Arrive by']]) +
+   '<div><label for="mlTime">Departure time</label><input id="mlTime" type="time" value="08:00" step="60"></div>' +
+   check('mlOvernight', 'Time is after midnight on the following day') +
+   select('mlClock', 'Display times as', [['24', '24-hour time'], ['12', 'am/pm']]) +
+   check('mlDirect', 'Only show trains serving both stations')
+  );
+  $('mlFrom').value = '11';
+  $('mlTo').value = '0';
+
   const viz = $('viz');
-  const renderTimetable = () => {
-   $('jpSource').innerHTML = sourceTable(rows, editing, selectedTrip);
-   $('jpSource').querySelectorAll('[data-jp-trip]').forEach(button => {
-    button.onclick = () => {
-     selectedTrip = Number(button.dataset.jpTrip);
-     selectedKey = null;
-     run();
-     $('jpSource').querySelector(`[data-jp-trip="${selectedTrip}"]`)?.focus({preventScroll:true});
-    };
-   });
-   $('jpSource').querySelectorAll('[data-jp-cell]').forEach(cell => {
-    cell.oninput = () => {
-     const [row, column] = cell.dataset.jpCell.split(',').map(Number);
-     rows[row][column] = cell.value.trim();
-     if (column === 5) {
-      const arrival = $('jpSource').querySelector(`[data-jp-cell="${row},4"]`);
-      arrival.disabled = cell.value === 'Walk' || cell.value === 'Bike';
-     }
-    };
-   });
-   $('jpSource').querySelectorAll('[data-jp-remove]').forEach(button => {
-    button.onclick = () => {
-     rows.splice(Number(button.dataset.jpRemove), 1);
-     renderTimetable();
-    };
-   });
+  let state, keys, selected, hover, hoveredCell;
+  $('mlSwap').onclick = () => {
+   const from = $('mlFrom').value;
+   $('mlFrom').value = $('mlTo').value;
+   $('mlTo').value = from;
+   run();
   };
 
-  function loadPreset() {
-   preset = $('jpPreset').value;
-   const example = preset === 'practice';
-   rows = timetableRows(example ? practice : connections);
-   $('jpData').value = JSON.stringify(rows);
-   $('jpMode').value = example ? 'arrive' : 'depart';
-   $('jpFrom').value = example ? 'Rockingham Library' : 'Lakelands';
-   $('jpTo').value = example ? 'Arts Centre' : 'Museum';
-   $('jpReady').value = example ? '09:00' : '08:00';
-   $('jpDeadline').value = example ? '10:30' : '09:40';
-   $('jpTransfer').value = example ? '0' : '5';
-   selectedTrip = selectedKey = modelKey = null;
-   editing = pasteOpen = false;
-   pasteValue = pasteError = '';
+  function time(minutes) {
+   return formatTime(minutes, state.twelveHour);
   }
 
-  function readPlan() {
-   const byDeadline = $('jpMode').value === 'arrive';
-   const ready = byDeadline ? 0 : clock($('jpReady').value);
-   const deadline = clock($('jpDeadline').value);
-   const from = $('jpFrom').value.trim(), to = $('jpTo').value.trim();
-   const transfer = value('jpTransfer');
-   const nextKey = JSON.stringify([rows, from, to, ready, transfer, byDeadline, deadline]);
-   if (nextKey !== modelKey) {
-    model = journeys(rows, from, to, ready, transfer, byDeadline ? deadline : null);
-    modelKey = nextKey;
-   }
-   return {byDeadline, deadline, routes:model.routes};
+  function showTime(minutes) {
+   return esc(time(minutes)) + (minutes >= 1440 ? '<sup aria-label="next day">+1</sup>' : '');
   }
 
-  function renderPlan({routes, byDeadline, deadline}) {
-   const shown = $('reveal').checked;
-   const trace = selectedTrip === null ? routes : routes.filter(route => route.legs.some(leg => leg.id === selectedTrip));
-   const selected = trace.find(route => route.key === selectedKey) || trace[0];
-   const stage = $('jpPlan');
-   if (!shown) {
-    stage.innerHTML = `<p>Choose a service in the timetable. Work out whether it can get you there by ${esc(time(deadline))}, then reveal the results to check.</p>`;
-    return;
+  function bounds(row) {
+   return row.startsAt === 0 || row.startsAt === stations.length - 1
+    ? `To ${stations[row.terminatesAt]}`
+    : `${stations[row.startsAt]} to ${stations[row.terminatesAt]}`;
+  }
+
+  function readoutMarkup() {
+   const {from, to, rows, recommended, target, arriveBy, shown, journeys} = state;
+   const row = rows[hover?.index ?? selected];
+   const origin = arriveBy ? hover?.station ?? from : from;
+   const destination = arriveBy ? to : hover?.station ?? to;
+   const title = `${stations[origin]} → ${stations[destination]}`;
+   const recommendation = arriveBy ? 'Latest train that arrives by' : 'First train at or after';
+   if (!shown) return `<p>Use the timetable to find a train from <strong>${stations[from]}</strong> to <strong>${stations[to]}</strong> ${arriveBy ? 'arriving by' : 'departing at or after'} <strong>${showTime(target)}</strong>.</p>`;
+   if (!row) {
+    const message = journeys.length
+     ? (arriveBy ? 'No train arrives by this time.' : 'No more trains depart after this time.')
+     : 'No direct train serves both stations.';
+    return `<p><strong>${message}</strong> Choose a row in the timetable or change the time.</p>`;
    }
-   if (!routes.length) {
-    stage.textContent = 'No connected journeys. Check the stops, times and transfer allowance.';
-    return;
+
+   const details = trip(row, origin, destination);
+   if (!details) {
+    let message = 'This station is in the opposite direction from the selected journey.';
+    if (origin === destination) message = 'Choose a different station to compare with this stop.';
+    else if (row.times[origin] === null || row.times[destination] === null) message = 'This train does not serve both stations.';
+    return `<div class="ml-readout-title"><strong>${esc(title)}</strong></div><p>${message}</p>`;
    }
-   const best = new Map();
-   for (const route of routes) {
-    if (!best.has(route.modes)) best.set(route.modes, route);
-    if (best.size === 5) break;
+   const margin = arriveBy ? target - details.arrival : details.departure - target;
+   const label = arriveBy ? (margin < 0 ? 'Late by' : 'Early by') : (margin < 0 ? 'Departs before' : 'Wait at origin');
+   const isRecommended = !hover && selected === recommended?.index;
+   return `<div class="ml-readout-title"><strong>${esc(title)}</strong>${isRecommended ? `<span>${recommendation} ${showTime(target)}</span>` : ''}</div>
+    <dl class="ml-times">
+      <div><dt>Board at ${stations[origin]}</dt><dd>${showTime(details.departure)}</dd></div>
+      <div><dt>Arrive at ${stations[destination]}</dt><dd>${showTime(details.arrival)}</dd></div>
+      <div><dt>Time on train</dt><dd>${details.duration} min</dd></div>
+      <div><dt>${label}</dt><dd${margin < 0 ? ' class="ml-late"' : ''}>${Math.abs(margin)} min</dd></div>
+    </dl>`;
+  }
+
+  function updateReadout() {
+   $('mlReadout').innerHTML = readoutMarkup();
+   $('mlStage').querySelectorAll('.ml-preview-row, .ml-preview-stop').forEach(node => {
+    node.classList.remove('ml-preview-row', 'ml-preview-stop');
+   });
+   if (hover) {
+    $('mlStage').querySelector(`tr[data-ml-row="${hover.index}"]`)?.classList.add('ml-preview-row');
+    $('mlStage').querySelector(`[data-ml-stop="${hover.station}"]`)?.classList.add('ml-preview-stop');
+    $('mlGrid').querySelector(`[data-ml-column="${hover.station}"]`)?.classList.add('ml-preview-stop');
+    const cell = hoveredCell || $('mlGrid').querySelector(`[data-ml-row="${hover.index}"] [data-ml-cell="${hover.station}"]`);
+    if (cell) cell.classList.add('ml-preview-stop');
    }
-   const displayed = selected && ![...best.values()].includes(selected) ? [...best.values(), selected] : [...best.values()];
-   diagram = timeline(displayed, deadline, selected || displayed[0], byDeadline);
-   const routeOptions = trace.map(route => [route.key, `${describe(route)} · ${time(route.departure)}–${time(route.arrival)}`]);
-   const detail = selected ? parts(selected).map(part => [part.label, time(part.dep), time(part.arr), part.arr - part.dep]) : [];
-   const modes = [...new Set(displayed.flatMap(route => route.legs.map(leg => leg.mode)))];
-   const key = [...modes.map(mode => [mode, mode]), ['transfer', 'Initial / transfer wait']];
-   if (byDeadline) key.push(['event', 'Wait at destination']);
-   stage.innerHTML = diagram.html + `<p class="jp-key">
-    ${key.map(([mode, label]) => `<span style="--jp-colour:${colour(mode)}">${esc(label)}</span>`).join('')}</p>
-    ${selectedTrip === null ? '' : '<button type="button" id="jpClearTrip">Show all journeys</button>'}
-    ${selected ? `<div class="jp-route-bar">${select('jpRoute','Journey to inspect',routeOptions.map(([key,label]) => [esc(key),esc(label)]))}
-      <button type="button" id="jpPlay">Play journey</button><output id="jpClock"></output></div>
-      <label for="jpProgress">Journey progress</label><input type="range" id="jpProgress" min="0" max="100" value="0">
-      <p><strong>${selected.duration} min</strong> · ${esc(minuteText(selected.arrival - deadline))}${byDeadline && selected.eventWait ? ` · ${selected.eventWait} min at destination` : ''}</p>
-      <div class="jp-scroll"><table><thead><tr><th scope="col">Leg</th><th scope="col">Start</th><th scope="col">Finish</th><th scope="col">Minutes</th></tr></thead>
-      <tbody>${detail.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
-     : '<p>This service does not connect the selected start and destination under the current settings.</p>'}`;
-   if ($('jpClearTrip')) $('jpClearTrip').onclick = () => {
-    selectedTrip = selectedKey = null;
-    run();
-    $('jpRoute')?.focus();
-   };
-   if (selected) {
-    $('jpRoute').value = selected.key;
-    $('jpRoute').onchange = event => {
-     selectedKey = event.target.value;
-     run();
-     $('jpRoute').focus();
+  }
+
+  function stopMarkup(index) {
+   const anchor = state.arriveBy ? state.to : state.from;
+   const isAnchor = index === anchor;
+   const endpoint = state.arriveBy ? state.from : state.to;
+   return `<button type="button" data-ml-stop="${index}"${isAnchor ? ' data-ml-anchor="true"' : ''} aria-pressed="${index === endpoint}"
+     aria-label="${stations[index]}${isAnchor ? (state.arriveBy ? ', fixed destination' : ', fixed origin') : ''}">
+     <span aria-hidden="true"></span>${stations[index]}</button>`;
+  }
+
+  function choose(index, focus = false) {
+   selected = index;
+   hover = hoveredCell = null;
+   run();
+   centerService(index, focus);
+  }
+
+  function centerService(index, focus = false) {
+   const pane = $('mlGrid');
+   const row = pane?.querySelector(`tr[data-ml-row="${index}"]`);
+   if (!row) return;
+   pane.scrollTop = row.offsetTop - Math.max(0, (pane.clientHeight - row.offsetHeight) / 2);
+   if (focus) row.querySelector('button').focus({preventScroll:true});
+  }
+
+  function render() {
+   const {from,to,rows,shown,arriveBy,journeys,day} = state;
+   const order = Array.from(stations.keys());
+   if (from > to) order.reverse();
+   const direct = new Set(journeys.map(row => row.index));
+   const onlyDirect = $('mlDirect').checked;
+   const currentOption = journeys.findIndex(row => row.index === selected);
+   const reference = arriveBy ? 'arrival' : 'departure';
+   const earlier = currentOption === -1 ? journeys.findLastIndex(row => row[reference] <= state.target) : currentOption - 1;
+   const later = currentOption === -1 ? journeys.findIndex(row => row[reference] >= state.target) : currentOption + 1;
+   const tableRows = rows.map((row, index) => {
+    if (onlyDirect && !direct.has(index)) return '';
+    const active = shown && selected === index;
+    return `<tr data-ml-row="${index}"${active ? ' class="ml-active-row"' : ''}>
+     <th scope="row"><button type="button" data-ml-service="${index}" aria-label="${esc(`${bounds(row)}, ${time(row.times[row.startsAt])}${row.times[row.startsAt] >= 1440 ? ' next day' : ''}`)}"${shown ? ` aria-pressed="${active}"` : ''}>${showTime(row.times[row.startsAt])}
+       <small>${row.startsAt !== 0 && row.startsAt !== stations.length - 1 ? 'From ' + stations[row.startsAt] : 'To ' + stations[row.terminatesAt]}${row.fridayOnly ? ' · Fri night' : ''}</small></button></th>
+     ${order.map(station => `<td data-ml-cell="${station}" data-ml-route="${station === from ? 'origin' : station === to ? 'destination' : ''}">${showTime(row.times[station])}</td>`).join('')}
+    </tr>`;
+   }).join('');
+   viz.innerHTML = `<section id="mlStage">
+    <div id="mlReadout" class="ml-readout" aria-live="polite">${readoutMarkup()}</div>
+    <p class="ml-instruction">${arriveBy ? 'Hover over a station to see when to board for your destination. Select it to change your origin.'
+      : 'Hover over a station to check its arrival time on the selected train. Select it to change your destination.'}</p>
+    <div id="mlStops" class="ml-stops" aria-label="Station explorer">${order.map(stopMarkup).join('')}</div>
+    <div class="ml-toolbar">
+     <h3>${from < to ? 'To Mandurah' : 'To Perth'} <small>${days.find(([id]) => id === day)[1]}</small></h3>
+     <div class="ml-buttons">
+      <button type="button" id="mlFirst"${journeys.length ? '' : ' disabled'}>First</button>
+      <button type="button" id="mlEarlier"${earlier >= 0 ? '' : ' disabled'}>Earlier</button>
+      <button type="button" id="mlLater"${later >= 0 && later < journeys.length ? '' : ' disabled'}>Later</button>
+      <button type="button" id="mlLast"${journeys.length ? '' : ' disabled'}>Last</button>
+     </div>
+    </div>
+    <p id="mlGridHelp" class="ml-instruction">Each row is one train. Hover over a time to trace the row and station. Click a row to keep that train selected.</p>
+    <div id="mlGrid" class="ml-grid" tabindex="0" aria-label="Train times" aria-describedby="mlGridHelp">
+     <table><thead><tr><th scope="col">Service</th>${order.map(index =>
+      `<th scope="col" data-ml-column="${index}" data-ml-route="${index === from ? 'origin' : index === to ? 'destination' : ''}" aria-label="${stations[index]}">${shortNames[index]}</th>`).join('')}</tr></thead>
+      <tbody>${tableRows}</tbody></table>
+    </div>
+    <p class="ml-instruction">— Train does not stop here. <strong>+1</strong> Time is on the following day.</p>
+   </section>`;
+   const stops = $('mlStops'), grid = $('mlGrid');
+
+   function preview(station, index, cell = null) {
+    hover = {index, station};
+    hoveredCell = cell;
+    updateReadout();
+   }
+
+   function clearPreview() {
+    hover = hoveredCell = null;
+    updateReadout();
+   }
+
+   stops.querySelectorAll('button').forEach(button => {
+    const index = Number(button.dataset.mlStop);
+    const explore = () => {
+     if (selected !== null && button.dataset.mlAnchor !== 'true') preview(index, selected);
     };
-    const cursor = $('jpCursor'), output = $('jpClock'), button = $('jpPlay'), progress = $('jpProgress');
-    const duration = selected.arrival + selected.eventWait - selected.start;
-    const moveCursor = fraction => {
-     const instant = selected.start + duration * fraction;
-     cursor.removeAttribute('hidden');
-     cursor.setAttribute('d', `M${diagram.x(instant)} 43V${diagram.bottom}`);
-     output.textContent = time(Math.round(instant));
-    };
-    const stop = () => {
-     cancelAnimationFrame(animation);
-     animation = 0;
-     button.textContent = +progress.value === 100 ? 'Replay journey' : 'Play journey';
-    };
-    progress.oninput = () => {
-     stop();
-     moveCursor(+progress.value / 100);
-    };
+    button.onpointerenter = button.onfocus = explore;
+    button.onpointerleave = button.onblur = clearPreview;
     button.onclick = () => {
-     if (animation) {
-      stop();
-      return;
-     }
-     if (+progress.value === 100) progress.value = 0;
-     const initial = +progress.value / 100;
-     let start;
-     button.textContent = 'Pause journey';
-     const tick = timestamp => {
-      if (current !== 'journeys' || !cursor.isConnected) { animation = 0; return; }
-      start ??= timestamp;
-      const fraction = Math.min(1, initial + (timestamp - start) / 6000);
-      progress.value = Math.round(100 * fraction);
-      moveCursor(fraction);
-      if (fraction < 1) animation = requestAnimationFrame(tick);
-      else stop();
-     };
-     animation = requestAnimationFrame(tick);
+     if (button.dataset.mlAnchor === 'true') return;
+     $(arriveBy ? 'mlFrom' : 'mlTo').value = String(index);
+     run();
+     $('mlStops').querySelector(`[data-ml-stop="${index}"]`).focus({preventScroll:true});
     };
-   }
-   const onTime = routes.filter(route => route.arrival <= deadline).length;
-   results([['On time', onTime], ['Late', routes.length - onTime]]);
-   table(['Mode', 'Services', 'Leave', 'Arrive', 'Travel (min)', 'Waiting before arrival (min)', 'Waiting at destination (min)', 'Elapsed (min)', 'Deadline'],
-    routes.map(route => [route.modes, describe(route), time(route.departure), time(route.arrival), route.travel, route.waiting, route.eventWait,
-     route.duration, minuteText(route.arrival - deadline)]));
-  }
-
-  loadPreset();
-  $('controls').restoreState = items => {
-   if (items) {
-    const saved = new Map(items);
-    $('jpPreset').value = saved.get('jpPreset') || 'connections';
-    if ($('jpPreset').value) loadPreset();
-    return;
-   }
-   const data = $('jpData').value;
-   if (data.startsWith('[[') || data === '[]') {
-    try {
-     const saved = JSON.parse(data);
-     if (Array.isArray(saved) && saved.every(row => Array.isArray(row) && row.every(cell => typeof cell === 'string'))) {
-      rows = saved;
-     }
-    } catch {
-     // Keep the preset when a saved timetable cannot be parsed.
+   });
+   grid.onpointerover = event => {
+    const row = event.target.closest('[data-ml-row]');
+    if (!row) {
+     if (hover) clearPreview();
+     return;
     }
-   } else if (data) rows = timetableRows(data);
-   $('jpData').value = JSON.stringify(rows);
-  };
+    const index = Number(row.dataset.mlRow);
+    const cell = event.target.closest('[data-ml-cell]');
+    const station = cell ? Number(cell.dataset.mlCell) : (arriveBy ? from : to);
+    preview(station, index, cell);
+   };
+   grid.onpointerleave = clearPreview;
+   grid.onclick = event => {
+    const row = event.target.closest('[data-ml-row]');
+    if (row) choose(Number(row.dataset.mlRow), Boolean(event.target.closest('button')) && event.detail === 0);
+   };
+   const step = (id, option) => {
+    $(id).onclick = () => {
+     choose(journeys[option].index);
+     const button = $(id);
+     if (button.disabled) $('mlGrid').focus({preventScroll:true});
+     else button.focus({preventScroll:true});
+    };
+   };
+   step('mlFirst', 0);
+   step('mlEarlier', earlier);
+   step('mlLater', later);
+   step('mlLast', journeys.length - 1);
+  }
+
   update = () => {
-   if ($('jpPreset').value !== preset) loadPreset();
-   cancelAnimationFrame(animation);
-   animation = 0;
-   showControl('jpReady', $('jpMode').value === 'depart');
-   formula(preset === 'practice' ? 'Plan a trip from Rockingham Library to an Arts Centre rehearsal.' : 'Connect the services from Lakelands to the museum.');
+   const from = value('mlFrom'), to = value('mlTo');
+   const clockValue = $('mlTime').value;
+   const arriveBy = $('mlMode').value === 'arrive';
+   const day = $('mlDay').value;
+   const shown = $('reveal').checked;
+   $('mlTime').labels[0].textContent = arriveBy ? 'Arrival deadline' : 'Earliest departure';
+   formula('');
    legend([]);
    results([]);
-   note('Fictional teaching timetable. Use 24:00 onward for times on the following day. In Arrive by mode, elapsed time includes any wait at the destination before the event.');
-   viz.innerHTML = `<section class="jp-planner">
-    <div id="jpPlan"></div>
-    <div class="jp-tools"><h3>Timetable</h3><button type="button" id="jpEdit" aria-pressed="${editing}">${editing ? 'Apply edits' : 'Edit timetable'}</button>
-    <button type="button" id="jpPaste" aria-expanded="${pasteOpen}">Paste rows</button></div>
-    <div id="jpSource"></div>
-    ${editing ? '<p>For a Walk or Bike row, enter minutes in the departure column and leave arrival blank.</p><button type="button" id="jpAdd">Add row</button>' : ''}
-    ${pasteOpen ? `<div class="jp-paste"><label for="jpPasteData">Service, from, to, departure, arrival, mode</label>
-    <textarea id="jpPasteData" rows="5">${esc(pasteValue)}</textarea><p>Paste tab-separated or comma-separated rows with no header. For Walk and Bike, put minutes in the departure column and leave arrival blank.</p>
-    <button type="button" id="jpApplyPaste">Replace timetable</button><p role="alert">${esc(pasteError)}</p></div>` : ''}</section>`;
-   renderTimetable();
-   $('jpEdit').onclick = () => {
-    editing = !editing;
-    if (!editing) $('jpData').value = JSON.stringify(rows);
-    selectedTrip = selectedKey = null;
-    run();
-    $('jpEdit').focus();
-   };
-   $('jpPaste').onclick = () => {
-    pasteOpen = !pasteOpen;
-    run();
-    $(pasteOpen ? 'jpPasteData' : 'jpPaste').focus();
-   };
-   if (editing) $('jpAdd').onclick = () => {
-    if (rows.length >= 100) return;
-    rows.push(['', '', '', '', '', 'Bus']);
-    renderTimetable();
-    $('jpSource').querySelector(`[data-jp-cell="${rows.length - 1},0"]`).focus();
-   };
-   if (pasteOpen) {
-    $('jpPasteData').oninput = event => { pasteValue = event.target.value; };
-    $('jpApplyPaste').onclick = () => {
-     const replacement = timetableRows(pasteValue);
-     try {
-      if (!replacement.length) throw Error('Paste at least one timetable row.');
-      journeys(replacement, $('jpFrom').value.trim(), $('jpTo').value.trim(), 0, 0);
-     } catch (error) {
-      pasteError = error.message;
-      run();
-      $('jpPasteData').focus();
-      return;
-     }
-     rows = replacement;
-     $('jpData').value = JSON.stringify(rows);
-     selectedTrip = selectedKey = null;
-     pasteOpen = editing = false;
-     pasteValue = pasteError = '';
-     run();
-     $('jpPaste').focus();
-    };
+   note('Source: Transperth Train Timetable 2, Mandurah Line, effective 30 November 2025. Published schedule for classroom use. For current trips, use Transperth. Christmas Day services may differ.');
+   if (from === to) throw Error('Choose different origin and destination stations.');
+   if (!clockValue) throw Error('Enter a time to find a train.');
+   const target = ClassroomModels.clock(clockValue) + ($('mlOvernight').checked ? 1440 : 0);
+   const nextKeys = [from,to,day,target,arriveBy,shown].join(',');
+   const changed = keys !== nextKeys;
+   if (changed) {
+    selected = null;
+    keys = nextKeys;
    }
-   if (editing) {
-    $('jpPlan').textContent = 'Apply the timetable edits to update the journeys.';
-    return;
+   const timetable = findJourneys(day, from, to, target, arriveBy);
+   state = {from,to,day,target,arriveBy,shown,twelveHour:$('mlClock').value === '12',...timetable};
+   if (shown && (changed || ($('mlDirect').checked && !state.journeys.some(row => row.index === selected)))) {
+    selected = state.recommended?.index ?? null;
    }
-   try {
-    renderPlan(readPlan());
-   } catch (error) {
-    $('jpPlan').textContent = error.message;
-   }
+   hover = hoveredCell = null;
+   const oldTop = $('mlGrid')?.scrollTop ?? 0;
+   const oldLeft = $('mlGrid')?.scrollLeft ?? 0;
+   render();
+   $('mlGrid').scrollLeft = oldLeft;
+   if (changed && shown && selected !== null) centerService(selected);
+   else $('mlGrid').scrollTop = oldTop;
+   table(['Origin','Destination','Departure','Arrival','Time on train (min)'], state.journeys.map(row =>
+    [stations[from], stations[to], showTimeText(row.departure), showTimeText(row.arrival), row.duration]));
   };
+
+  function showTimeText(minutes) {
+   return time(minutes) + (minutes >= 1440 ? ' (+1 day)' : '');
+  }
  }
 };
 })();
